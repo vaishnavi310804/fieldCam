@@ -1,15 +1,41 @@
-import React from 'react'
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from '../pages/auth/Login';
+import Login from "../pages/auth/Login";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import SuperAdminDashboard from "../pages/super-admin/Dashboard";
+import AdminDashboard from "../pages/admin/Dashboard";
+import AdminProjects from "../pages/admin/Projects";
+import AdminVendors from "../pages/admin/Vendors";
+import VendorDashboard from "../pages/vendor/Dashboard";
+import ProtectedRoute from "./ProtectedRoute";
 
 const AppRoutes = () => {
   return (
-    <div>
-      <Routes>
-        <Route path="/" element={<Login />} />
-      </Routes>
-    </div>
-  )
-}
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
-export default AppRoutes
+      {/* Super Admin Protected Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]} />}>
+        <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+      </Route>
+
+      {/* Admin Protected Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/projects" element={<AdminProjects />} />
+        <Route path="/admin/vendors" element={<AdminVendors />} />
+      </Route>
+
+      {/* Vendor Protected Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["VENDOR"]} />}>
+        <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+      </Route>
+
+      {/* Catch-all fallback */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+};
+
+export default AppRoutes;

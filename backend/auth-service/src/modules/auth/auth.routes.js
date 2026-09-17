@@ -4,7 +4,8 @@ import {
   createUserByAdminController,
   verifyRegistrationOTPController,
   completeProfileController,
-  loginController,
+  webLoginController,
+  mobileLoginController,
   forgotPasswordController,
   verifyResetOTPController,
   resetPasswordController,
@@ -14,7 +15,8 @@ import {
   createUserByAdminValidation,
   verifyRegistrationOtpValidation,
   completeProfileValidation,
-  loginValidation,
+  webLoginValidation,
+  mobileLoginValidation,
   forgotPasswordValidation,
   verifyResetOTPValidation,
   resetPasswordValidation,
@@ -46,10 +48,17 @@ router.post(
 );
 
 router.post(
-  "/login",
-  loginValidation,
+  "/web/login",
+  webLoginValidation,
   validate,
-  loginController
+  webLoginController
+);
+
+router.post(
+  "/mobile/login",
+  mobileLoginValidation,
+  validate,
+  mobileLoginController
 );
 
 router.post(

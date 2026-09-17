@@ -121,7 +121,40 @@ export const completeProfile = async (data) => {
   };
 };
 
-export const loginUser = async (credentials) => {
+export const webLoginUser = async (credentials) => {
+  const { email, password } = credentials;
+
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
+  if (!user) {
+    throw new Error("Invalid email or password");
+  }
+
+  if (user.status !== "ACTIVE") {
+    throw new Error("Account is not active. Please contact administrator");
+  }
+
+  const isPasswordValid = await comparePassword(password, user.password);
+  if (!isPasswordValid) {
+    throw new Error("Invalid email or password");
+  }
+
+  const allowedWebRoles = ["SUPER_ADMIN", "ADMIN", "VENDOR"];
+  if (!allowedWebRoles.includes(user.role)) {
+    throw new Error("Access denied. Invalid credentials for web login");
+  }
+
+  const accessToken = generateAccessToken(user);
+
+  const userObject = user.toObject();
+  delete userObject.password;
+
+  return {
+    user: userObject,
+    accessToken,
+  };
+};
+
+export const mobileLoginUser = async (credentials) => {
   const { phone, password } = credentials;
 
   const user = await User.findOne({ phone: phone.trim() }).select("+password");
@@ -136,6 +169,11 @@ export const loginUser = async (credentials) => {
   const isPasswordValid = await comparePassword(password, user.password);
   if (!isPasswordValid) {
     throw new Error("Invalid phone number or password");
+  }
+
+  const allowedMobileRoles = ["VENDOR", "STAFF"];
+  if (!allowedMobileRoles.includes(user.role)) {
+    throw new Error("Access denied. Invalid credentials for mobile login");
   }
 
   const accessToken = generateAccessToken(user);

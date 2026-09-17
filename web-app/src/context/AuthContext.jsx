@@ -1,28 +1,32 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem("fieldcam_user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
   });
 
   const [token, setToken] = useState(() => {
-    return localStorage.getItem("accessToken") || null;
+    return localStorage.getItem("fieldcam_access_token") || null;
   });
 
   const login = (userData, accessToken) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("fieldcam_user", JSON.stringify(userData));
+    localStorage.setItem("fieldcam_access_token", accessToken);
 
     setUser(userData);
     setToken(accessToken);
   };
 
   const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("accessToken");
+    localStorage.removeItem("fieldcam_user");
+    localStorage.removeItem("fieldcam_access_token");
 
     setUser(null);
     setToken(null);
@@ -45,4 +49,5 @@ export function AuthProvider({ children }) {
   );
 }
 
+/* eslint-disable-next-line react-refresh/only-export-components */
 export const useAuth = () => useContext(AuthContext);

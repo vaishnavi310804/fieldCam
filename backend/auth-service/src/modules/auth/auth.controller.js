@@ -2,7 +2,8 @@ import {
   createUserByAdmin,
   verifyRegistrationOTP,
   completeProfile,
-  loginUser,
+  webLoginUser,
+  mobileLoginUser,
   forgotPassword,
   verifyResetOTP,
   resetPassword,
@@ -56,9 +57,25 @@ export const completeProfileController = async (req, res) => {
   }
 };
 
-export const loginController = async (req, res) => {
+export const webLoginController = async (req, res) => {
   try {
-    const result = await loginUser(req.body);
+    const result = await webLoginUser(req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
+};
+
+export const mobileLoginController = async (req, res) => {
+  try {
+    const result = await mobileLoginUser(req.body);
     return res.status(200).json({
       success: true,
       message: "Login successful",

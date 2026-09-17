@@ -36,8 +36,24 @@ export const createUserByAdminValidation = [
 ];
 
 
-// User login
-export const loginValidation = [
+// Web login
+export const webLoginValidation = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please enter a valid email"),
+
+  body("password")
+    .trim()
+    .notEmpty()
+    .withMessage("Password is required"),
+];
+
+
+// Mobile login
+export const mobileLoginValidation = [
   body("phone")
     .trim()
     .notEmpty()
