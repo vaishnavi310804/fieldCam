@@ -4,7 +4,12 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminProjects from "../pages/admin/Projects";
+import CreateProject from "../pages/admin/CreateProject";
 import AdminVendors from "../pages/admin/Vendors";
+import AdminInvoices from "../pages/admin/Invoices";
+import AdminAnalytics from "../pages/admin/Analytics";
+import AdminServices from "../pages/admin/Services";
+import AdminSupport from "../pages/admin/Support";
 import VendorDashboard from "../pages/vendor/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -24,7 +29,12 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/projects" element={<AdminProjects />} />
+        <Route path="/admin/projects/new" element={<CreateProject />} />
         <Route path="/admin/vendors" element={<AdminVendors />} />
+        <Route path="/admin/invoices" element={<AdminInvoices />} />
+        <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        <Route path="/admin/services" element={<AdminServices />} />
+        <Route path="/admin/support" element={<AdminSupport />} />
       </Route>
 
       {/* Vendor Protected Routes */}

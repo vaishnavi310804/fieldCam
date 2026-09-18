@@ -17,10 +17,10 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: FiGrid, path: "/admin/dashboard" },
   { id: "projects", label: "Projects", icon: FiFolder, path: "/admin/projects" },
   { id: "vendors", label: "Vendors", icon: FiUsers, path: "/admin/vendors" },
-  { id: "invoices", label: "Invoices", icon: FiFileText },
-  { id: "analytics", label: "Analytics", icon: FiBarChart2 },
-  { id: "services", label: "Services", icon: FiTool },
-  { id: "support", label: "Support", icon: FiHeadphones },
+  { id: "invoices", label: "Invoices", icon: FiFileText, path: "/admin/invoices" },
+  { id: "analytics", label: "Analytics", icon: FiBarChart2, path: "/admin/analytics" },
+  { id: "services", label: "Services", icon: FiTool, path: "/admin/services" },
+  { id: "support", label: "Support", icon: FiHeadphones, path: "/admin/support" },
 ];
 
 const AdminSidebar = ({
@@ -36,7 +36,15 @@ const AdminSidebar = ({
 
   const setCollapsed = propSetCollapsed || setInternalCollapsed;
 
-  const activeTab = location.pathname.startsWith("/admin/vendors")
+  const activeTab = location.pathname.startsWith("/admin/services")
+    ? "services"
+    : location.pathname.startsWith("/admin/support")
+    ? "support"
+    : location.pathname.startsWith("/admin/analytics")
+    ? "analytics"
+    : location.pathname.startsWith("/admin/invoices")
+    ? "invoices"
+    : location.pathname.startsWith("/admin/vendors")
     ? "vendors"
     : location.pathname.startsWith("/admin/projects")
     ? "projects"
