@@ -1,12 +1,14 @@
 import { FiSearch, FiPlus } from "react-icons/fi";
 
-const filterOptions = ["All", "Active", "Suspended"];
+const filterOptions = ["All", "Active", "Suspended", "Inactive"];
 
 const VendorToolbar = ({
   searchTerm,
   setSearchTerm,
   activeFilter,
   setActiveFilter,
+  readOnly = false,
+  onAddVendor,
 }) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -44,11 +46,16 @@ const VendorToolbar = ({
           })}
         </div>
 
-        {/* Add Vendor Button */}
-        <button className="bg-[#8A817C] hover:bg-[#6E6763] text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors shrink-0">
-          <FiPlus className="text-sm" />
-          <span>Add Vendor</span>
-        </button>
+        {/* Add Vendor Button (Only shown for SUPER_ADMIN & ADMIN) */}
+        {!readOnly && (
+          <button
+            onClick={onAddVendor}
+            className="bg-[#8A817C] hover:bg-[#6E6763] text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors shrink-0"
+          >
+            <FiPlus className="text-sm" />
+            <span>Add Vendor</span>
+          </button>
+        )}
       </div>
     </div>
   );

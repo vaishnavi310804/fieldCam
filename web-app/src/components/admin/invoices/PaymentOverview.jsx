@@ -8,16 +8,6 @@ import {
   Tooltip,
 } from "recharts";
 
-const paymentOverviewData = [
-  { month: "Sep", paid: 12400, pending: 3200 },
-  { month: "Oct", paid: 15800, pending: 4100 },
-  { month: "Nov", paid: 14200, pending: 5800 },
-  { month: "Dec", paid: 18500, pending: 3900 },
-  { month: "Jan", paid: 16900, pending: 6200 },
-  { month: "Feb", paid: 19400, pending: 4800 },
-  { month: "Mar", paid: 11718, pending: 14310 },
-];
-
 const CustomPaymentTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -25,7 +15,7 @@ const CustomPaymentTooltip = ({ active, payload, label }) => {
         <p className="font-bold border-b border-gray-600 pb-1 mb-1">{label}</p>
         {payload.map((entry, index) => (
           <p key={`item-${index}`} style={{ color: entry.color }}>
-            {entry.name}: ${entry.value.toLocaleString()}
+            {entry.name}: ${Number(entry.value).toLocaleString()}
           </p>
         ))}
       </div>
@@ -34,7 +24,14 @@ const CustomPaymentTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const PaymentOverview = () => {
+const PaymentOverview = ({ overviewData = [] }) => {
+  // Transform backend overview records into chart format
+  const chartData = (overviewData || []).map((item) => ({
+    month: item.month || `${item.monthNum}/${item.year}`,
+    paid: item.amount || 0,
+    pending: 0,
+  }));
+
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
       {/* Header & Legend */}
@@ -42,7 +39,7 @@ const PaymentOverview = () => {
         <div>
           <h2 className="text-sm font-bold text-[#3E3734]">Payment Overview</h2>
           <p className="text-xs text-[#817B77] mt-0.5">
-            Monthly paid vs pending invoices
+            Monthly paid invoice overview
           </p>
         </div>
 
@@ -52,55 +49,51 @@ const PaymentOverview = () => {
             <span className="w-2.5 h-2.5 rounded-full bg-[#C87A65]"></span>
             <span className="text-[#6E6763] font-medium">Paid</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#D5C9C2]"></span>
-            <span className="text-[#6E6763] font-medium">Pending</span>
-          </div>
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="w-full h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={paymentOverviewData}
-            margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="#F2EBE5"
-            />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: "#9E9792", fontSize: 11 }}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(val) => `$${val / 1000}k`}
-              tick={{ fill: "#9E9792", fontSize: 10 }}
-            />
-            <Tooltip content={<CustomPaymentTooltip />} />
-            <Bar
-              dataKey="paid"
-              name="Paid"
-              fill="#C87A65"
-              radius={[4, 4, 0, 0]}
-              barSize={14}
-            />
-            <Bar
-              dataKey="pending"
-              name="Pending"
-              fill="#D5C9C2"
-              radius={[4, 4, 0, 0]}
-              barSize={14}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Chart or Empty State */}
+      {chartData.length > 0 ? (
+        <div className="w-full h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#F2EBE5"
+              />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "#9E9792", fontSize: 11 }}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(val) => `$${val}`}
+                tick={{ fill: "#9E9792", fontSize: 10 }}
+              />
+              <Tooltip content={<CustomPaymentTooltip />} />
+              <Bar
+                dataKey="paid"
+                name="Paid"
+                fill="#C87A65"
+                radius={[4, 4, 0, 0]}
+                barSize={14}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="w-full h-[180px] flex flex-col items-center justify-center text-center text-xs text-[#817B77] bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl">
+          <p className="font-semibold text-[#3E3734]">No payment overview data available</p>
+          <p className="mt-1">Completed/paid invoices will automatically generate monthly charts here.</p>
+        </div>
+      )}
     </div>
   );
 };

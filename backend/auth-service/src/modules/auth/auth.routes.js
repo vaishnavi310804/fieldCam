@@ -48,7 +48,7 @@ router.post(
 );
 
 router.post(
-  "/web/login",
+  "/login",
   webLoginValidation,
   validate,
   webLoginController

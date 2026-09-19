@@ -1,84 +1,53 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import ProjectToolbar from "../../components/admin/projects/ProjectToolbar";
 import ProjectFilters from "../../components/admin/projects/ProjectFilters";
 import ProjectTable from "../../components/admin/projects/ProjectTable";
-
-const initialProjects = [
-  {
-    id: "PRJ-2847",
-    address: "1420 NW Couch St, Port",
-    service: "Site Inspection",
-    vendor: "Apex Field Co.",
-    dueDate: "Mar 18",
-    status: "New",
-  },
-  {
-    id: "PRJ-2846",
-    address: "500 Pike St, Seattle, WA",
-    service: "Property Survey",
-    vendor: "SiteLine Pro",
-    dueDate: "Mar 20",
-    status: "In Progress",
-  },
-  {
-    id: "PRJ-2845",
-    address: "2100 Lawrence St, Denv",
-    service: "Progress Documentation",
-    vendor: "ClearVision Studios",
-    dueDate: "Mar 15",
-    status: "Submitted",
-  },
-  {
-    id: "PRJ-2844",
-    address: "800 W 6th St, Austin, TX",
-    service: "Final Inspection",
-    vendor: "FieldEye Inc.",
-    dueDate: "Mar 22",
-    status: "In Progress",
-  },
-  {
-    id: "PRJ-2843",
-    address: "4500 E Van Buren St, Pho",
-    service: "Aerial Mapping",
-    vendor: "OpsLens",
-    dueDate: "Mar 25",
-    status: "New",
-  },
-  {
-    id: "PRJ-2842",
-    address: "330 S Broadway, Los An",
-    service: "Site Inspection",
-    vendor: "CamTrack",
-    dueDate: "Mar 14",
-    status: "Approved",
-  },
-  {
-    id: "PRJ-2841",
-    address: "1500 Market St, Philadel",
-    service: "Progress Documentation",
-    vendor: "Apex Field Co.",
-    dueDate: "Mar 12",
-    status: "Rejected",
-  },
-  {
-    id: "PRJ-2840",
-    address: "200 Lakeside Ave, Clevel",
-    service: "Property Survey",
-    vendor: "SiteLine Pro",
-    dueDate: "Mar 28",
-    status: "New",
-  },
-];
+import { getProjects, updateProjectStatus } from "../../services/projectService";
+import { useAuth } from "../../context/AuthContext";
+import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 
 const Projects = () => {
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
+  const [allProjects, setAllProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const isReadOnly = user?.role === "VENDOR";
+
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getProjects();
+      setAllProjects(response.data || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || err.message || "Failed to load projects from server"
+      );
+      setAllProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const handleUpdateStatus = async (id, status, rejectionReason) => {
+    await updateProjectStatus(id, status, rejectionReason);
+    // Refresh projects list after status mutation
+    await loadProjects();
+  };
+
   const filteredProjects = useMemo(() => {
-    return initialProjects.filter((project) => {
+    return allProjects.filter((project) => {
       // Filter by status tab
       if (activeFilter !== "All" && project.status !== activeFilter) {
         return false;
@@ -87,17 +56,36 @@ const Projects = () => {
       // Filter by search query
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
+        const pId = (project.projectId || project.id || "").toLowerCase();
+        const pName = (project.projectName || "").toLowerCase();
+        const loc = (project.location || project.address || "").toLowerCase();
+        const vName = (
+          project.vendorName ||
+          project.vendorId?.companyName ||
+          project.vendor ||
+          ""
+        ).toLowerCase();
+        const sTypeName = (
+          project.serviceTypeName ||
+          project.serviceId?.serviceTypeName ||
+          project.service ||
+          ""
+        ).toLowerCase();
+        const client = (project.client || "").toLowerCase();
+
         return (
-          project.id.toLowerCase().includes(query) ||
-          project.address.toLowerCase().includes(query) ||
-          project.vendor.toLowerCase().includes(query) ||
-          project.service.toLowerCase().includes(query)
+          pId.includes(query) ||
+          pName.includes(query) ||
+          loc.includes(query) ||
+          vName.includes(query) ||
+          sTypeName.includes(query) ||
+          client.includes(query)
         );
       }
 
       return true;
     });
-  }, [searchTerm, activeFilter]);
+  }, [allProjects, searchTerm, activeFilter]);
 
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
@@ -119,20 +107,50 @@ const Projects = () => {
 
         {/* Projects Page Body */}
         <main className="flex-1 p-6 space-y-4">
+          {/* Error Banner */}
+          {error && (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={loadProjects}
+                className="flex items-center gap-1.5 bg-[#C62828] text-white px-3 py-1.5 rounded-lg font-bold hover:bg-[#B71C1C] transition-colors"
+              >
+                <FiRefreshCw className="text-xs" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
           {/* 1. Project Toolbar (Search, Export, New Project) */}
           <ProjectToolbar
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            isReadOnly={isReadOnly}
           />
 
           {/* 2. Project Filters (Status Pills, More Filters, Approval Requests) */}
           <ProjectFilters
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
+            allProjects={allProjects}
           />
 
           {/* 3. Project Table Card */}
-          <ProjectTable projects={filteredProjects} />
+          {loading ? (
+            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
+              Loading projects from platform service...
+            </div>
+          ) : (
+            <ProjectTable
+              projects={filteredProjects}
+              totalCount={allProjects.length}
+              onUpdateStatus={handleUpdateStatus}
+              isReadOnly={isReadOnly}
+            />
+          )}
         </main>
       </div>
     </div>

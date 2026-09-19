@@ -1,23 +1,13 @@
-import { FiSearch, FiCalendar, FiMapPin, FiMap } from "react-icons/fi";
-
-const mockVendors = [
-  "Apex Field Co.",
-  "SiteLine Pro",
-  "ClearVision Studios",
-  "FieldEye Inc.",
-  "OpsLens",
-  "CamTrack",
-  "ProShot Media",
-  "FieldScope",
-];
+import { FiChevronDown, FiCalendar, FiMapPin, FiMap } from "react-icons/fi";
 
 const ProjectOperationalDetails = ({
-  assignedVendor,
-  setAssignedVendor,
+  vendorId,
+  setVendorId,
   deadline,
   setDeadline,
   location,
   setLocation,
+  vendors = [],
 }) => {
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
@@ -31,20 +21,21 @@ const ProjectOperationalDetails = ({
             Assigned Vendor
           </label>
           <div className="relative">
-            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs" />
-            <input
-              type="text"
-              list="vendor-options"
-              value={assignedVendor}
-              onChange={(e) => setAssignedVendor(e.target.value)}
-              placeholder="Search vendors..."
-              className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
-            />
-            <datalist id="vendor-options">
-              {mockVendors.map((v) => (
-                <option key={v} value={v} />
+            <select
+              value={vendorId || ""}
+              onChange={(e) => setVendorId(e.target.value)}
+              className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
+            >
+              <option value="">
+                Select vendor (Optional)...
+              </option>
+              {vendors.map((v) => (
+                <option key={v._id} value={v._id}>
+                  {v.companyName} ({v.contactName || "Active"})
+                </option>
               ))}
-            </datalist>
+            </select>
+            <FiChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
           </div>
         </div>
 
@@ -68,7 +59,7 @@ const ProjectOperationalDetails = ({
       {/* Location */}
       <div>
         <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
-          Location
+          Location <span className="text-[#C62828]">*</span>
         </label>
         <div className="relative">
           <FiMapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs" />
@@ -76,7 +67,7 @@ const ProjectOperationalDetails = ({
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="San Francisco, CA (or search map)"
+            placeholder="San Francisco, CA (or enter address)"
             className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
           />
         </div>

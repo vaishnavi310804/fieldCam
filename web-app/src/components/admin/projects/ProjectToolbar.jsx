@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiDownload, FiPlus } from "react-icons/fi";
 
-const ProjectToolbar = ({ searchTerm, setSearchTerm }) => {
+const ProjectToolbar = ({ searchTerm, setSearchTerm, isReadOnly = false }) => {
   const navigate = useNavigate();
 
   return (
@@ -30,14 +30,16 @@ const ProjectToolbar = ({ searchTerm, setSearchTerm }) => {
         </button>
 
         {/* New Project Button */}
-        <button
-          type="button"
-          onClick={() => navigate("/admin/projects/new")}
-          className="flex items-center gap-1.5 bg-[#6E6763] hover:bg-[#5A5450] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
-        >
-          <FiPlus className="text-sm" />
-          <span>New Project</span>
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => navigate("/admin/projects/new")}
+            className="flex items-center gap-1.5 bg-[#6E6763] hover:bg-[#5A5450] text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
+          >
+            <FiPlus className="text-sm" />
+            <span>New Project</span>
+          </button>
+        )}
       </div>
     </div>
   );

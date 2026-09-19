@@ -1,44 +1,44 @@
-import { FiBriefcase, FiCheckCircle, FiTrendingUp, FiCheckSquare } from "react-icons/fi";
+import { FiBriefcase, FiCheckCircle, FiAlertTriangle, FiSlash } from "react-icons/fi";
 
-const stats = [
-  {
-    id: "total",
-    label: "Total Vendors",
-    value: "8",
-    icon: FiBriefcase,
-    bg: "bg-[#F2EBE5]",
-    iconColor: "text-[#817B77]",
-  },
-  {
-    id: "active",
-    label: "Active Vendors",
-    value: "6",
-    icon: FiCheckCircle,
-    bg: "bg-[#E8F5E9]",
-    iconColor: "text-[#2E7D32]",
-  },
-  {
-    id: "approval",
-    label: "Avg. Approval Rate",
-    value: "81%",
-    icon: FiTrendingUp,
-    bg: "bg-[#FCECE7]",
-    iconColor: "text-[#C87A65]",
-  },
-  {
-    id: "completed",
-    label: "Total Completed",
-    value: "314",
-    icon: FiCheckSquare,
-    bg: "bg-[#E3F2FD]",
-    iconColor: "text-[#1565C0]",
-  },
-];
+const VendorStats = ({ statsData }) => {
+  const cards = [
+    {
+      id: "total",
+      label: "Total Vendors",
+      value: statsData?.totalVendors ?? statsData?.total ?? 0,
+      icon: FiBriefcase,
+      bg: "bg-[#F2EBE5]",
+      iconColor: "text-[#817B77]",
+    },
+    {
+      id: "active",
+      label: "Active Vendors",
+      value: statsData?.activeVendors ?? statsData?.active ?? 0,
+      icon: FiCheckCircle,
+      bg: "bg-[#E8F5E9]",
+      iconColor: "text-[#2E7D32]",
+    },
+    {
+      id: "suspended",
+      label: "Suspended Vendors",
+      value: statsData?.suspendedVendors ?? statsData?.suspended ?? 0,
+      icon: FiAlertTriangle,
+      bg: "bg-[#FFF3E0]",
+      iconColor: "text-[#E65100]",
+    },
+    {
+      id: "inactive",
+      label: "Inactive Vendors",
+      value: statsData?.inactiveVendors ?? statsData?.inactive ?? 0,
+      icon: FiSlash,
+      bg: "bg-[#FFEBEE]",
+      iconColor: "text-[#C62828]",
+    },
+  ];
 
-const VendorStats = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {stats.map((stat) => {
+      {cards.map((stat) => {
         const Icon = stat.icon;
 
         return (

@@ -1,6 +1,6 @@
 import { FiHelpCircle } from "react-icons/fi";
 
-const ConfigurationSummary = ({ serviceCategory, checklistCount }) => {
+const ConfigurationSummary = ({ serviceCategory, checklistCount, processingMode = "AUTOMATIC" }) => {
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
       {/* Title */}
@@ -25,7 +25,7 @@ const ConfigurationSummary = ({ serviceCategory, checklistCount }) => {
         <div className="flex items-center justify-between">
           <span className="text-[#817B77] font-medium">Processing Mode</span>
           <span className="bg-[#FAF7F5] border border-[#E8E2DE] text-[#6E6763] px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">
-            AUTOMATED
+            {processingMode}
           </span>
         </div>
       </div>

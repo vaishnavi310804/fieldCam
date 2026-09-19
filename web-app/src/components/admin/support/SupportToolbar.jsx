@@ -1,4 +1,4 @@
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiPlus } from "react-icons/fi";
 
 const filterOptions = ["All", "Open", "In Progress", "Resolved", "Closed"];
 
@@ -7,6 +7,8 @@ const SupportToolbar = ({
   setSearchTerm,
   activeFilter,
   setActiveFilter,
+  onOpenCreateModal,
+  isReadOnly = false,
 }) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -22,24 +24,37 @@ const SupportToolbar = ({
         />
       </div>
 
-      {/* Right: Filter Pills */}
-      <div className="flex items-center gap-1 bg-white border border-[#E8E2DE] p-1 rounded-xl shadow-sm self-start sm:self-auto">
-        {filterOptions.map((filter) => {
-          const isActive = activeFilter === filter;
-          return (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                isActive
-                  ? "bg-[#8A817C] text-white shadow-sm"
-                  : "text-[#817B77] hover:bg-[#F7F4F2] hover:text-[#3E3734]"
-              }`}
-            >
-              {filter}
-            </button>
-          );
-        })}
+      {/* Right: Filter Pills & New Ticket Button */}
+      <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-white border border-[#E8E2DE] p-1 rounded-xl shadow-sm">
+          {filterOptions.map((filter) => {
+            const isActive = activeFilter === filter;
+            return (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-[#8A817C] text-white shadow-sm"
+                    : "text-[#817B77] hover:bg-[#F7F4F2] hover:text-[#3E3734]"
+                }`}
+              >
+                {filter}
+              </button>
+            );
+          })}
+        </div>
+
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={onOpenCreateModal}
+            className="bg-[#8A817C] hover:bg-[#6E6763] text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors shrink-0"
+          >
+            <FiPlus className="text-sm" />
+            <span>New Ticket</span>
+          </button>
+        )}
       </div>
     </div>
   );

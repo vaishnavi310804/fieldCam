@@ -1,44 +1,51 @@
 import { FiMessageSquare, FiAlertCircle, FiClock, FiCheckCircle } from "react-icons/fi";
 
-const stats = [
-  {
-    id: "total",
-    label: "Total Tickets",
-    value: "7",
-    icon: FiMessageSquare,
-    bg: "bg-[#F2EBE5]",
-    iconColor: "text-[#817B77]",
-  },
-  {
-    id: "open",
-    label: "Open",
-    value: "3",
-    icon: FiAlertCircle,
-    bg: "bg-[#E3F2FD]",
-    iconColor: "text-[#1565C0]",
-  },
-  {
-    id: "in_progress",
-    label: "In Progress",
-    value: "2",
-    icon: FiClock,
-    bg: "bg-[#FEF3C7]",
-    iconColor: "text-[#D97706]",
-  },
-  {
-    id: "resolved",
-    label: "Resolved",
-    value: "2",
-    icon: FiCheckCircle,
-    bg: "bg-[#E8F5E9]",
-    iconColor: "text-[#2E7D32]",
-  },
-];
+const SupportStats = ({ statsData = {} }) => {
+  const {
+    totalTickets = 0,
+    open = 0,
+    inProgress = 0,
+    resolved = 0,
+  } = statsData;
 
-const SupportStats = () => {
+  const cardItems = [
+    {
+      id: "total",
+      label: "Total Tickets",
+      value: String(totalTickets),
+      icon: FiMessageSquare,
+      bg: "bg-[#F2EBE5]",
+      iconColor: "text-[#817B77]",
+    },
+    {
+      id: "open",
+      label: "Open",
+      value: String(open),
+      icon: FiAlertCircle,
+      bg: "bg-[#E3F2FD]",
+      iconColor: "text-[#1565C0]",
+    },
+    {
+      id: "in_progress",
+      label: "In Progress",
+      value: String(inProgress),
+      icon: FiClock,
+      bg: "bg-[#FEF3C7]",
+      iconColor: "text-[#D97706]",
+    },
+    {
+      id: "resolved",
+      label: "Resolved",
+      value: String(resolved),
+      icon: FiCheckCircle,
+      bg: "bg-[#E8F5E9]",
+      iconColor: "text-[#2E7D32]",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {stats.map((stat) => {
+      {cardItems.map((stat) => {
         const Icon = stat.icon;
 
         return (

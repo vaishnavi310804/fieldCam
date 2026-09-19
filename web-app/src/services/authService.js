@@ -1,7 +1,7 @@
-import api from "./api";
+import { authApi } from "./api";
 
 export const loginUser = async (credentials) => {
-  const response = await api.post("/auth/web/login", {
+  const response = await authApi.post("/auth/login", {
     email: credentials.email,
     password: credentials.password,
   });

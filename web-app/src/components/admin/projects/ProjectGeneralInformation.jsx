@@ -1,28 +1,13 @@
 import { FiChevronDown } from "react-icons/fi";
 
-const mockClients = [
-  "Apex Field Co.",
-  "SiteLine Pro",
-  "ClearVision Studios",
-  "FieldEye Inc.",
-  "OpsLens",
-];
-
-const serviceTypes = [
-  "Site Inspection",
-  "Property Survey",
-  "Progress Documentation",
-  "Aerial Mapping",
-  "Final Inspection",
-];
-
 const ProjectGeneralInformation = ({
   projectName,
   setProjectName,
   client,
   setClient,
-  serviceType,
-  setServiceType,
+  serviceId,
+  setServiceId,
+  services = [],
 }) => {
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
@@ -49,21 +34,13 @@ const ProjectGeneralInformation = ({
           <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
             Client <span className="text-[#C62828]">*</span>
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              list="client-options"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              placeholder="Select or enter client name"
-              className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
-            />
-            <datalist id="client-options">
-              {mockClients.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
+          <input
+            type="text"
+            value={client}
+            onChange={(e) => setClient(e.target.value)}
+            placeholder="Enter client name"
+            className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
+          />
         </div>
 
         {/* Service Type Field */}
@@ -73,16 +50,16 @@ const ProjectGeneralInformation = ({
           </label>
           <div className="relative">
             <select
-              value={serviceType}
-              onChange={(e) => setServiceType(e.target.value)}
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
               className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
             >
-              <option value="" disabled>
-                Select service...
+              <option value="">
+                Select active service...
               </option>
-              {serviceTypes.map((st) => (
-                <option key={st} value={st}>
-                  {st}
+              {services.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.serviceTypeName} ({s.serviceCategory})
                 </option>
               ))}
             </select>

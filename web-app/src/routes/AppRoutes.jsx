@@ -25,16 +25,19 @@ const AppRoutes = () => {
         <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
       </Route>
 
-      {/* Admin Protected Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      {/* Admin & Shared Operational Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "VENDOR"]} />}>
         <Route path="/admin/projects" element={<AdminProjects />} />
+        <Route path="/admin/invoices" element={<AdminInvoices />} />
+        <Route path="/admin/support" element={<AdminSupport />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/projects/new" element={<CreateProject />} />
         <Route path="/admin/vendors" element={<AdminVendors />} />
-        <Route path="/admin/invoices" element={<AdminInvoices />} />
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
         <Route path="/admin/services" element={<AdminServices />} />
-        <Route path="/admin/support" element={<AdminSupport />} />
       </Route>
 
       {/* Vendor Protected Routes */}

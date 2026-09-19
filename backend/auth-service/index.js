@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import db from "./src/config/db.js";
 import errorHandler from "./src/middleware/error.middleware.js";
 import authRoutes from "./src/modules/auth/auth.routes.js";

@@ -1,120 +1,119 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import InvoiceStats from "../../components/admin/invoices/InvoiceStats";
 import PaymentOverview from "../../components/admin/invoices/PaymentOverview";
 import InvoiceToolbar from "../../components/admin/invoices/InvoiceToolbar";
 import InvoiceTable from "../../components/admin/invoices/InvoiceTable";
-
-const initialInvoices = [
-  {
-    id: "INV-1042",
-    vendor: "Apex Field Co.",
-    project: "Downtown Plaza Inspection",
-    projectId: "PRJ-2845",
-    amount: "$4,250",
-    tax: "$340",
-    status: "Pending",
-    paymentDate: "—",
-  },
-  {
-    id: "INV-1041",
-    vendor: "SiteLine Pro",
-    project: "Harbor Bridge Survey",
-    projectId: "PRJ-2846",
-    amount: "$6,800",
-    tax: "$544",
-    status: "Approved",
-    paymentDate: "—",
-  },
-  {
-    id: "INV-1040",
-    vendor: "ClearVision Studios",
-    project: "Riverside Park Mapping",
-    projectId: "PRJ-2839",
-    amount: "$3,150",
-    tax: "$252",
-    status: "Paid",
-    paymentDate: "Mar 5, 2026",
-  },
-  {
-    id: "INV-1039",
-    vendor: "FieldEye Inc.",
-    project: "Tech Campus Phase 2",
-    projectId: "PRJ-2844",
-    amount: "$5,400",
-    tax: "$432",
-    status: "Pending",
-    paymentDate: "—",
-  },
-  {
-    id: "INV-1038",
-    vendor: "OpsLens",
-    project: "Solar Farm Layout",
-    projectId: "PRJ-2843",
-    amount: "$7,200",
-    tax: "$576",
-    status: "Approved",
-    paymentDate: "—",
-  },
-  {
-    id: "INV-1037",
-    vendor: "CamTrack",
-    project: "Broadway Building",
-    projectId: "PRJ-2842",
-    amount: "$2,800",
-    tax: "$224",
-    status: "Paid",
-    paymentDate: "Mar 1, 2026",
-  },
-  {
-    id: "INV-1036",
-    vendor: "Apex Field Co.",
-    project: "Market St Tower",
-    projectId: "PRJ-2841",
-    amount: "$3,600",
-    tax: "$288",
-    status: "Pending",
-    paymentDate: "—",
-  },
-  {
-    id: "INV-1035",
-    vendor: "SiteLine Pro",
-    project: "Lakeside Property",
-    projectId: "PRJ-2840",
-    amount: "$4,900",
-    tax: "$392",
-    status: "Paid",
-    paymentDate: "Feb 28, 2026",
-  },
-];
+import CreateInvoiceModal from "../../components/admin/invoices/CreateInvoiceModal";
+import {
+  getInvoices,
+  getInvoiceStats,
+  getInvoiceOverview,
+  createInvoice,
+  updateInvoice,
+  updateInvoiceStatus,
+} from "../../services/invoiceService";
+import { useAuth } from "../../context/AuthContext";
+import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 
 const Invoices = () => {
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
+  const [allInvoices, setAllInvoices] = useState([]);
+  const [statsData, setStatsData] = useState({});
+  const [overviewData, setOverviewData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const isReadOnly = user?.role === "VENDOR";
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [invoicesRes, statsRes, overviewRes] = await Promise.all([
+        getInvoices(),
+        getInvoiceStats(),
+        getInvoiceOverview(),
+      ]);
+
+      setAllInvoices(invoicesRes?.data || []);
+      setStatsData(statsRes?.data || statsRes || {});
+      setOverviewData(overviewRes?.data || overviewRes || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || err.message || "Failed to load invoices data from platform service"
+      );
+      setAllInvoices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleCreateInvoice = async (payload) => {
+    await createInvoice(payload);
+    await loadData();
+  };
+
+  const handleUpdateStatus = async (id, status) => {
+    await updateInvoiceStatus(id, status);
+    await loadData();
+  };
+
+  const handleEditInvoice = async (id, updateData) => {
+    await updateInvoice(id, updateData);
+    await loadData();
+  };
+
   const filteredInvoices = useMemo(() => {
-    return initialInvoices.filter((invoice) => {
+    return allInvoices.filter((invoice) => {
       // Filter by status tab
       if (activeFilter !== "All" && invoice.status !== activeFilter) {
         return false;
       }
 
-      // Filter by search query (Invoice ID, Vendor, Project)
+      // Filter by search query (Invoice ID, Vendor Name, Project Title)
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
+        const invId = (invoice.invoiceId || invoice.id || "").toLowerCase();
+        const vName = (
+          invoice.vendorName ||
+          invoice.vendorId?.companyName ||
+          invoice.vendor ||
+          ""
+        ).toLowerCase();
+        const pTitle = (
+          invoice.projectTitle ||
+          invoice.projectId?.projectName ||
+          invoice.project ||
+          ""
+        ).toLowerCase();
+        const pCode = (
+          invoice.projectId?.projectId ||
+          (typeof invoice.projectId === "string" ? invoice.projectId : "")
+        ).toLowerCase();
+
         return (
-          invoice.id.toLowerCase().includes(query) ||
-          invoice.vendor.toLowerCase().includes(query) ||
-          invoice.project.toLowerCase().includes(query) ||
-          invoice.projectId.toLowerCase().includes(query)
+          invId.includes(query) ||
+          vName.includes(query) ||
+          pTitle.includes(query) ||
+          pCode.includes(query)
         );
       }
 
       return true;
     });
-  }, [searchTerm, activeFilter]);
+  }, [allInvoices, searchTerm, activeFilter]);
 
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
@@ -136,11 +135,28 @@ const Invoices = () => {
 
         {/* Invoices Page Body */}
         <main className="flex-1 p-6 space-y-5">
+          {/* Error Banner */}
+          {error && (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={loadData}
+                className="flex items-center gap-1.5 bg-[#C62828] text-white px-3 py-1.5 rounded-lg font-bold hover:bg-[#B71C1C] transition-colors"
+              >
+                <FiRefreshCw className="text-xs" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
           {/* 1. Summary Cards */}
-          <InvoiceStats />
+          <InvoiceStats statsData={statsData} />
 
           {/* 2. Payment Overview Recharts BarChart */}
-          <PaymentOverview />
+          <PaymentOverview overviewData={overviewData} />
 
           {/* 3. Toolbar (Search, Filter Tabs, Export, New Invoice Buttons) */}
           <InvoiceToolbar
@@ -148,12 +164,32 @@ const Invoices = () => {
             setSearchTerm={setSearchTerm}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
+            onOpenCreateModal={() => setCreateModalOpen(true)}
+            isReadOnly={isReadOnly}
           />
 
           {/* 4. Invoice Table Card */}
-          <InvoiceTable invoices={filteredInvoices} />
+          {loading ? (
+            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
+              Loading invoices from platform service...
+            </div>
+          ) : (
+            <InvoiceTable
+              invoices={filteredInvoices}
+              onUpdateStatus={handleUpdateStatus}
+              onEditInvoice={handleEditInvoice}
+              isReadOnly={isReadOnly}
+            />
+          )}
         </main>
       </div>
+
+      {/* Create Invoice Modal */}
+      <CreateInvoiceModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreateInvoice={handleCreateInvoice}
+      />
     </div>
   );
 };

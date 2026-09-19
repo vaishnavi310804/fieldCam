@@ -1,14 +1,39 @@
 import { FiSliders } from "react-icons/fi";
 
-const filterTabs = [
-  { id: "All", label: "All", count: 12 },
-  { id: "New", label: "New", count: 3 },
-  { id: "In Progress", label: "In Progress", count: 4 },
-  { id: "Submitted", label: "Submitted", count: 2 },
-  { id: "Approved", label: "Approved", count: 2 },
-];
+const ProjectFilters = ({ activeFilter, setActiveFilter, allProjects = [] }) => {
+  const filterTabs = [
+    { id: "All", label: "All", count: allProjects.length },
+    {
+      id: "New",
+      label: "New",
+      count: allProjects.filter((p) => p.status === "New").length,
+    },
+    {
+      id: "In Progress",
+      label: "In Progress",
+      count: allProjects.filter((p) => p.status === "In Progress").length,
+    },
+    {
+      id: "Submitted",
+      label: "Submitted",
+      count: allProjects.filter((p) => p.status === "Submitted").length,
+    },
+    {
+      id: "Approved",
+      label: "Approved",
+      count: allProjects.filter((p) => p.status === "Approved").length,
+    },
+    {
+      id: "Rejected",
+      label: "Rejected",
+      count: allProjects.filter((p) => p.status === "Rejected").length,
+    },
+  ];
 
-const ProjectFilters = ({ activeFilter, setActiveFilter }) => {
+  const pendingApprovalsCount = allProjects.filter(
+    (p) => p.status === "Submitted"
+  ).length;
+
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
       {/* Left Filter Status Tabs */}
@@ -55,12 +80,15 @@ const ProjectFilters = ({ activeFilter, setActiveFilter }) => {
         {/* Approval Requests Button with Red Badge */}
         <button
           type="button"
+          onClick={() => setActiveFilter("Submitted")}
           className="relative flex items-center gap-1.5 bg-[#8A817C] hover:bg-[#7A726D] text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors"
         >
           <span>Approval Requests</span>
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#C62828] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[#EEE9E6]">
-            5
-          </span>
+          {pendingApprovalsCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#C62828] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[#EEE9E6]">
+              {pendingApprovalsCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

@@ -1,48 +1,55 @@
 import { FiDollarSign, FiClock, FiCheckCircle, FiTrendingUp } from "react-icons/fi";
 
-const stats = [
-  {
-    id: "total_outstanding",
-    label: "Total Outstanding",
-    value: "$29,430",
-    subtext: null,
-    icon: FiDollarSign,
-    bg: "bg-[#FCECE7]",
-    iconColor: "text-[#C87A65]",
-  },
-  {
-    id: "pending_review",
-    label: "Pending Review",
-    value: "$14,310",
-    subtext: "3 invoices",
-    icon: FiClock,
-    bg: "bg-[#FEF3C7]",
-    iconColor: "text-[#D97706]",
-  },
-  {
-    id: "approved",
-    label: "Approved",
-    value: "$15,120",
-    subtext: "2 invoices",
-    icon: FiCheckCircle,
-    bg: "bg-[#E3F2FD]",
-    iconColor: "text-[#1565C0]",
-  },
-  {
-    id: "paid",
-    label: "Paid (This Month)",
-    value: "$11,718",
-    subtext: "3 invoices",
-    icon: FiTrendingUp,
-    bg: "bg-[#E8F5E9]",
-    iconColor: "text-[#2E7D32]",
-  },
-];
+const InvoiceStats = ({ statsData = {} }) => {
+  const {
+    totalOutstanding = 0,
+    pendingReview = 0,
+    approved = 0,
+    paidThisMonth = 0,
+  } = statsData;
 
-const InvoiceStats = () => {
+  const cardItems = [
+    {
+      id: "total_outstanding",
+      label: "Total Outstanding",
+      value: `$${Number(totalOutstanding).toLocaleString()}`,
+      subtext: null,
+      icon: FiDollarSign,
+      bg: "bg-[#FCECE7]",
+      iconColor: "text-[#C87A65]",
+    },
+    {
+      id: "pending_review",
+      label: "Pending Review",
+      value: `${pendingReview} ${pendingReview === 1 ? "invoice" : "invoices"}`,
+      subtext: null,
+      icon: FiClock,
+      bg: "bg-[#FEF3C7]",
+      iconColor: "text-[#D97706]",
+    },
+    {
+      id: "approved",
+      label: "Approved",
+      value: `${approved} ${approved === 1 ? "invoice" : "invoices"}`,
+      subtext: null,
+      icon: FiCheckCircle,
+      bg: "bg-[#E3F2FD]",
+      iconColor: "text-[#1565C0]",
+    },
+    {
+      id: "paid",
+      label: "Paid (This Month)",
+      value: `$${Number(paidThisMonth).toLocaleString()}`,
+      subtext: null,
+      icon: FiTrendingUp,
+      bg: "bg-[#E8F5E9]",
+      iconColor: "text-[#2E7D32]",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {stats.map((stat) => {
+      {cardItems.map((stat) => {
         const Icon = stat.icon;
 
         return (

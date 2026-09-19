@@ -3,9 +3,9 @@ import { FiInfo, FiChevronDown } from "react-icons/fi";
 const categories = [
   "Maintenance",
   "Inspection",
-  "Property Survey",
-  "Progress Documentation",
-  "Aerial Mapping",
+  "Survey",
+  "Mapping",
+  "Documentation",
 ];
 
 const GeneralInformation = ({
@@ -15,6 +15,7 @@ const GeneralInformation = ({
   setServiceTypeName,
   defaultPrice,
   setDefaultPrice,
+  readOnly = false,
 }) => {
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-5">
@@ -37,7 +38,8 @@ const GeneralInformation = ({
             <select
               value={serviceCategory}
               onChange={(e) => setServiceCategory(e.target.value)}
-              className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
+              disabled={readOnly}
+              className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10 disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -58,8 +60,9 @@ const GeneralInformation = ({
             type="text"
             value={serviceTypeName}
             onChange={(e) => setServiceTypeName(e.target.value)}
+            disabled={readOnly}
             placeholder="e.g. Annual HVAC Inspection"
-            className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
+            className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
           />
         </div>
       </div>
@@ -77,8 +80,9 @@ const GeneralInformation = ({
             type="text"
             value={defaultPrice}
             onChange={(e) => setDefaultPrice(e.target.value)}
+            disabled={readOnly}
             placeholder="0.00"
-            className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-8 pr-3.5 py-2.5 text-xs text-[#3E3734] font-semibold outline-none focus:border-[#C8B5AC] transition-colors"
+            className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-8 pr-3.5 py-2.5 text-xs text-[#3E3734] font-semibold outline-none focus:border-[#C8B5AC] transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
           />
         </div>
         <p className="text-[11px] text-[#817B77] mt-1.5">
