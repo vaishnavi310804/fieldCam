@@ -71,6 +71,16 @@ export const createProjectValidation = [
 
   body("checklistItems")
     .optional()
+    .customSanitizer((value) => {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch (e) {
+          return value;
+        }
+      }
+      return value;
+    })
     .isArray()
     .withMessage("Checklist items must be an array"),
 

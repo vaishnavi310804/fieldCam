@@ -112,36 +112,48 @@ const CreateProject = () => {
 
     const generatedProjectId = `PRJ-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const payload = {
-      projectId: generatedProjectId,
-      projectName: projectName.trim(),
-      client: client.trim(),
-      serviceId: serviceId,
-      serviceTypeName: selectedService ? selectedService.serviceTypeName : "",
-      location: location.trim(),
-      deadline: deadline,
-    };
+    const formData = new FormData();
+    formData.append("projectId", generatedProjectId);
+    formData.append("projectName", projectName.trim());
+    formData.append("client", client.trim());
+    formData.append("serviceId", serviceId);
+    formData.append("serviceTypeName", selectedService ? selectedService.serviceTypeName : "");
+    formData.append("location", location.trim());
+    formData.append("deadline", deadline);
 
     if (vendorId) {
-      payload.vendorId = vendorId;
-      payload.vendorName = selectedVendor ? selectedVendor.companyName : "";
+      formData.append("vendorId", vendorId);
+      formData.append("vendorName", selectedVendor ? selectedVendor.companyName : "");
     }
 
     if (description.trim()) {
-      payload.description = description.trim();
+      formData.append("description", description.trim());
     }
 
     if (checklistItems && checklistItems.length > 0) {
-      payload.checklistItems = checklistItems.map((item, idx) => ({
+      const formattedChecklist = checklistItems.map((item, idx) => ({
         id: String(item.id || idx + 1),
         label: item.label,
         checked: Boolean(item.checked),
       }));
+      formData.append("checklistItems", JSON.stringify(formattedChecklist));
+    }
+
+    if (photos && photos.length > 0) {
+      photos.forEach((photoFile) => {
+        formData.append("photos", photoFile);
+      });
+    }
+
+    if (attachments && attachments.length > 0) {
+      attachments.forEach((attachmentFile) => {
+        formData.append("attachments", attachmentFile);
+      });
     }
 
     try {
       setIsSubmitting(true);
-      await createProject(payload);
+      await createProject(formData);
       setSaveSuccess(true);
       setTimeout(() => {
         navigate("/admin/projects");

@@ -89,6 +89,55 @@ const userSchema = new mongoose.Schema(
       },
       default: "INACTIVE",
     },
+
+    firstName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    lastName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    location: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    timezone: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    title: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    department: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    bio: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    socialLinks: {
+      linkedin: { type: String, trim: true, default: null },
+      twitter: { type: String, trim: true, default: null },
+      github: { type: String, trim: true, default: null },
+      website: { type: String, trim: true, default: null },
+    },
   },
   {
     timestamps: true,

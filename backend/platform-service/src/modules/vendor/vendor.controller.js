@@ -6,6 +6,7 @@ import {
   updateVendorStatus,
   getVendorStats,
 } from "./vendor.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
  * Controller to handle Vendor profile creation.
@@ -13,6 +14,16 @@ import {
 export const createVendorController = async (req, res) => {
   try {
     const result = await createVendor(req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "VENDOR_CREATED",
+      entityType: "Vendor",
+      entityId: result._id?.toString() || "",
+      description: `Created vendor profile ${result.companyName || ""}`.trim(),
+      metadata: { companyName: result.companyName, contactName: result.contactName },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Vendor profile created successfully",
@@ -74,6 +85,16 @@ export const getVendorByIdController = async (req, res) => {
 export const updateVendorController = async (req, res) => {
   try {
     const result = await updateVendor(req.params.id, req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "VENDOR_UPDATED",
+      entityType: "Vendor",
+      entityId: result._id?.toString() || req.params.id,
+      description: `Updated vendor profile ${result.companyName || ""}`.trim(),
+      metadata: { companyName: result.companyName },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Vendor updated successfully",
@@ -98,6 +119,16 @@ export const updateVendorController = async (req, res) => {
 export const updateVendorStatusController = async (req, res) => {
   try {
     const result = await updateVendorStatus(req.params.id, req.body.status);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "VENDOR_STATUS_CHANGED",
+      entityType: "Vendor",
+      entityId: result._id?.toString() || req.params.id,
+      description: `Changed status of vendor ${result.companyName || ""} to ${result.status}`.trim(),
+      metadata: { companyName: result.companyName, newStatus: result.status },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Vendor status updated successfully",

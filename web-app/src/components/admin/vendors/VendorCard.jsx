@@ -12,7 +12,13 @@ import {
 } from "react-icons/fi";
 import VendorStatusBadge from "./VendorStatusBadge";
 
-const VendorCard = ({ vendor, readOnly = false, onStatusChange }) => {
+const VendorCard = ({
+  vendor,
+  readOnly = false,
+  onStatusChange,
+  onAssignProject,
+  onViewProfile,
+}) => {
   const company = vendor.companyName || vendor.company || "Unnamed Vendor";
   const contact = vendor.contactName || vendor.contact || "No Contact";
   const initials =
@@ -142,13 +148,19 @@ const VendorCard = ({ vendor, readOnly = false, onStatusChange }) => {
 
       {/* 6. Action Buttons Footer */}
       <div className="flex items-center gap-2 pt-3 border-t border-[#F2EBE5] mt-2">
-        <button className="flex-1 py-2 px-3 rounded-xl border border-[#E8E2DE] text-[#3E3734] hover:bg-[#F2EBE5] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+        <button
+          onClick={() => onViewProfile && onViewProfile(vendor)}
+          className="flex-1 py-2 px-3 rounded-xl border border-[#E8E2DE] text-[#3E3734] hover:bg-[#F2EBE5] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+        >
           <FiEye className="text-xs text-[#817B77]" />
           <span>View Profile</span>
         </button>
 
         {!readOnly && (
-          <button className="flex-1 py-2 px-3 rounded-xl bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+          <button
+            onClick={() => onAssignProject && onAssignProject(vendor)}
+            className="flex-1 py-2 px-3 rounded-xl bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+          >
             <FiPlus className="text-xs" />
             <span>Assign Project</span>
           </button>

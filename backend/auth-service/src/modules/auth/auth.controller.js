@@ -1,5 +1,6 @@
 import {
   createUserByAdmin,
+  sendRegistrationOTPEmail,
   verifyRegistrationOTP,
   completeProfile,
   webLoginUser,
@@ -7,7 +8,25 @@ import {
   forgotPassword,
   verifyResetOTP,
   resetPassword,
+  getProfile,
+  updateProfile,
 } from "./auth.service.js";
+
+export const sendRegistrationOTPController = async (req, res) => {
+  try {
+    const result = await sendRegistrationOTPEmail(req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Registration OTP email sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to send registration OTP email",
+    });
+  }
+};
 
 export const createUserByAdminController = async (req, res) => {
   try {
@@ -133,6 +152,40 @@ export const resetPasswordController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Something went wrong",
+    });
+  }
+};
+
+export const getProfileController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await getProfile(userId);
+    return res.status(200).json({
+      success: true,
+      message: "Profile retrieved successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to retrieve profile",
+    });
+  }
+};
+
+export const updateProfileController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await updateProfile(userId, req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to update profile",
     });
   }
 };

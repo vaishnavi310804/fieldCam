@@ -154,3 +154,82 @@ export const resetPasswordValidation = [
     .isLength({ min: 6 })
     .withMessage("Password must be at least 6 characters long."),
 ];
+
+// Send registration OTP email
+export const sendRegistrationOtpEmailValidation = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email address."),
+
+  body("otp")
+    .trim()
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isLength({ min: 6, max: 6 })
+    .withMessage("OTP must be 6 digits.")
+    .isNumeric()
+    .withMessage("OTP must contain only numbers."),
+];
+
+// Update user profile validation
+export const updateProfileValidation = [
+  body("firstName")
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("First name must be between 2 and 50 characters"),
+
+  body("lastName")
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Last name must be between 2 and 50 characters"),
+
+  body("phone")
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body("location")
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body("timezone")
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body("title")
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body("department")
+    .optional({ checkFalsy: true })
+    .trim(),
+
+  body("bio")
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Bio cannot exceed 500 characters"),
+
+  body("socialLinks")
+    .optional({ checkFalsy: true })
+    .isObject()
+    .withMessage("Social links must be an object")
+    .custom((value) => {
+      if (typeof value === "object" && value !== null) {
+        const allowedKeys = ["linkedin", "twitter", "github", "website"];
+        const invalidKeys = Object.keys(value).filter(
+          (key) => !allowedKeys.includes(key)
+        );
+        if (invalidKeys.length > 0) {
+          throw new Error(
+            `Invalid social link properties: ${invalidKeys.join(", ")}`
+          );
+        }
+      }
+      return true;
+    }),
+];

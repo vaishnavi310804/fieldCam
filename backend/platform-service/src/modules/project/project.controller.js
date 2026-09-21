@@ -5,13 +5,24 @@ import {
   updateProject,
   updateProjectStatus,
 } from "./project.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
  * Controller to handle Project creation.
  */
 export const createProjectController = async (req, res) => {
   try {
-    const result = await createProject(req.body);
+    const result = await createProject(req.body, req.files);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_CREATED",
+      entityType: "Project",
+      entityId: result.projectId || result._id?.toString() || "",
+      description: `Created project ${result.projectName || ""} (${result.projectId || ""})`.trim(),
+      metadata: { projectId: result.projectId, projectName: result.projectName, client: result.client },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Project created successfully",
@@ -73,6 +84,16 @@ export const getProjectByIdController = async (req, res) => {
 export const updateProjectController = async (req, res) => {
   try {
     const result = await updateProject(req.params.id, req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_UPDATED",
+      entityType: "Project",
+      entityId: result.projectId || result._id?.toString() || req.params.id,
+      description: `Updated project ${result.projectName || ""} (${result.projectId || ""})`.trim(),
+      metadata: { projectId: result.projectId, projectName: result.projectName },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Project updated successfully",
@@ -101,6 +122,21 @@ export const updateProjectStatusController = async (req, res) => {
       req.body.status,
       req.body.rejectionReason
     );
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_STATUS_CHANGED",
+      entityType: "Project",
+      entityId: result.projectId || result._id?.toString() || req.params.id,
+      description: `Changed status of project ${result.projectName || ""} (${result.projectId || ""}) to ${result.status}`.trim(),
+      metadata: {
+        projectId: result.projectId,
+        projectName: result.projectName,
+        newStatus: result.status,
+        rejectionReason: result.rejectionReason || null,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Project status updated successfully",

@@ -10,6 +10,8 @@ import AdminInvoices from "../pages/admin/Invoices";
 import AdminAnalytics from "../pages/admin/Analytics";
 import AdminServices from "../pages/admin/Services";
 import AdminSupport from "../pages/admin/Support";
+import AdminProfile from "../pages/admin/Profile";
+import AdminActivity from "../pages/admin/Activity";
 import VendorDashboard from "../pages/vendor/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -30,6 +32,8 @@ const AppRoutes = () => {
         <Route path="/admin/projects" element={<AdminProjects />} />
         <Route path="/admin/invoices" element={<AdminInvoices />} />
         <Route path="/admin/support" element={<AdminSupport />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
+        <Route path="/admin/activity" element={<AdminActivity />} />
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>

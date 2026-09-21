@@ -2,13 +2,68 @@ import Project from "./project.model.js";
 import Service from "../service/service.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import mongoose from "mongoose";
+import { uploadToS3, deleteFromS3, getPresignedMediaUrl } from "../../services/s3Service.js";
+
+/**
+ * Helper to generate temporary presigned GET URLs for a project's photos & attachments.
+ * Converts Mongoose document to plain JS object without modifying DB.
+ * @param {Object} projectDoc - Mongoose Project document
+ * @returns {Promise<Object>} Plain project object with presigned media URLs
+ */
+const transformProjectMedia = async (projectDoc) => {
+  if (!projectDoc) return projectDoc;
+
+  const projectObj = typeof projectDoc.toObject === "function"
+    ? projectDoc.toObject()
+    : { ...projectDoc };
+
+  // Parallel presigned URL generation for photos
+  if (Array.isArray(projectObj.photos) && projectObj.photos.length > 0) {
+    projectObj.photos = await Promise.all(
+      projectObj.photos.map(async (photo) => {
+        if (!photo || !photo.url) return photo;
+        const presignedUrl = await getPresignedMediaUrl(photo.url);
+        return {
+          ...photo,
+          url: presignedUrl || photo.url,
+        };
+      })
+    );
+  }
+
+  // Parallel presigned URL generation for attachments
+  if (Array.isArray(projectObj.attachments) && projectObj.attachments.length > 0) {
+    projectObj.attachments = await Promise.all(
+      projectObj.attachments.map(async (attachment) => {
+        if (!attachment || !attachment.url) return attachment;
+        const presignedUrl = await getPresignedMediaUrl(attachment.url);
+        return {
+          ...attachment,
+          url: presignedUrl || attachment.url,
+        };
+      })
+    );
+  }
+
+  return projectObj;
+};
 
 /**
  * Creates a new Project document.
  * @param {Object} projectData 
+ * @param {Object} [files] - Multer req.files object { photos, attachments }
  * @returns {Promise<Object>}
  */
-export const createProject = async (projectData) => {
+export const createProject = async (projectData, files = {}) => {
+  // Parse checklistItems if sent as JSON string in FormData
+  if (typeof projectData.checklistItems === "string") {
+    try {
+      projectData.checklistItems = JSON.parse(projectData.checklistItems);
+    } catch (e) {
+      // Keep original value if parsing fails
+    }
+  }
+
   // 1. Verify serviceId exists in Service collection
   if (!mongoose.Types.ObjectId.isValid(projectData.serviceId)) {
     throw new Error("Invalid service ID format");
@@ -59,9 +114,51 @@ export const createProject = async (projectData) => {
     projectData.serviceTypeName = service.serviceTypeName;
   }
 
-  // 7. Create Project document
-  const project = await Project.create(projectData);
-  return project;
+  const uploadedKeys = [];
+
+  try {
+    // Process Photo files if present
+    if (files && files.photos && files.photos.length > 0) {
+      const photosList = [];
+      for (const photoFile of files.photos) {
+        const uploadResult = await uploadToS3(photoFile, "images");
+        uploadedKeys.push(uploadResult.key);
+        photosList.push({
+          url: uploadResult.key,
+          caption: photoFile.originalname,
+          category: "General",
+          uploadedAt: new Date(),
+        });
+      }
+      projectData.photos = photosList;
+    }
+
+    // Process Attachment files if present
+    if (files && files.attachments && files.attachments.length > 0) {
+      const attachmentsList = [];
+      for (const attachmentFile of files.attachments) {
+        const uploadResult = await uploadToS3(attachmentFile, "attachments");
+        uploadedKeys.push(uploadResult.key);
+        attachmentsList.push({
+          url: uploadResult.key,
+          filename: attachmentFile.originalname,
+          size: attachmentFile.size || attachmentFile.buffer?.length,
+          uploadedAt: new Date(),
+        });
+      }
+      projectData.attachments = attachmentsList;
+    }
+
+    // 7. Create Project document
+    const project = await Project.create(projectData);
+    return await transformProjectMedia(project);
+  } catch (error) {
+    // Rollback: delete uploaded S3 objects if project creation fails
+    if (uploadedKeys.length > 0) {
+      await Promise.allSettled(uploadedKeys.map((key) => deleteFromS3(key)));
+    }
+    throw error;
+  }
 };
 
 /**
@@ -101,7 +198,7 @@ export const getProjects = async (query = {}) => {
     .populate("vendorId", "companyName contactName location rating status")
     .sort({ createdAt: -1 });
 
-  return projects;
+  return await Promise.all(projects.map((proj) => transformProjectMedia(proj)));
 };
 
 /**
@@ -122,7 +219,7 @@ export const getProjectById = async (id) => {
     throw new Error("Project not found");
   }
 
-  return project;
+  return await transformProjectMedia(project);
 };
 
 /**
@@ -188,7 +285,7 @@ export const updateProject = async (id, updateData) => {
     .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
     .populate("vendorId", "companyName contactName location rating status");
 
-  return updatedProject;
+  return await transformProjectMedia(updatedProject);
 };
 
 /**
@@ -238,5 +335,5 @@ export const updateProjectStatus = async (id, status, rejectionReason) => {
     throw new Error("Project not found");
   }
 
-  return updatedProject;
+  return await transformProjectMedia(updatedProject);
 };

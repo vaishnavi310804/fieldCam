@@ -8,7 +8,7 @@ const AdminHeader = ({ title = "Dashboard", subtitle, showSearch = false }) => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const displayName = user?.name || "Sarah K.";
+  const displayName = user?.name || user?.email?.split("@")[0] || "User";
   const defaultSubtitle = `Welcome back, ${displayName.split(" ")[0]}. Here's what's happening today.`;
 
   const handleLogout = () => {
@@ -78,18 +78,19 @@ const AdminHeader = ({ title = "Dashboard", subtitle, showSearch = false }) => {
               <div className="px-4 py-2 border-b border-[#F2EBE5]">
                 <p className="text-xs font-bold text-[#3E3734]">{displayName}</p>
                 <p className="text-[11px] text-[#817B77] truncate">
-                  {user?.email || "admin@fieldcam.com"}
+                  {user?.email || "—"}
                 </p>
               </div>
 
               <button
                 onClick={() => {
                   setShowProfileMenu(false);
+                  navigate("/admin/profile");
                 }}
                 className="w-full text-left px-4 py-2 text-xs text-[#4A423F] hover:bg-[#F7F4F2] flex items-center gap-2"
               >
                 <FiUser className="text-sm text-[#817B77]" />
-                <span>Profile Settings</span>
+                <span>View Profile</span>
               </button>
 
               <button

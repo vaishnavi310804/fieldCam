@@ -7,3 +7,13 @@ export const loginUser = async (credentials) => {
   });
   return response;
 };
+
+export const getProfile = async () => {
+  const response = await authApi.get("/auth/me");
+  return response.data;
+};
+
+export const updateProfile = async (profileData) => {
+  const response = await authApi.put("/auth/me", profileData);
+  return response.data;
+};

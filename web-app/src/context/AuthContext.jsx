@@ -32,6 +32,12 @@ export function AuthProvider({ children }) {
     setToken(null);
   };
 
+  const updateUser = (updatedUser) => {
+    if (!updatedUser) return;
+    localStorage.setItem("fieldcam_user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   const isAuthenticated = !!token;
 
   return (
@@ -41,6 +47,7 @@ export function AuthProvider({ children }) {
         token,
         login,
         logout,
+        updateUser,
         isAuthenticated,
       }}
     >

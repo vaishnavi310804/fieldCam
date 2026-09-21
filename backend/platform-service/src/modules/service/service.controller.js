@@ -5,6 +5,7 @@ import {
   updateService,
   updateServiceStatus,
 } from "./service.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
  * Controller to handle Service creation.
@@ -12,6 +13,16 @@ import {
 export const createServiceController = async (req, res) => {
   try {
     const result = await createService(req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SERVICE_CREATED",
+      entityType: "Service",
+      entityId: result._id?.toString() || "",
+      description: `Created service ${result.serviceTypeName || ""}`.trim(),
+      metadata: { serviceTypeName: result.serviceTypeName, serviceCategory: result.serviceCategory },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Service created successfully",
@@ -70,6 +81,16 @@ export const getServiceByIdController = async (req, res) => {
 export const updateServiceController = async (req, res) => {
   try {
     const result = await updateService(req.params.id, req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SERVICE_UPDATED",
+      entityType: "Service",
+      entityId: result._id?.toString() || req.params.id,
+      description: `Updated service ${result.serviceTypeName || ""}`.trim(),
+      metadata: { serviceTypeName: result.serviceTypeName },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Service updated successfully",
@@ -93,6 +114,16 @@ export const updateServiceController = async (req, res) => {
 export const updateServiceStatusController = async (req, res) => {
   try {
     const result = await updateServiceStatus(req.params.id, req.body.status);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SERVICE_STATUS_CHANGED",
+      entityType: "Service",
+      entityId: result._id?.toString() || req.params.id,
+      description: `Changed status of service ${result.serviceTypeName || ""} to ${result.status}`.trim(),
+      metadata: { serviceTypeName: result.serviceTypeName, newStatus: result.status },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Service status updated successfully",

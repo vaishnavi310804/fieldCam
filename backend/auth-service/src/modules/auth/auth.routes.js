@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   createUserByAdminController,
+  sendRegistrationOTPController,
   verifyRegistrationOTPController,
   completeProfileController,
   webLoginController,
@@ -9,10 +10,13 @@ import {
   forgotPasswordController,
   verifyResetOTPController,
   resetPasswordController,
+  getProfileController,
+  updateProfileController,
 } from "./auth.controller.js";
 
 import {
   createUserByAdminValidation,
+  sendRegistrationOtpEmailValidation,
   verifyRegistrationOtpValidation,
   completeProfileValidation,
   webLoginValidation,
@@ -20,11 +24,29 @@ import {
   forgotPasswordValidation,
   verifyResetOTPValidation,
   resetPasswordValidation,
+  updateProfileValidation,
 } from "./auth.validation.js";
 
 import validate from "../../middleware/validate.js";
+import { protect } from "../../middleware/auth.middleware.js";
 
 const router = Router();
+
+router.get("/me", protect, getProfileController);
+router.put(
+  "/me",
+  protect,
+  updateProfileValidation,
+  validate,
+  updateProfileController
+);
+
+router.post(
+  "/send-registration-otp",
+  sendRegistrationOtpEmailValidation,
+  validate,
+  sendRegistrationOTPController
+);
 
 router.post(
   "/users",

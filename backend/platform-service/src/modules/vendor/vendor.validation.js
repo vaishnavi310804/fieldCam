@@ -4,8 +4,7 @@ const ALLOWED_STATUSES = ["Active", "Suspended", "Inactive"];
 
 export const createVendorValidation = [
   body("userId")
-    .notEmpty()
-    .withMessage("User ID is required")
+    .optional()
     .isMongoId()
     .withMessage("User ID must be a valid MongoDB ObjectId"),
 
@@ -23,6 +22,18 @@ export const createVendorValidation = [
     .trim()
     .notEmpty()
     .withMessage("Location is required"),
+
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email address"),
+
+  body("phone")
+    .trim()
+    .notEmpty()
+    .withMessage("Contact number is required"),
 
   body("initials")
     .optional()

@@ -8,6 +8,11 @@ import {
   FiX,
   FiCheckCircle,
   FiAlertCircle,
+  FiCamera,
+  FiPaperclip,
+  FiFileText,
+  FiDownload,
+  FiMaximize2,
 } from "react-icons/fi";
 
 const ALLOWED_STATUSES = [
@@ -29,6 +34,10 @@ const ProjectTable = ({
   const [selectedProject, setSelectedProject] = useState(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
 
+  // Lightbox Preview State
+  const [previewImage, setPreviewImage] = useState(null);
+  const [previewTitle, setPreviewTitle] = useState("");
+
   const [statusModalProject, setStatusModalProject] = useState(null);
   const [newStatus, setNewStatus] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
@@ -45,6 +54,11 @@ const ProjectTable = ({
     setNewStatus(project.status || "New");
     setRejectionReason(project.rejectionReason || "");
     setStatusError("");
+  };
+
+  const handlePreviewImage = (url, title = "Photo Preview") => {
+    setPreviewImage(url);
+    setPreviewTitle(title);
   };
 
   const handleSaveStatus = async (e) => {
@@ -89,6 +103,14 @@ const ProjectTable = ({
     }
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col justify-between">
       {/* Table Area */}
@@ -117,6 +139,12 @@ const ProjectTable = ({
               <th className="py-3 px-4">
                 <div className="flex items-center gap-1">
                   <span>VENDOR</span>
+                  <span className="text-[8px] text-[#A39A94]">⇅</span>
+                </div>
+              </th>
+              <th className="py-3 px-4">
+                <div className="flex items-center gap-1">
+                  <span>MEDIA</span>
                   <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
@@ -151,6 +179,9 @@ const ProjectTable = ({
                   project.vendor ||
                   "—";
 
+                const hasPhotos = project.photos && project.photos.length > 0;
+                const hasAttachments = project.attachments && project.attachments.length > 0;
+
                 return (
                   <tr
                     key={project._id || pId}
@@ -174,6 +205,66 @@ const ProjectTable = ({
                     {/* Vendor */}
                     <td className="py-3.5 px-4 font-semibold text-[#3E3734]">
                       {vName}
+                    </td>
+
+                    {/* Media Column */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        {hasPhotos && (
+                          <div className="flex items-center -space-x-1 hover:space-x-0.5 transition-all">
+                            {project.photos.slice(0, 2).map((photo, pIdx) => (
+                              <img
+                                key={pIdx}
+                                src={photo.url}
+                                alt={photo.caption || "Photo"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreviewImage(
+                                    photo.url,
+                                    photo.caption || `Photo ${pIdx + 1}`
+                                  );
+                                }}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.style.display = "none";
+                                }}
+                                className="w-7 h-7 rounded-lg object-cover border border-white shadow-xs cursor-pointer hover:scale-110 transition-transform bg-[#FAF7F5]"
+                                title={photo.caption || "Click to view photo"}
+                              />
+                            ))}
+                            {project.photos.length > 2 && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenViewModal(project);
+                                }}
+                                className="w-6 h-6 rounded-lg bg-[#FAF7F5] border border-[#E8E2DE] text-[10px] font-bold text-[#817B77] flex items-center justify-center cursor-pointer hover:bg-[#F2EBE5]"
+                                title={`View all ${project.photos.length} photos`}
+                              >
+                                +{project.photos.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {hasAttachments && (
+                          <a
+                            href={project.attachments[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Open ${project.attachments[0].filename || "attachment"}`}
+                            className="inline-flex items-center gap-1 bg-[#FAF7F5] border border-[#E8E2DE] hover:bg-[#F2EBE5] px-2 py-1 rounded-lg text-[10px] font-semibold text-[#4A423F] transition-colors"
+                          >
+                            <FiPaperclip className="text-xs text-[#817B77]" />
+                            <span>{project.attachments.length}</span>
+                          </a>
+                        )}
+
+                        {!hasPhotos && !hasAttachments && (
+                          <span className="text-[#A39A94] text-xs">—</span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Due Date */}
@@ -212,7 +303,7 @@ const ProjectTable = ({
               })
             ) : (
               <tr>
-                <td colSpan="7" className="py-8 text-center text-xs text-[#817B77]">
+                <td colSpan="8" className="py-8 text-center text-xs text-[#817B77]">
                   No projects found.
                 </td>
               </tr>
@@ -314,8 +405,98 @@ const ProjectTable = ({
               </div>
             )}
 
+            {/* Photos Media Section */}
+            {selectedProject.photos && selectedProject.photos.length > 0 && (
+              <div className="pt-3 border-t border-[#F2EBE5]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold text-[#3E3734] flex items-center gap-1.5">
+                    <FiCamera className="text-sm text-[#817B77]" />
+                    <span>Project Photos ({selectedProject.photos.length})</span>
+                  </h4>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {selectedProject.photos.map((photo, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() =>
+                        handlePreviewImage(
+                          photo.url,
+                          photo.caption || `Photo ${idx + 1}`
+                        )
+                      }
+                      className="group relative bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl overflow-hidden cursor-pointer hover:border-[#C8B5AC] transition-all shadow-xs"
+                    >
+                      <div className="aspect-video w-full bg-[#EAE4DF] overflow-hidden flex items-center justify-center relative">
+                        <img
+                          src={photo.url}
+                          alt={photo.caption || `Photo ${idx + 1}`}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23817B77' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E";
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                      <div className="p-2 flex items-center justify-between bg-white border-t border-[#F2EBE5]">
+                        <span className="text-[11px] font-semibold text-[#3E3734] truncate max-w-[110px]">
+                          {photo.caption || `Photo ${idx + 1}`}
+                        </span>
+                        <FiMaximize2 className="text-xs text-[#817B77] group-hover:text-[#3E3734] shrink-0" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Attachments Media Section */}
+            {selectedProject.attachments && selectedProject.attachments.length > 0 && (
+              <div className="pt-3 border-t border-[#F2EBE5]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold text-[#3E3734] flex items-center gap-1.5">
+                    <FiPaperclip className="text-sm text-[#817B77]" />
+                    <span>Project Attachments ({selectedProject.attachments.length})</span>
+                  </h4>
+                </div>
+                <div className="space-y-2">
+                  {selectedProject.attachments.map((att, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-2.5 flex items-center justify-between gap-3 hover:bg-[#F2EBE5] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-[#E8E2DE] flex items-center justify-center shrink-0">
+                          <FiFileText className="text-sm text-[#817B77]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#3E3734] truncate">
+                            {att.filename || `Attachment ${idx + 1}`}
+                          </p>
+                          {att.size && (
+                            <p className="text-[10px] text-[#817B77]">
+                              {formatFileSize(att.size)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <a
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 bg-white hover:bg-[#EAE4DF] border border-[#E8E2DE] text-[#3E3734] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 shadow-xs"
+                      >
+                        <FiDownload className="text-xs" />
+                        <span>Open</span>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {selectedProject.checklistItems?.length > 0 && (
-              <div className="pt-2">
+              <div className="pt-3 border-t border-[#F2EBE5]">
                 <h4 className="text-xs font-bold text-[#3E3734] mb-1.5">Checklist</h4>
                 <div className="space-y-1">
                   {selectedProject.checklistItems.map((item, idx) => (
@@ -343,6 +524,38 @@ const ProjectTable = ({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-60 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3.5 bg-[#FAF8F6] border-b border-[#E8E2DE] flex items-center justify-between">
+              <span className="text-xs font-bold text-[#3E3734] truncate max-w-md">
+                {previewTitle}
+              </span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
+              >
+                <FiX className="text-base" />
+              </button>
+            </div>
+            <div className="p-3 bg-[#221F1E] flex items-center justify-center overflow-hidden max-h-[80vh]">
+              <img
+                src={previewImage}
+                alt={previewTitle}
+                className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-md"
+              />
             </div>
           </div>
         </div>
@@ -437,3 +650,4 @@ const ProjectTable = ({
 };
 
 export default ProjectTable;
+

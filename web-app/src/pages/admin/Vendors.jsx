@@ -4,10 +4,14 @@ import AdminHeader from "../../components/admin/AdminHeader";
 import VendorStats from "../../components/admin/vendors/VendorStats";
 import VendorToolbar from "../../components/admin/vendors/VendorToolbar";
 import VendorCard from "../../components/admin/vendors/VendorCard";
+import AddVendorModal from "../../components/admin/vendors/AddVendorModal";
+import AssignProjectModal from "../../components/admin/vendors/AssignProjectModal";
+import VendorProfileModal from "../../components/admin/vendors/VendorProfileModal";
 import { useAuth } from "../../context/AuthContext";
 import {
   getVendors,
   getVendorStats,
+  createVendor,
   updateVendorStatus,
 } from "../../services/vendorService";
 import { FiLoader, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
@@ -19,6 +23,13 @@ const Vendors = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+
+  // Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedVendorForAssign, setSelectedVendorForAssign] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedVendorForProfile, setSelectedVendorForProfile] = useState(null);
 
   // API State
   const [vendorsList, setVendorsList] = useState([]);
@@ -51,8 +62,43 @@ const Vendors = () => {
   };
 
   useEffect(() => {
-    fetchVendorsData();
+    const load = async () => {
+      await fetchVendorsData();
+    };
+    load();
   }, []);
+
+  const handleCreateVendor = async (payload) => {
+    if (readOnly) return;
+    try {
+      setError("");
+      await createVendor(payload);
+      setStatusSuccess("Vendor created successfully!");
+      await fetchVendorsData();
+      setTimeout(() => setStatusSuccess(""), 4000);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to create vendor";
+      setError(msg);
+      throw err;
+    }
+  };
+
+  const handleAssignProject = (vendor) => {
+    if (readOnly) return;
+    setSelectedVendorForAssign(vendor);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleAssignSuccess = async () => {
+    setStatusSuccess("Project assigned successfully!");
+    await fetchVendorsData();
+    setTimeout(() => setStatusSuccess(""), 4000);
+  };
+
+  const handleViewProfile = (vendor) => {
+    setSelectedVendorForProfile(vendor);
+    setIsProfileModalOpen(true);
+  };
 
   const handleStatusChange = async (vendorId, newStatus) => {
     if (readOnly) return;
@@ -125,6 +171,7 @@ const Vendors = () => {
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
             readOnly={readOnly}
+            onAddVendor={() => setIsAddModalOpen(true)}
           />
 
           {/* Feedback Alerts */}
@@ -158,6 +205,8 @@ const Vendors = () => {
                   vendor={vendor}
                   readOnly={readOnly}
                   onStatusChange={handleStatusChange}
+                  onAssignProject={handleAssignProject}
+                  onViewProfile={handleViewProfile}
                 />
               ))}
             </div>
@@ -171,6 +220,34 @@ const Vendors = () => {
           )}
         </main>
       </div>
+
+      {/* Add Vendor Modal */}
+      <AddVendorModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onCreateVendor={handleCreateVendor}
+      />
+
+      {/* Assign Project Modal */}
+      <AssignProjectModal
+        isOpen={isAssignModalOpen}
+        onClose={() => {
+          setIsAssignModalOpen(false);
+          setSelectedVendorForAssign(null);
+        }}
+        vendor={selectedVendorForAssign}
+        onAssignSuccess={handleAssignSuccess}
+      />
+
+      {/* View Vendor Profile Modal */}
+      <VendorProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          setSelectedVendorForProfile(null);
+        }}
+        vendor={selectedVendorForProfile}
+      />
     </div>
   );
 };

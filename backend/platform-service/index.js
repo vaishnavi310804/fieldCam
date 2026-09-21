@@ -7,6 +7,7 @@ import vendorRoutes from "./src/modules/vendor/vendor.routes.js";
 import projectRoutes from "./src/modules/project/project.routes.js";
 import invoiceRoutes from "./src/modules/invoice/invoice.routes.js";
 import supportRoutes from "./src/modules/support/support.routes.js";
+import auditRoutes from "./src/modules/audit/audit.routes.js";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/api/vendors", vendorRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/audit-logs", auditRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

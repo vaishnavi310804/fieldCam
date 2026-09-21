@@ -1,46 +1,126 @@
 import Vendor from "./vendor.model.js";
 import User from "../users/user.model.js";
+import Project from "../project/project.model.js";
+import crypto from "crypto";
 import mongoose from "mongoose";
 
 /**
- * Creates a new Vendor profile linked to an existing platform VENDOR user.
+ * Creates a new Vendor profile linked to an authenticating VENDOR user account.
  * @param {Object} vendorData 
  * @returns {Promise<Object>}
  */
 export const createVendor = async (vendorData) => {
-  if (!mongoose.Types.ObjectId.isValid(vendorData.userId)) {
-    throw new Error("Invalid User ID format");
-  }
+  let createdUserId = null;
+  let createdVendorId = null;
 
-  // 1. Verify referenced user exists
-  const user = await User.findById(vendorData.userId);
-  if (!user) {
-    throw new Error("Referenced user does not exist");
-  }
+  try {
+    // If no userId provided, check email & provision a VENDOR user account
+    if (!vendorData.userId) {
+      if (!vendorData.email || !vendorData.email.trim()) {
+        throw new Error("Email address is required to create a vendor account");
+      }
 
-  // 2. Ensure user has role VENDOR
-  if (user.role !== "VENDOR") {
-    throw new Error("Referenced user must have VENDOR role");
-  }
+      const normalizedEmail = vendorData.email.toLowerCase().trim();
 
-  // 3. Prevent duplicate vendor records for the same userId
-  const existingVendor = await Vendor.findOne({ userId: vendorData.userId });
-  if (existingVendor) {
-    throw new Error("Vendor profile already exists for this user");
-  }
+      // 1. Prevent duplicate email in User identity database
+      const existingEmail = await User.findOne({ email: normalizedEmail });
+      if (existingEmail) {
+        throw new Error("Email is already registered");
+      }
 
-  // Auto-generate initials if not supplied
-  if (!vendorData.initials && vendorData.companyName) {
-    const words = vendorData.companyName.trim().split(" ");
-    if (words.length >= 2) {
-      vendorData.initials = (words[0][0] + words[1][0]).toUpperCase();
+      // 2. Prevent duplicate phone number if provided
+      if (vendorData.phone && vendorData.phone.trim()) {
+        const existingPhone = await User.findOne({ phone: vendorData.phone.trim() });
+        if (existingPhone) {
+          throw new Error("Phone number already registered");
+        }
+      }
+
+      // 3. Generate registration OTP (6-digit random string) and 10-min expiry
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const registrationOtpHash = crypto
+        .createHash("sha256")
+        .update(otp)
+        .digest("hex");
+      const registrationOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // 4. Create platform User authentication record in INACTIVE state without password
+      const newUser = await User.create({
+        name: vendorData.contactName || vendorData.companyName,
+        email: normalizedEmail,
+        phone: vendorData.phone ? vendorData.phone.trim() : undefined,
+        role: "VENDOR",
+        status: "INACTIVE",
+        isVerified: false,
+        registrationOtpHash,
+        registrationOtpExpires,
+      });
+
+      createdUserId = newUser._id;
+      vendorData.userId = newUser._id;
+
+      // 5. Send Registration OTP email via auth-service internal endpoint
+      const authServiceUrl = process.env.AUTH_SERVICE_URL || "http://localhost:5000/api";
+      const emailResponse = await fetch(`${authServiceUrl}/auth/send-registration-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          otp,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errorData = await emailResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to send registration OTP email to vendor");
+      }
     } else {
-      vendorData.initials = vendorData.companyName.slice(0, 2).toUpperCase();
-    }
-  }
+      if (!mongoose.Types.ObjectId.isValid(vendorData.userId)) {
+        throw new Error("Invalid User ID format");
+      }
 
-  const vendor = await Vendor.create(vendorData);
-  return vendor;
+      const user = await User.findById(vendorData.userId);
+      if (!user) {
+        throw new Error("Referenced user does not exist");
+      }
+
+      if (user.role !== "VENDOR") {
+        throw new Error("Referenced user must have VENDOR role");
+      }
+
+      const existingVendor = await Vendor.findOne({ userId: vendorData.userId });
+      if (existingVendor) {
+        throw new Error("Vendor profile already exists for this user");
+      }
+    }
+
+    // Auto-generate initials if not supplied
+    if (!vendorData.initials && vendorData.companyName) {
+      const words = vendorData.companyName.trim().split(" ");
+      if (words.length >= 2) {
+        vendorData.initials = (words[0][0] + words[1][0]).toUpperCase();
+      } else {
+        vendorData.initials = vendorData.companyName.slice(0, 2).toUpperCase();
+      }
+    }
+
+    const vendor = await Vendor.create(vendorData);
+    createdVendorId = vendor._id;
+
+    return await Vendor.findById(vendor._id).populate(
+      "userId",
+      "name email phone role status"
+    );
+  } catch (err) {
+    // Perform compensation cleanup if Vendor or User were created during this flow
+    if (createdVendorId) {
+      await Vendor.findByIdAndDelete(createdVendorId);
+    }
+    if (createdUserId) {
+      await User.findByIdAndDelete(createdUserId);
+    }
+    throw err;
+  }
 };
 
 /**
@@ -72,7 +152,7 @@ export const getVendors = async (query = {}) => {
 };
 
 /**
- * Retrieves a single vendor profile by ID.
+ * Retrieves a single vendor profile by ID enriched with live project statistics.
  * @param {string} id 
  * @returns {Promise<Object>}
  */
@@ -90,7 +170,30 @@ export const getVendorById = async (id) => {
     throw new Error("Vendor not found");
   }
 
-  return vendor;
+  const vendorObj = vendor.toObject();
+
+  // Calculate live project metrics for this vendor from Project collection
+  const [assignedCount, completedCount, waitingForApprovalCount, assignedProjectsList] =
+    await Promise.all([
+      Project.countDocuments({ vendorId: id }),
+      Project.countDocuments({ vendorId: id, status: "Approved" }),
+      Project.countDocuments({
+        vendorId: id,
+        status: { $in: ["Submitted", "Under Review"] },
+      }),
+      Project.find({ vendorId: id })
+        .select("projectId projectName serviceTypeName location status createdAt")
+        .sort({ createdAt: -1 }),
+    ]);
+
+  vendorObj.projectStats = {
+    assigned: assignedCount,
+    completed: completedCount,
+    waitingForApproval: waitingForApprovalCount,
+  };
+  vendorObj.projects = assignedProjectsList;
+
+  return vendorObj;
 };
 
 /**

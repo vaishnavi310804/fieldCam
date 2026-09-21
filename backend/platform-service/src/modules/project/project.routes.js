@@ -13,10 +13,10 @@ import {
   updateProjectController,
   updateProjectStatusController,
 } from "./project.controller.js";
+import { handleUpload } from "../../middleware/upload.middleware.js";
 
 const router = Router();
 
-// GET /api/projects - Read all projects (SUPER_ADMIN, ADMIN, VENDOR)
 router.get(
   "/",
   protect,
@@ -37,6 +37,7 @@ router.post(
   "/",
   protect,
   authorize("SUPER_ADMIN", "ADMIN"),
+  handleUpload,
   createProjectValidation,
   validate,
   createProjectController

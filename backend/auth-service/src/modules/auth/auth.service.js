@@ -8,6 +8,10 @@ import {
   generatePasswordResetToken,
   verifyPasswordResetToken,
 } from "./auth.utils.js";
+import {
+  sendRegistrationOTP,
+  sendForgotPasswordOTP,
+} from "../../services/email.service.js";
 
 export const createUserByAdmin = async (userData) => {
   const { name, email, phone, role, companyId } = userData;
@@ -30,26 +34,45 @@ export const createUserByAdmin = async (userData) => {
   const registrationOtpHash = await hashOTP(otp);
   const registrationOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  // Create new user without password
-  const user = await User.create({
-    name,
-    email: email.toLowerCase(),
-    phone: phone ? phone.trim() : undefined,
-    role,
-    companyId: companyId || null,
-    isVerified: false,
-    status: "INACTIVE",
-    registrationOtpHash,
-    registrationOtpExpires,
-  });
+  let user = null;
+  try {
+    // Create new user without password
+    user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      phone: phone ? phone.trim() : undefined,
+      role,
+      companyId: companyId || null,
+      isVerified: false,
+      status: "INACTIVE",
+      registrationOtpHash,
+      registrationOtpExpires,
+    });
+
+    // Send registration OTP via Brevo email
+    await sendRegistrationOTP(user.email, otp);
+  } catch (err) {
+    if (user) {
+      await User.findByIdAndDelete(user._id);
+    }
+    throw err;
+  }
 
   const userObject = user.toObject();
   delete userObject.registrationOtpHash;
+  delete userObject.registrationOtpExpires;
 
-  // Return generated OTP temporarily for dev/testing alongside user
   return {
     user: userObject,
-    otp,
+  };
+};
+
+export const sendRegistrationOTPEmail = async (data) => {
+  const { email, otp } = data;
+  await sendRegistrationOTP(email.toLowerCase().trim(), otp);
+  return {
+    success: true,
+    message: "Registration OTP email sent successfully",
   };
 };
 
@@ -204,9 +227,11 @@ export const forgotPassword = async (data) => {
 
   await user.save();
 
+  // Send password reset OTP via Brevo email
+  await sendForgotPasswordOTP(user.email, otp);
+
   return {
-    message: "Password reset OTP generated successfully",
-    otp,
+    message: "Password reset OTP sent to email successfully",
   };
 };
 
@@ -266,4 +291,64 @@ export const resetPassword = async (data) => {
   return {
     message: "Password reset successfully",
   };
+};
+
+export const getProfile = async (userId) => {
+  const user = await User.findById(userId).select(
+    "-password -registrationOtpHash -registrationOtpExpires -resetOtpHash -resetOtpExpires"
+  );
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user.toObject();
+};
+
+export const updateProfile = async (userId, updateData) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Explicit whitelist of allowed fields
+  const allowedFields = [
+    "firstName",
+    "lastName",
+    "phone",
+    "location",
+    "timezone",
+    "title",
+    "department",
+    "bio",
+    "socialLinks",
+  ];
+
+  allowedFields.forEach((field) => {
+    if (updateData[field] !== undefined) {
+      user[field] = updateData[field];
+    }
+  });
+
+  // Name Synchronization:
+  const effectiveFirstName =
+    updateData.firstName !== undefined ? updateData.firstName : user.firstName;
+  const effectiveLastName =
+    updateData.lastName !== undefined ? updateData.lastName : user.lastName;
+
+  if (effectiveFirstName || effectiveLastName) {
+    const combinedName = `${effectiveFirstName || ""} ${effectiveLastName || ""}`.trim();
+    if (combinedName) {
+      user.name = combinedName;
+    }
+  }
+
+  await user.save();
+
+  const userObject = user.toObject();
+  delete userObject.password;
+  delete userObject.registrationOtpHash;
+  delete userObject.registrationOtpExpires;
+  delete userObject.resetOtpHash;
+  delete userObject.resetOtpExpires;
+
+  return userObject;
 };

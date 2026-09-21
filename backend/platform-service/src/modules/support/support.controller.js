@@ -6,6 +6,7 @@ import {
   updateTicketStatus,
   getTicketStats,
 } from "./support.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
  * Controller to handle Support ticket creation.
@@ -14,6 +15,16 @@ import {
 export const createTicketController = async (req, res) => {
   try {
     const result = await createTicket(req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SUPPORT_TICKET_CREATED",
+      entityType: "Support",
+      entityId: result.ticketId || result._id?.toString() || "",
+      description: `Created support ticket ${result.ticketId || ""} - ${result.subject || ""}`.trim(),
+      metadata: { ticketId: result.ticketId, subject: result.subject },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Support ticket created successfully",
@@ -78,6 +89,16 @@ export const getTicketByIdController = async (req, res) => {
 export const updateTicketController = async (req, res) => {
   try {
     const result = await updateTicket(req.params.id, req.body);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SUPPORT_TICKET_UPDATED",
+      entityType: "Support",
+      entityId: result.ticketId || result._id?.toString() || req.params.id,
+      description: `Updated support ticket ${result.ticketId || ""}`.trim(),
+      metadata: { ticketId: result.ticketId },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Support ticket updated successfully",
@@ -102,6 +123,16 @@ export const updateTicketController = async (req, res) => {
 export const updateTicketStatusController = async (req, res) => {
   try {
     const result = await updateTicketStatus(req.params.id, req.body.status);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "SUPPORT_TICKET_STATUS_CHANGED",
+      entityType: "Support",
+      entityId: result.ticketId || result._id?.toString() || req.params.id,
+      description: `Changed status of support ticket ${result.ticketId || ""} to ${result.status}`.trim(),
+      metadata: { ticketId: result.ticketId, newStatus: result.status },
+    });
+
     return res.status(200).json({
       success: true,
       message: "Ticket status updated successfully",
