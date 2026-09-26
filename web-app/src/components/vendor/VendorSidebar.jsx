@@ -56,7 +56,7 @@ const VendorSidebar = ({ collapsed, setCollapsed }) => {
       id: "support",
       label: "Support",
       icon: FiHelpCircle,
-      path: "/admin/support",
+      path: "/vendor/support",
     },
   ];
 

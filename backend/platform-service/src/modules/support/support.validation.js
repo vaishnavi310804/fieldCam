@@ -5,13 +5,13 @@ const ALLOWED_STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
 
 export const createTicketValidation = [
   body("ticketId")
+    .optional()
     .trim()
     .notEmpty()
-    .withMessage("Ticket ID is required"),
+    .withMessage("Ticket ID cannot be empty"),
 
   body("vendorId")
-    .notEmpty()
-    .withMessage("Vendor ID is required")
+    .optional()
     .isMongoId()
     .withMessage("Vendor ID must be a valid MongoDB ObjectId"),
 

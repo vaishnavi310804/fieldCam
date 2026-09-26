@@ -14,7 +14,7 @@ import { logAuditEvent } from "../audit/audit.service.js";
  */
 export const createTicketController = async (req, res) => {
   try {
-    const result = await createTicket(req.body);
+    const result = await createTicket(req.body, req.user);
 
     await logAuditEvent({
       actor: req.user,
@@ -156,7 +156,7 @@ export const updateTicketStatusController = async (req, res) => {
  */
 export const getTicketStatsController = async (req, res) => {
   try {
-    const result = await getTicketStats();
+    const result = await getTicketStats(req.user);
     return res.status(200).json({
       success: true,
       data: result,

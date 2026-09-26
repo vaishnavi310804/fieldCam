@@ -119,24 +119,6 @@ const Performance = () => {
             hasData={hasData}
           />
 
-          {/* Error Banner */}
-          {error && (
-            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-2">
-                <FiAlertCircle className="text-base shrink-0" />
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                onClick={loadPerformanceData}
-                className="flex items-center gap-1.5 bg-[#C62828] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[#B71C1C] transition-colors cursor-pointer"
-              >
-                <FiRefreshCw className="text-xs" />
-                <span>Retry</span>
-              </button>
-            </div>
-          )}
-
           {/* 2. KPI Cards Grid */}
           <PerformanceKpiGrid
             summary={performanceData?.summary}

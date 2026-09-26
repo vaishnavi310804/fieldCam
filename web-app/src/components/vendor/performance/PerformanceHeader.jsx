@@ -1,14 +1,15 @@
 import { FiCalendar, FiDownload } from "react-icons/fi";
+import { FaRegChartBar } from "react-icons/fa";
 
 const PerformanceHeader = ({ periodFilter, setPeriodFilter, onExport, hasData }) => {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#8B5CF6] text-white flex items-center justify-center shadow-xs shrink-0">
-          <span className="font-black text-lg">📊</span>
+          <span className="font-black text-lg"><FaRegChartBar className="text-[#FFFFFF]"/></span>
         </div>
         <div>
-          <h1 className="text-xl font-extrabold text-[#2D3436] tracking-tight">
+          <h1 className="text-xl font-bold text-[#2D3436] tracking-tight">
             Performance Analytics
           </h1>
           <p className="text-xs text-[#817B77] font-medium">

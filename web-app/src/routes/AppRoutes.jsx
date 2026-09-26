@@ -18,6 +18,7 @@ import VendorDashboard from "../pages/vendor/Dashboard";
 import VendorProjects from "../pages/vendor/Projects";
 import VendorInvoices from "../pages/vendor/Invoices";
 import VendorPerformance from "../pages/vendor/Performance";
+import VendorSupport from "../pages/vendor/Support";
 import ReviewSubmission from "../pages/admin/ReviewSubmission";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -60,6 +61,7 @@ const AppRoutes = () => {
         <Route path="/vendor/projects" element={<VendorProjects />} />
         <Route path="/vendor/invoices" element={<VendorInvoices />} />
         <Route path="/vendor/performance" element={<VendorPerformance />} />
+        <Route path="/vendor/support" element={<VendorSupport />} />
       </Route>
 
       {/* Catch-all fallback */}

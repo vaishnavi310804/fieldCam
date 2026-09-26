@@ -6,21 +6,66 @@ import mongoose from "mongoose";
 /**
  * Creates a new Support ticket document.
  * @param {Object} ticketData 
+ * @param {Object} user 
  * @returns {Promise<Object>}
  */
-export const createTicket = async (ticketData) => {
-  const { vendorId, projectId, ticketId } = ticketData;
+export const createTicket = async (ticketData, user = {}) => {
+  let { vendorId, projectId, ticketId } = ticketData;
 
-  // 1. Verify vendorId exists in Vendor
-  if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-    throw new Error("Invalid vendor ID format");
-  }
-  const vendor = await Vendor.findById(vendorId);
-  if (!vendor) {
-    throw new Error("Vendor not found");
+  // 1. Resolve vendor based on user role
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor) {
+      throw new Error("Vendor profile not found for authenticated user");
+    }
+    vendorId = vendor._id.toString();
+    ticketData.vendorId = vendor._id;
+    ticketData.vendorName = vendor.companyName;
+    ticketData.initials = vendor.initials || "";
+    ticketData.avatarBg = vendor.avatarBg || "#C87A65";
+  } else {
+    if (!vendorId) {
+      throw new Error("Vendor ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      throw new Error("Invalid vendor ID format");
+    }
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      throw new Error("Vendor not found");
+    }
+    if (!ticketData.vendorName || !ticketData.vendorName.trim()) {
+      ticketData.vendorName = vendor.companyName;
+    }
+    if (!ticketData.initials || !ticketData.initials.trim()) {
+      ticketData.initials = vendor.initials || "";
+    }
+    if (!ticketData.avatarBg || !ticketData.avatarBg.trim()) {
+      ticketData.avatarBg = vendor.avatarBg || "#C87A65";
+    }
   }
 
-  // 2. If projectId is supplied, verify Project exists
+  // 2. Handle ticketId generation or uniqueness check
+  if (user.role === "VENDOR" || !ticketId || !ticketId.trim()) {
+    let uniqueId = false;
+    let candidate = "";
+    while (!uniqueId) {
+      candidate = `TKT-${Math.floor(1000 + Math.random() * 9000)}`;
+      const existing = await Support.findOne({ ticketId: candidate });
+      if (!existing) {
+        uniqueId = true;
+      }
+    }
+    ticketData.ticketId = candidate;
+  } else {
+    ticketData.ticketId = ticketId.trim();
+    const existingTicket = await Support.findOne({ ticketId: ticketData.ticketId });
+    if (existingTicket) {
+      throw new Error("Ticket ID already exists");
+    }
+  }
+
+  // 3. If projectId is supplied, verify Project exists
   let project = null;
   if (projectId) {
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
@@ -31,34 +76,19 @@ export const createTicket = async (ticketData) => {
       throw new Error("Project not found");
     }
 
-    // 3. Verify Project/Vendor assignment match if Project has a vendorId
+    // 4. Verify Project/Vendor assignment match if Project has a vendorId
     if (project.vendorId && project.vendorId.toString() !== vendorId.toString()) {
       throw new Error("Vendor ID does not match project assigned vendor");
     }
   }
 
-  // 4. Derive vendorName from Vendor.companyName when omitted
-  if (!ticketData.vendorName || !ticketData.vendorName.trim()) {
-    ticketData.vendorName = vendor.companyName;
+  if (!ticketData.status) {
+    ticketData.status = "Open";
+  }
+  if (!ticketData.priority) {
+    ticketData.priority = "Medium";
   }
 
-  // 5. Derive initials from Vendor.initials when omitted
-  if (!ticketData.initials || !ticketData.initials.trim()) {
-    ticketData.initials = vendor.initials || "";
-  }
-
-  // 6. Derive avatarBg from Vendor.avatarBg when omitted
-  if (!ticketData.avatarBg || !ticketData.avatarBg.trim()) {
-    ticketData.avatarBg = vendor.avatarBg || "#C87A65";
-  }
-
-  // 7. Prevent duplicate ticketId
-  const existingTicket = await Support.findOne({ ticketId: ticketId.trim() });
-  if (existingTicket) {
-    throw new Error("Ticket ID already exists");
-  }
-
-  // 8. Set lastUpdate when creating
   ticketData.lastUpdate = new Date();
 
   const ticket = await Support.create(ticketData);
@@ -256,20 +286,44 @@ export const updateTicketStatus = async (id, status) => {
 
 /**
  * Calculates aggregate ticket statistics from database.
+ * @param {Object} user
  * @returns {Promise<Object>}
  */
-export const getTicketStats = async () => {
-  const totalTickets = await Support.countDocuments();
-  const open = await Support.countDocuments({ status: "Open" });
-  const inProgress = await Support.countDocuments({ status: "In Progress" });
-  const resolved = await Support.countDocuments({ status: "Resolved" });
-  const closed = await Support.countDocuments({ status: "Closed" });
+export const getTicketStats = async (user = {}) => {
+  const filter = {};
 
-  return {
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor) {
+      return {
+        totalTickets: 0,
+        open: 0,
+        inProgress: 0,
+        resolved: 0,
+        closed: 0,
+        avgResponse: "N/A",
+      };
+    }
+    filter.vendorId = vendor._id;
+  }
+
+  const totalTickets = await Support.countDocuments(filter);
+  const open = await Support.countDocuments({ ...filter, status: "Open" });
+  const inProgress = await Support.countDocuments({ ...filter, status: "In Progress" });
+  const resolved = await Support.countDocuments({ ...filter, status: "Resolved" });
+  const closed = await Support.countDocuments({ ...filter, status: "Closed" });
+
+  const stats = {
     totalTickets,
     open,
     inProgress,
     resolved,
     closed,
   };
+
+  if (user.role === "VENDOR") {
+    stats.avgResponse = "N/A";
+  }
+
+  return stats;
 };

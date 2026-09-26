@@ -25,11 +25,11 @@ router.get(
   getTicketsController
 );
 
-// GET /api/support/stats - Aggregate support ticket statistics (SUPER_ADMIN, ADMIN)
+// GET /api/support/stats - Aggregate support ticket statistics (SUPER_ADMIN, ADMIN, VENDOR)
 router.get(
   "/stats",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
   getTicketStatsController
 );
 
@@ -41,11 +41,11 @@ router.get(
   getTicketByIdController
 );
 
-// POST /api/support/tickets - Create a new support ticket (SUPER_ADMIN, ADMIN)
+// POST /api/support/tickets - Create a new support ticket (SUPER_ADMIN, ADMIN, VENDOR)
 router.post(
   "/tickets",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
   createTicketValidation,
   validate,
   createTicketController
