@@ -71,13 +71,18 @@ const AdminSidebar = ({
             collapsed ? "px-0" : "px-2"
           }`}
         >
-          <img
-            src={fieldCamLogo}
-            alt="FieldCam"
-            className={`object-contain transition-all duration-300 ${
-              collapsed ? "w-9 h-9" : "w-[150px] h-auto"
-            }`}
-          />
+          <Link
+            to="/admin/dashboard"
+            className="flex items-center gap-2 overflow-hidden"
+          >
+            <img
+              src={fieldCamLogo}
+              alt="FieldCam"
+              className={`object-contain transition-all duration-300 ${
+                collapsed ? "w-9 h-9" : "w-[150px] h-auto"
+              }`}
+            />
+          </Link>
         </div>
 
         {/* Navigation */}

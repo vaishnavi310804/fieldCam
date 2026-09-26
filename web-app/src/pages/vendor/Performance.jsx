@@ -15,6 +15,7 @@ import { getVendorPerformanceData } from "../../services/vendorPerformanceServic
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
 import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
+import { FaRegChartBar } from "react-icons/fa";
 
 const Performance = () => {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ const Performance = () => {
       setPerformanceData(perfData);
     } catch (err) {
       setError(
-        err.response?.data?.message || err.message || "Failed to load vendor performance data from server"
+        err.response?.data?.message || err.message || "Failed to load vendor performance data."
       );
       setPerformanceData(null);
     } finally {
@@ -62,8 +63,8 @@ const Performance = () => {
       ["Metric", "Value"],
       ["Projects Completed", summary.completed],
       ["Projects Rejected", summary.rejected],
-      ["Approval Rate", summary.approvalRate !== null ? `${summary.approvalRate}%` : "N/A"],
-      ["Avg Turnaround Days", summary.avgTurnaroundDays !== null ? `${summary.avgTurnaroundDays} days` : "N/A"],
+      ["Approval Rate", summary.approvalRate !== null ? `${summary.approvalRate}%` : "-"],
+      ["Avg Turnaround Days", summary.avgTurnaroundDays !== null ? `${summary.avgTurnaroundDays} days` : "-"],
       ["Total Projects", summary.totalProjects],
     ];
 

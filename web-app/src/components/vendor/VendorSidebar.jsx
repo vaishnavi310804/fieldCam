@@ -26,16 +26,42 @@ const VendorSidebar = ({ collapsed, setCollapsed }) => {
   };
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: FiGrid, path: "/vendor/dashboard" },
-    { id: "projects", label: "Projects", icon: FiBriefcase, path: "/vendor/projects" },
-    { id: "invoices", label: "Invoices", icon: FiFileText, path: "/vendor/invoices" },
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: FiGrid,
+      path: "/vendor/dashboard",
+    },
+    {
+      id: "projects",
+      label: "Projects",
+      icon: FiBriefcase,
+      path: "/vendor/projects",
+    },
+    {
+      id: "invoices",
+      label: "Invoices",
+      icon: FiFileText,
+      path: "/vendor/invoices",
+    },
     { id: "earnings", label: "Earnings", icon: FiDollarSign, path: "#" },
     { id: "staff", label: "Staff", icon: FiUsers, path: "#" },
-    { id: "performance", label: "Performance", icon: FiTrendingUp, path: "/vendor/performance" },
-    { id: "support", label: "Support", icon: FiHelpCircle, path: "/admin/support" },
+    {
+      id: "performance",
+      label: "Performance",
+      icon: FiTrendingUp,
+      path: "/vendor/performance",
+    },
+    {
+      id: "support",
+      label: "Support",
+      icon: FiHelpCircle,
+      path: "/admin/support",
+    },
   ];
 
-  const vendorName = user?.name || user?.email?.split("@")[0] || "Vendor Partner";
+  const vendorName =
+    user?.name || user?.email?.split("@")[0] || "Vendor Partner";
   const initials = vendorName
     .split(" ")
     .map((n) => n[0])
@@ -45,40 +71,39 @@ const VendorSidebar = ({ collapsed, setCollapsed }) => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-40 h-screen bg-[#EEE9E6] border-r border-[#E8E2DE] transition-all duration-300 flex flex-col justify-between ${
+      className={`fixed left-0 top-0 bottom-0 z-40 bg-[#F7F4F2] border-r border-[#E8E2DE] flex flex-col justify-between transition-all duration-300 ${
         collapsed ? "w-16" : "w-[170px]"
-      }`}
+      } h-screen py-6 px-3 overflow-y-auto hidden lg:flex shrink-0`}
     >
       {/* Top Header Logo */}
       <div>
-        <div className="h-16 flex items-center justify-between px-3.5 border-b border-[#E8E2DE]">
-          <Link to="/vendor/dashboard" className="flex items-center gap-2 overflow-hidden">
+        <div
+          className={`flex items-center justify-center mb-8 ${
+            collapsed ? "px-0" : "px-2"
+          }`}
+        >
+          <Link
+            to="/vendor/dashboard"
+            className="flex items-center gap-2 overflow-hidden"
+          >
             <img
               src={fieldCamLogo}
-              alt="FIELDcam"
-              className="h-8 w-auto object-contain shrink-0"
+              alt="FieldCam"
+              className={`object-contain transition-all duration-300 ${
+                collapsed ? "w-9 h-9" : "w-[150px] h-auto"
+              }`}
             />
           </Link>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg hover:bg-[#EAE4DF] transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            {collapsed ? (
-              <FiChevronRight className="text-sm" />
-            ) : (
-              <FiChevronLeft className="text-sm" />
-            )}
-          </button>
         </div>
 
         {/* Menu Navigation */}
-        <nav className="p-2 space-y-1 mt-2">
+        <nav className="space-y-1.5">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               location.pathname === item.path ||
-              (item.id === "dashboard" && location.pathname === "/vendor/dashboard");
+              (item.id === "dashboard" &&
+                location.pathname === "/vendor/dashboard");
 
             return (
               <Link

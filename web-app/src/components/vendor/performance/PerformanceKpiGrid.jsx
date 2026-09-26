@@ -5,10 +5,10 @@ const PerformanceKpiGrid = ({ summary, loading }) => {
   const rejected = summary?.rejected || 0;
   const approvalRate = summary?.approvalRate !== null && summary?.approvalRate !== undefined
     ? `${summary.approvalRate}%`
-    : "N/A";
+    : "-";
   const avgTime = summary?.avgTurnaroundDays !== null && summary?.avgTurnaroundDays !== undefined
     ? `${summary.avgTurnaroundDays}d`
-    : "N/A";
+    : "-";
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
