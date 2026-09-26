@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import ForgotPassword from "../pages/auth/ForgotPassword";
+import VerifyOtp from "../pages/auth/VerifyOtp";
+import CompleteProfile from "../pages/auth/CompleteProfile";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminProjects from "../pages/admin/Projects";
@@ -13,6 +15,10 @@ import AdminSupport from "../pages/admin/Support";
 import AdminProfile from "../pages/admin/Profile";
 import AdminActivity from "../pages/admin/Activity";
 import VendorDashboard from "../pages/vendor/Dashboard";
+import VendorProjects from "../pages/vendor/Projects";
+import VendorInvoices from "../pages/vendor/Invoices";
+import VendorPerformance from "../pages/vendor/Performance";
+import ReviewSubmission from "../pages/admin/ReviewSubmission";
 import ProtectedRoute from "./ProtectedRoute";
 
 const AppRoutes = () => {
@@ -21,6 +27,9 @@ const AppRoutes = () => {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/vendor/verify-otp" element={<VerifyOtp />} />
+      <Route path="/vendor/complete-profile" element={<CompleteProfile />} />
+
 
       {/* Super Admin Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]} />}>
@@ -30,6 +39,7 @@ const AppRoutes = () => {
       {/* Admin & Shared Operational Routes */}
       <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "VENDOR"]} />}>
         <Route path="/admin/projects" element={<AdminProjects />} />
+        <Route path="/admin/projects/:id/review" element={<ReviewSubmission />} />
         <Route path="/admin/invoices" element={<AdminInvoices />} />
         <Route path="/admin/support" element={<AdminSupport />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
@@ -47,6 +57,9 @@ const AppRoutes = () => {
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["VENDOR"]} />}>
         <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+        <Route path="/vendor/projects" element={<VendorProjects />} />
+        <Route path="/vendor/invoices" element={<VendorInvoices />} />
+        <Route path="/vendor/performance" element={<VendorPerformance />} />
       </Route>
 
       {/* Catch-all fallback */}

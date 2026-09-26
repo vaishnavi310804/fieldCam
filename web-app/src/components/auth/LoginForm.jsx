@@ -227,6 +227,18 @@ const LoginForm = () => {
           {loading ? "Signing In..." : "Sign In"}
         </button>
 
+        {/* Vendor Onboarding Link */}
+        <div className="text-center pt-1">
+          <button
+            type="button"
+            onClick={() => navigate("/vendor/verify-otp")}
+            className="text-[10px] text-[#5141F5] font-medium hover:underline"
+          >
+            Invited as a Vendor? Activate Account
+          </button>
+        </div>
+
+
         {/* Secured Access */}
         <div className="flex items-center gap-3 pt-1">
           <div className="flex-1 h-px bg-[#ECECEC]" />

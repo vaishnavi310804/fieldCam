@@ -97,6 +97,9 @@ export const sendEmailChangeOTP = async (email, otp) => {
 };
 
 export const sendRegistrationOTP = async (email, otp) => {
+  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  const verificationLink = `${clientUrl}/vendor/verify-otp?email=${encodeURIComponent(email)}`;
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin:auto;">
       <h2>Welcome to FIELDcam 🎉</h2>
@@ -116,6 +119,20 @@ export const sendRegistrationOTP = async (email, otp) => {
       <p>This OTP is valid for <strong>10 minutes</strong>.</p>
       <p style="color: #d9534f; font-weight: bold;">For security reasons, do not share this OTP with anyone.</p>
 
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${verificationLink}" style="
+          background-color: #5141F5;
+          color: #ffffff;
+          padding: 12px 24px;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: bold;
+          display: inline-block;
+        ">
+          Verify Your Account
+        </a>
+      </div>
+
       <p>If you did not expect this account registration, please contact your FIELDcam administrator.</p>
       <br/>
       <strong>FIELDcam Team</strong>
@@ -128,4 +145,5 @@ export const sendRegistrationOTP = async (email, otp) => {
     html,
   });
 };
+
 

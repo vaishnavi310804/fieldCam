@@ -2,11 +2,30 @@ import {
   createVendor,
   getVendors,
   getVendorById,
+  getMyVendorProfile,
   updateVendor,
   updateVendorStatus,
   getVendorStats,
 } from "./vendor.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
+
+/**
+ * Controller to handle fetching authenticated vendor's profile & statistics.
+ */
+export const getMyVendorProfileController = async (req, res) => {
+  try {
+    const result = await getMyVendorProfile(req.user.id);
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    return res.status(404).json({
+      success: false,
+      message: error.message || "Vendor profile not found for authenticated user",
+    });
+  }
+};
 
 /**
  * Controller to handle Vendor profile creation.

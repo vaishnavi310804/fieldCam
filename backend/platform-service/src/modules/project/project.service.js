@@ -293,9 +293,10 @@ export const updateProject = async (id, updateData) => {
  * @param {string} id 
  * @param {string} status 
  * @param {string} [rejectionReason] 
+ * @param {string} [reviewComments]
  * @returns {Promise<Object>}
  */
-export const updateProjectStatus = async (id, status, rejectionReason) => {
+export const updateProjectStatus = async (id, status, rejectionReason, reviewComments) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid project ID format");
   }
@@ -315,11 +316,16 @@ export const updateProjectStatus = async (id, status, rejectionReason) => {
 
   const updateFields = { status };
 
+  if (reviewComments !== undefined) {
+    updateFields.reviewComments = reviewComments ? reviewComments.trim() : null;
+  }
+
   if (status === "Rejected") {
-    if (!rejectionReason || !rejectionReason.trim()) {
+    const finalReason = (rejectionReason || reviewComments || "").trim();
+    if (!finalReason) {
       throw new Error("Rejection reason is required when rejecting a project");
     }
-    updateFields.rejectionReason = rejectionReason.trim();
+    updateFields.rejectionReason = finalReason;
   } else if (status === "Approved") {
     updateFields.rejectionReason = null;
   }

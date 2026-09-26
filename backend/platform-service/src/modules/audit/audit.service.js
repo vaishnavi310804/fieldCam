@@ -70,3 +70,15 @@ export const getMyAuditLogs = async (actorId, query = {}) => {
     },
   };
 };
+
+/**
+ * Retrieves audit logs for a specific entity (e.g. Project).
+ * @param {string} entityType 
+ * @param {string} entityId 
+ * @returns {Promise<Array>}
+ */
+export const getEntityAuditLogs = async (entityType, entityId) => {
+  return await AuditLog.find({ entityType, entityId })
+    .sort({ createdAt: -1 })
+    .limit(50);
+};

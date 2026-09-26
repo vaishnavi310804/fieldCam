@@ -62,7 +62,17 @@ export const verifyRegistrationOTPController = async (req, res) => {
 
 export const completeProfileController = async (req, res) => {
   try {
-    const result = await completeProfile(req.body);
+    let setupToken = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      setupToken = authHeader.split(" ")[1];
+    } else if (req.headers["x-setup-token"]) {
+      setupToken = req.headers["x-setup-token"];
+    } else if (req.body.setupToken) {
+      setupToken = req.body.setupToken;
+    }
+
+    const result = await completeProfile(req.body, setupToken);
     return res.status(200).json({
       success: true,
       message: "Profile completed successfully",
@@ -75,6 +85,7 @@ export const completeProfileController = async (req, res) => {
     });
   }
 };
+
 
 export const webLoginController = async (req, res) => {
   try {

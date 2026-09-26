@@ -20,9 +20,22 @@ export const updateProject = async (id, projectData) => {
   return response.data;
 };
 
-export const updateProjectStatus = async (id, status, rejectionReason) => {
+export const updateProjectStatus = async (
+  id,
+  status,
+  rejectionReason,
+  reviewComments
+) => {
   const payload = { status };
   if (rejectionReason) payload.rejectionReason = rejectionReason;
+  if (reviewComments) payload.reviewComments = reviewComments;
   const response = await platformApi.patch(`/projects/${id}/status`, payload);
+  return response.data;
+};
+
+export const getProjectHistory = async (projectId) => {
+  const response = await platformApi.get(
+    `/audit-logs/entity/Project/${projectId}`
+  );
   return response.data;
 };

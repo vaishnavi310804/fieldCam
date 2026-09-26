@@ -152,6 +152,19 @@ export const getVendors = async (query = {}) => {
 };
 
 /**
+ * Retrieves the vendor profile for the currently authenticated User ID.
+ * @param {string} userId 
+ * @returns {Promise<Object>}
+ */
+export const getMyVendorProfile = async (userId) => {
+  const vendor = await Vendor.findOne({ userId });
+  if (!vendor) {
+    throw new Error("Vendor profile not found for authenticated user");
+  }
+  return await getVendorById(vendor._id.toString());
+};
+
+/**
  * Retrieves a single vendor profile by ID enriched with live project statistics.
  * @param {string} id 
  * @returns {Promise<Object>}

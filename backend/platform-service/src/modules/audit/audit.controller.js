@@ -1,4 +1,4 @@
-import { getMyAuditLogs } from "./audit.service.js";
+import { getMyAuditLogs, getEntityAuditLogs } from "./audit.service.js";
 
 /**
  * Controller to handle fetching audit logs for the currently authenticated user.
@@ -25,6 +25,28 @@ export const getMyAuditLogsController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Failed to fetch audit logs",
+    });
+  }
+};
+
+/**
+ * Controller to handle fetching audit logs for a specific entity.
+ * GET /api/audit-logs/entity/:entityType/:entityId
+ */
+export const getEntityAuditLogsController = async (req, res) => {
+  try {
+    const { entityType, entityId } = req.params;
+    const logs = await getEntityAuditLogs(entityType, entityId);
+
+    return res.status(200).json({
+      success: true,
+      count: logs.length,
+      data: logs,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch entity audit logs",
     });
   }
 };

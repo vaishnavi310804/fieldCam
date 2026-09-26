@@ -10,6 +10,7 @@ import {
   createVendorController,
   getVendorsController,
   getVendorByIdController,
+  getMyVendorProfileController,
   updateVendorController,
   updateVendorStatusController,
   getVendorStatsController,
@@ -23,6 +24,14 @@ router.get(
   protect,
   authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
   getVendorsController
+);
+
+// GET /api/vendors/me - Read authenticated vendor profile & stats (VENDOR, SUPER_ADMIN, ADMIN)
+router.get(
+  "/me",
+  protect,
+  authorize("VENDOR", "SUPER_ADMIN", "ADMIN"),
+  getMyVendorProfileController
 );
 
 // GET /api/vendors/stats - Vendor summary metrics (SUPER_ADMIN, ADMIN)

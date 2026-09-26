@@ -54,3 +54,20 @@ export const generatePasswordResetToken = (user) => {
 export const verifyPasswordResetToken = (token) => {
   return jwt.verify(token, process.env.PASSWORD_RESET_SECRET);
 };
+
+export const generateOnboardingSetupToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      purpose: "complete-profile",
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    }
+  );
+};
+
+export const verifyOnboardingSetupToken = (token) => {
+  return jwt.verify(token, process.env.JWT_SECRET);
+};

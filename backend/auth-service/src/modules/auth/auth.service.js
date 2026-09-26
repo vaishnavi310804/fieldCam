@@ -7,6 +7,8 @@ import {
   generateAccessToken,
   generatePasswordResetToken,
   verifyPasswordResetToken,
+  generateOnboardingSetupToken,
+  verifyOnboardingSetupToken,
 } from "./auth.utils.js";
 import {
   sendRegistrationOTP,
@@ -106,15 +108,42 @@ export const verifyRegistrationOTP = async (data) => {
 
   await user.save();
 
+  const setupToken = generateOnboardingSetupToken(user);
+
   const userObject = user.toObject();
   delete userObject.registrationOtpHash;
-  return userObject;
+  delete userObject.registrationOtpExpires;
+
+  return {
+    user: userObject,
+    setupToken,
+  };
 };
 
-export const completeProfile = async (data) => {
-  const { userId, password, profileImage } = data;
+export const completeProfile = async (data, setupTokenFromHeader) => {
+  const setupToken = setupTokenFromHeader || data?.setupToken;
 
-  const user = await User.findById(userId);
+  if (!setupToken) {
+    throw new Error("Onboarding setup token is required for password setup");
+  }
+
+  let decoded;
+  try {
+    decoded = verifyOnboardingSetupToken(setupToken);
+  } catch (jwtErr) {
+    if (jwtErr.name === "TokenExpiredError") {
+      throw new Error("Onboarding setup token has expired. Please verify your OTP again");
+    }
+    throw new Error("Invalid or unauthorized onboarding setup token");
+  }
+
+  if (!decoded || decoded.purpose !== "complete-profile" || !decoded.id) {
+    throw new Error("Invalid or unauthorized onboarding setup token");
+  }
+
+  const userId = decoded.id;
+
+  const user = await User.findById(userId).select("+password");
   if (!user) {
     throw new Error("User not found");
   }
@@ -123,11 +152,15 @@ export const completeProfile = async (data) => {
     throw new Error("User registration must be verified before completing profile");
   }
 
+  if (user.status === "ACTIVE" || user.password) {
+    throw new Error("Account setup is already complete or password has already been established");
+  }
+
   // Hash password & update details
-  const hashedPassword = await hashPassword(password);
+  const hashedPassword = await hashPassword(data.password);
   user.password = hashedPassword;
-  if (profileImage) {
-    user.profileImage = profileImage;
+  if (data.profileImage) {
+    user.profileImage = data.profileImage;
   }
   user.status = "ACTIVE";
 
@@ -143,6 +176,7 @@ export const completeProfile = async (data) => {
     accessToken,
   };
 };
+
 
 export const webLoginUser = async (credentials) => {
   const { email, password } = credentials;

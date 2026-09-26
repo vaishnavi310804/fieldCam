@@ -217,4 +217,10 @@ export const updateProjectStatusValidation = [
     .trim()
     .isString()
     .withMessage("Rejection reason must be a string"),
+
+  body("reviewComments")
+    .optional()
+    .trim()
+    .isString()
+    .withMessage("Review comments must be a string"),
 ];

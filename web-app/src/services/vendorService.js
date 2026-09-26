@@ -15,6 +15,11 @@ export const getVendorById = async (id) => {
   return response.data;
 };
 
+export const getMyVendorProfile = async () => {
+  const response = await platformApi.get("/vendors/me");
+  return response.data;
+};
+
 export const createVendor = async (vendorData) => {
   const response = await platformApi.post("/vendors", vendorData);
   return response.data;

@@ -90,12 +90,6 @@ export const verifyRegistrationOtpValidation = [
 
 // Complete onboarding/profile
 export const completeProfileValidation = [
-  body("userId")
-    .notEmpty()
-    .withMessage("User ID is required")
-    .isMongoId()
-    .withMessage("Invalid user ID"),
-
   body("password")
     .trim()
     .notEmpty()
@@ -108,6 +102,7 @@ export const completeProfileValidation = [
     .isString()
     .withMessage("Profile image must be a valid string"),
 ];
+
 
 
 // Forgot password

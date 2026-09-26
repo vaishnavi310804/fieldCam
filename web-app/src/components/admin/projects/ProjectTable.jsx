@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ProjectStatusBadge from "./ProjectStatusBadge";
 import {
   FiEye,
@@ -13,6 +14,7 @@ import {
   FiFileText,
   FiDownload,
   FiMaximize2,
+  FiCheckSquare,
 } from "react-icons/fi";
 
 const ALLOWED_STATUSES = [
@@ -30,6 +32,8 @@ const ProjectTable = ({
   onUpdateStatus,
   isReadOnly = false,
 }) => {
+  const navigate = useNavigate();
+
   // Modal State
   const [selectedProject, setSelectedProject] = useState(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -279,11 +283,21 @@ const ProjectTable = ({
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
-                          title="View Details"
+                          title="Review Submission"
+                          onClick={() =>
+                            navigate(`/admin/projects/${project._id || project.id}/review`)
+                          }
+                          className="bg-[#FAF7F5] hover:bg-[#EAE4DF] border border-[#E8E2DE] text-[#3E3734] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-xs cursor-pointer"
+                        >
+                          <FiCheckSquare className="text-xs text-[#8A817C]" />
+                          <span>Review</span>
+                        </button>
+                        <button
+                          title="View Quick Modal"
                           onClick={() => handleOpenViewModal(project)}
-                          className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-md hover:bg-[#EAE4DF] transition-colors"
+                          className="text-[#817B77] hover:text-[#3E3734] p-1.5 rounded-lg hover:bg-[#EAE4DF] transition-colors cursor-pointer"
                         >
                           <FiEye className="text-sm" />
                         </button>
@@ -291,7 +305,7 @@ const ProjectTable = ({
                           <button
                             title="Update Status"
                             onClick={() => handleOpenStatusModal(project)}
-                            className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-md hover:bg-[#EAE4DF] transition-colors"
+                            className="text-[#817B77] hover:text-[#3E3734] p-1.5 rounded-lg hover:bg-[#EAE4DF] transition-colors cursor-pointer"
                           >
                             <FiEdit2 className="text-sm" />
                           </button>

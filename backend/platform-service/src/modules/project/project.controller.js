@@ -5,6 +5,7 @@ import {
   updateProject,
   updateProjectStatus,
 } from "./project.service.js";
+import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
@@ -41,7 +42,22 @@ export const createProjectController = async (req, res) => {
  */
 export const getProjectsController = async (req, res) => {
   try {
-    const result = await getProjects(req.query);
+    const query = { ...req.query };
+
+    // Strict Vendor Scoping for VENDOR role
+    if (req.user && req.user.role === "VENDOR") {
+      const vendor = await Vendor.findOne({ userId: req.user.id });
+      if (!vendor) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+      query.vendorId = vendor._id.toString();
+    }
+
+    const result = await getProjects(query);
     return res.status(200).json({
       success: true,
       count: result.length,
@@ -120,7 +136,8 @@ export const updateProjectStatusController = async (req, res) => {
     const result = await updateProjectStatus(
       req.params.id,
       req.body.status,
-      req.body.rejectionReason
+      req.body.rejectionReason,
+      req.body.reviewComments
     );
 
     await logAuditEvent({
@@ -134,6 +151,7 @@ export const updateProjectStatusController = async (req, res) => {
         projectName: result.projectName,
         newStatus: result.status,
         rejectionReason: result.rejectionReason || null,
+        reviewComments: result.reviewComments || null,
       },
     });
 

@@ -31,7 +31,7 @@ const ProjectFilters = ({ activeFilter, setActiveFilter, allProjects = [] }) => 
   ];
 
   const pendingApprovalsCount = allProjects.filter(
-    (p) => p.status === "Submitted"
+    (p) => p.status === "Submitted" || p.status === "Under Review"
   ).length;
 
   return (
