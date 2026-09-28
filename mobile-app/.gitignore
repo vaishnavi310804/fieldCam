@@ -43,3 +43,17 @@ app-example
 /android
 
 .env
+.vscode/
+.idea/
+.env
+.env.*
+
+
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+android/.gradle/
+android/app/build/
+android/build/

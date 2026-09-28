@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { FiSearch, FiCalendar, FiBell } from "react-icons/fi";
 
@@ -60,9 +61,13 @@ const VendorHeader = ({ title = "Dashboard", vendorName = "", searchTerm = "", s
         </button>
 
         {/* User Avatar Circle */}
-        <div className="w-8 h-8 rounded-full bg-[#E07A5F] text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-pointer">
+        <Link
+          to="/vendor/profile"
+          className="w-8 h-8 rounded-full bg-[#E07A5F] text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+          title="View Vendor Profile"
+        >
           {initials}
-        </div>
+        </Link>
       </div>
     </header>
   );

@@ -1,5 +1,6 @@
 import { body } from "express-validator";
 
+const ALLOWED_CATEGORIES = ["Technical Issue", "Billing", "Account", "Feature Request", "General"];
 const ALLOWED_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 const ALLOWED_STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
 
@@ -19,6 +20,11 @@ export const createTicketValidation = [
     .trim()
     .notEmpty()
     .withMessage("Subject is required"),
+
+  body("category")
+    .optional()
+    .isIn(ALLOWED_CATEGORIES)
+    .withMessage(`Category must be one of: ${ALLOWED_CATEGORIES.join(", ")}`),
 
   body("vendorName")
     .optional()
@@ -100,6 +106,11 @@ export const updateTicketValidation = [
     .trim()
     .notEmpty()
     .withMessage("Subject cannot be empty"),
+
+  body("category")
+    .optional()
+    .isIn(ALLOWED_CATEGORIES)
+    .withMessage(`Category must be one of: ${ALLOWED_CATEGORIES.join(", ")}`),
 
   body("description")
     .optional()

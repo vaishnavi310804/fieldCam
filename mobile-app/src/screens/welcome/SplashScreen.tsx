@@ -129,6 +129,7 @@ const SplashScreen = ({ onContinue }: SplashScreenProps) => {
         }),
       ]),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /*
@@ -186,7 +187,7 @@ const SplashScreen = ({ onContinue }: SplashScreenProps) => {
           },
         ]}
       >
-        <Text style={styles.logoText}>Fieldwork Cam</Text>
+        <Text style={styles.logoText}>FieldCam</Text>
       </Animated.View>
 
       {/* --------------------------------------------- */}
@@ -202,7 +203,7 @@ const SplashScreen = ({ onContinue }: SplashScreenProps) => {
           },
         ]}
       >
-        <Text style={styles.brandText}>Fieldwork Cam</Text>
+        <Text style={styles.brandText}>FieldCam</Text>
       </Animated.View>
 
       {/* --------------------------------------------- */}
@@ -232,10 +233,6 @@ const SplashScreen = ({ onContinue }: SplashScreenProps) => {
           />
         </View>
       </Animated.View>
-
-      {/* --------------------------------------------- */}
-      {/* CONTINUE BUTTON — SPLY 5                      */}
-      {/* --------------------------------------------- */}
 
       <Animated.View
         style={[
@@ -277,9 +274,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
 
-  /*
-   * Large peach/gray shape from SPLY 4.
-   */
   backgroundWrapper: {
     position: "absolute",
     top: 0,

@@ -40,6 +40,14 @@ const supportSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    category: {
+      type: String,
+      enum: {
+        values: ["Technical Issue", "Billing", "Account", "Feature Request", "General"],
+        message: "{VALUE} is not a valid category",
+      },
+      default: "General",
+    },
     priority: {
       type: String,
       enum: {
@@ -69,6 +77,7 @@ const supportSchema = new mongoose.Schema(
 // Indexes
 supportSchema.index({ status: 1 });
 supportSchema.index({ priority: 1 });
+supportSchema.index({ category: 1 });
 supportSchema.index({ vendorId: 1 });
 supportSchema.index({ createdAt: -1 });
 

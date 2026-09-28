@@ -1,4 +1,5 @@
 import AuditLog from "./audit.model.js";
+import mongoose from "mongoose";
 
 /**
  * Creates an immutable audit log document for a successful mutation.
@@ -53,6 +54,18 @@ export const getMyAuditLogs = async (actorId, query = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 10));
   const skip = (page - 1) * limit;
+
+  if (!actorId || !mongoose.Types.ObjectId.isValid(actorId)) {
+    return {
+      logs: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        pages: 1,
+      },
+    };
+  }
 
   const total = await AuditLog.countDocuments({ actorId });
   const logs = await AuditLog.find({ actorId })

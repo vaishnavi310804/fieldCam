@@ -123,6 +123,10 @@ export const getTickets = async (query = {}, user = {}) => {
     filter.priority = query.priority;
   }
 
+  if (query.category && query.category !== "All") {
+    filter.category = query.category;
+  }
+
   if (query.projectId && mongoose.Types.ObjectId.isValid(query.projectId)) {
     filter.projectId = query.projectId;
   }
@@ -134,6 +138,7 @@ export const getTickets = async (query = {}, user = {}) => {
       { vendorName: searchRegex },
       { subject: searchRegex },
       { description: searchRegex },
+      { category: searchRegex },
     ];
   }
 

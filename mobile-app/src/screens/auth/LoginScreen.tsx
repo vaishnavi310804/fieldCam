@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,12 +12,51 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import Colors from "@/src/constants/color";
+import { useAuth } from "@/src/context/AuthContext";
 
 const LoginScreen = () => {
+  const { login } = useAuth();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSignIn = async () => {
+    setErrorMessage(null);
+
+    const trimmedPhone = phone.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedPhone) {
+      setErrorMessage("Please enter your phone number.");
+      return;
+    }
+
+    if (!trimmedPassword) {
+      setErrorMessage("Please enter your password.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await login({
+        phone: trimmedPhone,
+        password: trimmedPassword,
+      });
+      router.replace("/(app)/" as any);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to sign in. Please check your credentials.";
+      setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -48,15 +88,27 @@ const LoginScreen = () => {
         </LinearGradient>
 
         <View style={styles.formContainer}>
+          {errorMessage ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Phone Number</Text>
 
             <TextInput
               value={phone}
-              onChangeText={setPhone}
-              placeholder="+91 123 456 7890"
+              onChangeText={(text) => {
+                setPhone(text);
+                if (errorMessage) setErrorMessage(null);
+              }}
+              placeholder="+91 Enter phone number"
               placeholderTextColor="#A1A1AA"
               keyboardType="phone-pad"
+              autoCapitalize="none"
+              editable={!isSubmitting}
               style={styles.input}
             />
           </View>
@@ -67,10 +119,15 @@ const LoginScreen = () => {
             <View style={styles.passwordContainer}>
               <TextInput
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="Enter password"
                 placeholderTextColor="#A1A1AA"
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                editable={!isSubmitting}
                 style={styles.passwordInput}
               />
               <Pressable
@@ -93,11 +150,18 @@ const LoginScreen = () => {
             <Text style={styles.forgotPassword}>Forgot Password?</Text>
           </Pressable>
 
-          <Pressable style={styles.signInButton} onPress={() => {}}>
-            <Text style={styles.signInText}>Sign In</Text>
+          <Pressable
+            style={[styles.signInButton, isSubmitting && styles.disabledButton]}
+            onPress={handleSignIn}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={Colors.white} size="small" />
+            ) : (
+              <Text style={styles.signInText}>Sign In</Text>
+            )}
           </Pressable>
 
-  
           <View style={styles.orContainer}>
             <Text style={styles.orText}>or</Text>
           </View>
@@ -110,7 +174,7 @@ const LoginScreen = () => {
           {/* Contact Admin */}
           <View style={styles.contactContainer}>
             <Text style={styles.contactText}>
-              Don't have an account?{" "}
+              {"Don't have an account? "}
             </Text>
 
             <Pressable onPress={() => {}}>
@@ -128,7 +192,7 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bg,
   },
 
   scrollContent: {
@@ -175,6 +239,24 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    gap: 8,
+  },
+
+  errorBannerText: {
+    color: "#DC2626",
+    fontSize: 12,
+    fontWeight: "500",
+    flex: 1,
+  },
+
   inputGroup: {
     marginBottom: 10,
   },
@@ -187,7 +269,7 @@ const styles = StyleSheet.create({
 
   input: {
     height: 52,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#D3D3D3",
     borderRadius: 10,
     paddingHorizontal: 14,
     fontSize: 13,
@@ -196,7 +278,7 @@ const styles = StyleSheet.create({
 
   passwordContainer: {
     height: 52,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#D3D3D3",
     borderRadius: 10,
     paddingHorizontal: 14,
     flexDirection: "row",
@@ -228,6 +310,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  disabledButton: {
+    opacity: 0.7,
+  },
+
   signInText: {
     color: Colors.white,
     fontSize: 15,
@@ -247,7 +333,7 @@ const styles = StyleSheet.create({
   ssoButton: {
     height: 44,
     borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
