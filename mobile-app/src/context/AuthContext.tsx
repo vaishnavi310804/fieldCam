@@ -2,6 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, FieldCamUser, MobileLoginPayload } from "../api/auth.api";
 import { setAuthToken } from "../api/authClient";
+import {
+  getFcmToken,
+  unregisterDeviceTokenWithBackend,
+} from "../services/notification.service";
 
 interface AuthContextType {
   user: FieldCamUser | null;
@@ -52,6 +56,14 @@ export const AuthProvider = ({
   };
 
   const logout = async () => {
+    try {
+      const token = await getFcmToken();
+      if (token) {
+        await unregisterDeviceTokenWithBackend(token);
+      }
+    } catch {
+      // Non-blocking catch
+    }
     await authApi.logout();
     setUser(null);
   };

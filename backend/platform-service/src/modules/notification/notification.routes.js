@@ -8,6 +8,14 @@ import {
   markNotificationAsReadController,
   markAllNotificationsAsReadController,
 } from "./notification.controller.js";
+import {
+  registerDeviceTokenValidation,
+  unregisterDeviceTokenValidation,
+} from "./deviceToken.validation.js";
+import {
+  registerDeviceTokenController,
+  unregisterDeviceTokenController,
+} from "./deviceToken.controller.js";
 
 const router = Router();
 
@@ -25,5 +33,11 @@ router.patch("/read-all", markAllNotificationsAsReadController);
 
 // PATCH /api/notifications/:id/read - Mark a single notification as read
 router.patch("/:id/read", markReadValidation, validate, markNotificationAsReadController);
+
+// POST /api/notifications/device-token - Register or update FCM device token
+router.post("/device-token", registerDeviceTokenValidation, validate, registerDeviceTokenController);
+
+// DELETE /api/notifications/device-token - Deactivate FCM device token
+router.delete("/device-token", unregisterDeviceTokenValidation, validate, unregisterDeviceTokenController);
 
 export default router;

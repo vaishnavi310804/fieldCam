@@ -57,3 +57,4 @@ web-build/
 android/.gradle/
 android/app/build/
 android/build/
+google-services.json

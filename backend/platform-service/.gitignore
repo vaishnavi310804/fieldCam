@@ -1,2 +1,4 @@
 node_modules/
 .env
+credentials/
+credentials/fieldcam-9c3e1-firebase-adminsdk-fbsvc-ce826a2997.json

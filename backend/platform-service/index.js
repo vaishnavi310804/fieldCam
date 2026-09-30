@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import db from "./src/config/db.js";
+import "./src/config/firebaseAdmin.js";
 import errorHandler from "./src/middleware/error.middleware.js";
 import serviceRoutes from "./src/modules/service/service.routes.js";
 import vendorRoutes from "./src/modules/vendor/vendor.routes.js";
