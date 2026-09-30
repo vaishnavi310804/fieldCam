@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import Colors from "@/src/constants/color";
 import { useAuth } from "@/src/context/AuthContext";
 import {
@@ -20,6 +20,7 @@ import {
   VendorDashboardData,
   VendorInvoiceItem,
 } from "@/src/api/dashboard.api";
+import { notificationsApi } from "@/src/api/notifications.api";
 import {
   MonthlyEarningsChart,
   MonthlyEarningsPoint,
@@ -35,6 +36,8 @@ const VendorDashboardScreen = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
   const fetchDashboardData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setIsLoading(true);
@@ -49,13 +52,29 @@ const VendorDashboardScreen = () => {
     }
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await notificationsApi.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (err) {
+      console.warn("Failed to fetch unread notification count:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+    }, [fetchUnreadCount])
+  );
+
   const onRefresh = () => {
     setIsRefreshing(true);
     fetchDashboardData(false);
+    fetchUnreadCount();
   };
 
   const vendor = data?.profile;
@@ -153,8 +172,8 @@ const VendorDashboardScreen = () => {
         <VendorDashboardHeader
           name={vendor?.contactName || vendor?.companyName || user?.name || "Vendor Partner"}
           initials={vendor?.initials || user?.name?.slice(0, 2).toUpperCase() || "VD"}
-          notificationCount={supportStats.open}
-          onNotificationPress={() => router.push("/(app)/support" as any)}
+          notificationCount={unreadCount}
+          onNotificationPress={() => router.push("/notifications" as any)}
           onAvatarPress={logout}
         />
 

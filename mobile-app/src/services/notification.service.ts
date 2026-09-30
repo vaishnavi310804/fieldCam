@@ -110,6 +110,17 @@ export const unregisterDeviceTokenWithBackend = async (
  * Set up foreground notification presentation using expo-notifications and FCM messaging.
  */
 export const setupForegroundNotificationHandler = () => {
+  if (Platform.OS === "android") {
+    Notifications.setNotificationChannelAsync("default", {
+      name: "FieldCam Notifications",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#0066CC",
+    }).catch((err) =>
+      console.warn("Failed to set Android notification channel:", err)
+    );
+  }
+
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,

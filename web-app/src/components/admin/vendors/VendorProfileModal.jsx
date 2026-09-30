@@ -283,13 +283,21 @@ const VendorProfileModal = ({ isOpen, onClose, vendor }) => {
             <span>Project Overview</span>
           </h4>
 
-          <div className="grid grid-cols-3 gap-2 bg-[#FAF7F5] rounded-xl p-3 text-center border border-[#F2EBE5]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#FAF7F5] rounded-xl p-3 text-center border border-[#F2EBE5]">
             <div>
               <span className="block text-sm font-bold text-[#3E3734]">
                 {activeDoc.projectStats?.assigned ?? 0}
               </span>
               <span className="block text-[9px] font-bold text-[#A39A94] tracking-wider mt-0.5 uppercase">
-                ASSIGNED PROJECTS
+                ASSIGNED
+              </span>
+            </div>
+            <div>
+              <span className="block text-sm font-bold text-[#3E3734]">
+                {activeDoc.projectStats?.active ?? 0}
+              </span>
+              <span className="block text-[9px] font-bold text-[#8A817C] tracking-wider mt-0.5 uppercase">
+                ACTIVE
               </span>
             </div>
             <div>

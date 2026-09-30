@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import Notification from "./notification.model.js";
+import { sendPushNotificationForUser } from "./push.service.js";
 
 /**
- * Internal service function to create and persist a notification.
+ * Internal service function to create and persist a notification, then attempt FCM push delivery.
  * @param {Object} payload
  * @param {string|mongoose.Types.ObjectId} payload.userId - Recipient user ID
  * @param {string} payload.title - Notification title
@@ -42,6 +43,17 @@ export const createNotification = async ({
     data,
     isRead: false,
     readAt: null,
+  });
+
+  // Attempt FCM Push Delivery asynchronously without blocking persistent notification or caller
+  sendPushNotificationForUser({
+    userId,
+    title: title.trim(),
+    body: body.trim(),
+    type,
+    data,
+  }).catch((err) => {
+    console.warn("[FCM Push] Background delivery handler caught error:", err.message);
   });
 
   return notification;

@@ -149,7 +149,70 @@ export const getVendors = async (query = {}) => {
     .populate("userId", "name email phone role status")
     .sort({ createdAt: -1 });
 
-  return vendors;
+  // Aggregate live project stats for all assigned vendors
+  const statsAggregate = await Project.aggregate([
+    {
+      $match: { vendorId: { $ne: null } },
+    },
+    {
+      $group: {
+        _id: "$vendorId",
+        assigned: { $sum: 1 },
+        active: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["New", "In Progress", "Submitted", "Under Review"]] },
+              1,
+              0,
+            ],
+          },
+        },
+        completed: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "Approved"] }, 1, 0],
+          },
+        },
+        waitingForApproval: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["Submitted", "Under Review"]] },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ]);
+
+  const statsMap = new Map();
+  statsAggregate.forEach((stat) => {
+    if (stat._id) {
+      statsMap.set(stat._id.toString(), {
+        assigned: stat.assigned || 0,
+        active: stat.active || 0,
+        completed: stat.completed || 0,
+        waitingForApproval: stat.waitingForApproval || 0,
+      });
+    }
+  });
+
+  return vendors.map((vendor) => {
+    const vendorObj = vendor.toObject();
+    const stats = statsMap.get(vendorObj._id.toString()) || {
+      assigned: 0,
+      active: 0,
+      completed: 0,
+      waitingForApproval: 0,
+    };
+
+    vendorObj.projectStats = stats;
+    vendorObj.activeProjects = stats.active;
+    vendorObj.completed = stats.completed;
+    vendorObj.approval = stats.waitingForApproval;
+
+    return vendorObj;
+  });
 };
 
 /**
@@ -185,26 +248,35 @@ export const getVendorById = async (id) => {
   }
 
   const vendorObj = vendor.toObject();
+  const vendorObjectId = new mongoose.Types.ObjectId(id);
 
   // Calculate live project metrics for this vendor from Project collection
-  const [assignedCount, completedCount, waitingForApprovalCount, assignedProjectsList] =
+  const [assignedCount, activeCount, completedCount, waitingForApprovalCount, assignedProjectsList] =
     await Promise.all([
-      Project.countDocuments({ vendorId: id }),
-      Project.countDocuments({ vendorId: id, status: "Approved" }),
+      Project.countDocuments({ vendorId: vendorObjectId }),
       Project.countDocuments({
-        vendorId: id,
+        vendorId: vendorObjectId,
+        status: { $in: ["New", "In Progress", "Submitted", "Under Review"] },
+      }),
+      Project.countDocuments({ vendorId: vendorObjectId, status: "Approved" }),
+      Project.countDocuments({
+        vendorId: vendorObjectId,
         status: { $in: ["Submitted", "Under Review"] },
       }),
-      Project.find({ vendorId: id })
+      Project.find({ vendorId: vendorObjectId })
         .select("projectId projectName serviceTypeName location status createdAt")
         .sort({ createdAt: -1 }),
     ]);
 
   vendorObj.projectStats = {
     assigned: assignedCount,
+    active: activeCount,
     completed: completedCount,
     waitingForApproval: waitingForApprovalCount,
   };
+  vendorObj.activeProjects = activeCount;
+  vendorObj.completed = completedCount;
+  vendorObj.approval = waitingForApprovalCount;
   vendorObj.projects = assignedProjectsList;
 
   return vendorObj;
