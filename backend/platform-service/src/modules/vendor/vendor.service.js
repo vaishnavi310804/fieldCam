@@ -3,6 +3,7 @@ import User from "../users/user.model.js";
 import Project from "../project/project.model.js";
 import crypto from "crypto";
 import mongoose from "mongoose";
+import { createNotification } from "../notification/notification.service.js";
 
 /**
  * Creates a new Vendor profile linked to an authenticating VENDOR user account.
@@ -260,6 +261,22 @@ export const updateVendorStatus = async (id, status) => {
 
   if (!updatedVendor) {
     throw new Error("Vendor not found");
+  }
+
+  // Side effect: Notify vendor user
+  const vendorUserId = updatedVendor.userId?._id || updatedVendor.userId;
+  if (vendorUserId) {
+    try {
+      await createNotification({
+        userId: vendorUserId,
+        title: `Account Status: ${status}`,
+        body: `Your vendor account status has been updated to ${status}.`,
+        type: "SYSTEM",
+        data: { vendorId: updatedVendor._id.toString(), status },
+      });
+    } catch (notifErr) {
+      console.error("Failed to generate vendor status notification:", notifErr.message);
+    }
   }
 
   return updatedVendor;

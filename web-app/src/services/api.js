@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const authApi = axios.create({
-  baseURL: import.meta.env.VITE_AUTH_API_URL || "http://localhost:5000/api",
+  baseURL:"https://fieldcam-auth-service-bhzm.onrender.com/api",
 });
 
 authApi.interceptors.request.use(
@@ -18,7 +18,7 @@ authApi.interceptors.request.use(
 );
 
 export const platformApi = axios.create({
-  baseURL: import.meta.env.VITE_PLATFORM_API_URL || "http://localhost:5001/api",
+  baseURL: "https://fieldcam-platform-service.onrender.com/api",
 });
 
 platformApi.interceptors.request.use(

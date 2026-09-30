@@ -1,9 +1,8 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// eslint-disable-next-line import/no-named-as-default-member
 export const authClient = axios.create({
-  baseURL: "http://10.0.2.2:5000/api/auth",
+  baseURL: "https://fieldcam-auth-service-bhzm.onrender.com/api",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

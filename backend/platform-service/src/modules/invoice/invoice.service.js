@@ -2,6 +2,18 @@ import Invoice from "./invoice.model.js";
 import Project from "../project/project.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import mongoose from "mongoose";
+import { createNotification } from "../notification/notification.service.js";
+
+/**
+ * Helper to get a vendor's user ID for notification delivery.
+ * @param {string|mongoose.Types.ObjectId} vendorId
+ * @returns {Promise<mongoose.Types.ObjectId|null>}
+ */
+const getVendorUserId = async (vendorId) => {
+  if (!vendorId) return null;
+  const vendor = await Vendor.findById(vendorId);
+  return vendor ? vendor.userId : null;
+};
 
 /**
  * Creates a new Invoice document.
@@ -63,6 +75,29 @@ export const createInvoice = async (invoiceData) => {
   }
 
   const invoice = await Invoice.create(invoiceData);
+
+  // Side effect: Notify vendor
+  if (invoice && invoice.vendorId) {
+    try {
+      const vendorUserId = await getVendorUserId(invoice.vendorId);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "New Invoice Created",
+          body: `Invoice ${invoice.invoiceId} for $${invoice.totalAmount} has been created.`,
+          type: "INVOICE_UPDATED",
+          data: {
+            invoiceId: invoice._id.toString(),
+            invoiceCode: invoice.invoiceId,
+            projectId: invoice.projectId ? invoice.projectId.toString() : null,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate invoice creation notification:", notifErr.message);
+    }
+  }
+
   return invoice;
 };
 
@@ -225,6 +260,24 @@ export const updateInvoice = async (id, updateData) => {
   Object.assign(invoice, updateData);
   await invoice.save();
 
+  // Side effect: Notify vendor
+  if (invoice && invoice.vendorId) {
+    try {
+      const vendorUserId = await getVendorUserId(invoice.vendorId);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "Invoice Updated",
+          body: `Invoice ${invoice.invoiceId} details have been updated.`,
+          type: "INVOICE_UPDATED",
+          data: { invoiceId: invoice._id.toString(), invoiceCode: invoice.invoiceId, status: invoice.status },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate invoice update notification:", notifErr.message);
+    }
+  }
+
   return await Invoice.findById(invoice._id)
     .populate("projectId", "projectId projectName client status")
     .populate("vendorId", "companyName contactName location status");
@@ -253,6 +306,30 @@ export const updateInvoiceStatus = async (id, status) => {
   }
 
   await invoice.save();
+
+  // Side effect: Notify vendor
+  if (invoice && invoice.vendorId) {
+    try {
+      const vendorUserId = await getVendorUserId(invoice.vendorId);
+      if (vendorUserId) {
+        let title = `Invoice Status: ${status}`;
+        if (status === "Paid") {
+          title = "Invoice Paid";
+        } else if (status === "Approved") {
+          title = "Invoice Approved";
+        }
+        await createNotification({
+          userId: vendorUserId,
+          title,
+          body: `Invoice ${invoice.invoiceId} status has been updated to ${status}.`,
+          type: "INVOICE_UPDATED",
+          data: { invoiceId: invoice._id.toString(), invoiceCode: invoice.invoiceId, status },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate invoice status notification:", notifErr.message);
+    }
+  }
 
   return await Invoice.findById(invoice._id)
     .populate("projectId", "projectId projectName client status")

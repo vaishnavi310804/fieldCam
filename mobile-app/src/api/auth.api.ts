@@ -39,7 +39,7 @@ export const login = async (
   payload: MobileLoginPayload
 ): Promise<LoginResponseData> => {
   const response = await authClient.post<ApiResponse<LoginResponseData>>(
-    "/mobile/login",
+    "/auth/mobile/login",
     payload
   );
 
@@ -55,7 +55,7 @@ export const login = async (
 };
 
 export const getCurrentUser = async (): Promise<FieldCamUser> => {
-  const response = await authClient.get<ApiResponse<FieldCamUser>>("/me");
+  const response = await authClient.get<ApiResponse<FieldCamUser>>("/auth/me");
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || "Failed to fetch profile");

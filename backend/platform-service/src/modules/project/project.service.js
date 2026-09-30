@@ -3,6 +3,18 @@ import Service from "../service/service.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import mongoose from "mongoose";
 import { uploadToS3, deleteFromS3, getPresignedMediaUrl } from "../../services/s3Service.js";
+import { createNotification } from "../notification/notification.service.js";
+
+/**
+ * Helper to get a vendor's user ID for notification delivery.
+ * @param {string|mongoose.Types.ObjectId} vendorId
+ * @returns {Promise<mongoose.Types.ObjectId|null>}
+ */
+const getVendorUserId = async (vendorId) => {
+  if (!vendorId) return null;
+  const vendor = await Vendor.findById(vendorId);
+  return vendor ? vendor.userId : null;
+};
 
 /**
  * Helper to generate temporary presigned GET URLs for a project's photos & attachments.
@@ -151,6 +163,25 @@ export const createProject = async (projectData, files = {}) => {
 
     // 7. Create Project document
     const project = await Project.create(projectData);
+
+    // Side effect: Notify assigned vendor if applicable
+    if (project.vendorId) {
+      try {
+        const vendorUserId = await getVendorUserId(project.vendorId);
+        if (vendorUserId) {
+          await createNotification({
+            userId: vendorUserId,
+            title: "New Project Assigned",
+            body: `Project "${project.projectName}" (${project.projectId}) has been assigned to you.`,
+            type: "PROJECT_UPDATED",
+            data: { projectId: project._id.toString(), projectCode: project.projectId },
+          });
+        }
+      } catch (notifErr) {
+        console.error("Failed to generate project assignment notification:", notifErr.message);
+      }
+    }
+
     return await transformProjectMedia(project);
   } catch (error) {
     // Rollback: delete uploaded S3 objects if project creation fails
@@ -285,6 +316,26 @@ export const updateProject = async (id, updateData) => {
     .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
     .populate("vendorId", "companyName contactName location rating status");
 
+  // Side effect: Notify assigned vendor if applicable
+  if (updatedProject && updatedProject.vendorId) {
+    try {
+      const vendorObj = updatedProject.vendorId;
+      const vendorIdVal = vendorObj._id || vendorObj;
+      const vendorUserId = await getVendorUserId(vendorIdVal);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "Project Updated",
+          body: `Project "${updatedProject.projectName}" (${updatedProject.projectId}) details have been updated.`,
+          type: "PROJECT_UPDATED",
+          data: { projectId: updatedProject._id.toString(), projectCode: updatedProject.projectId },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate project update notification:", notifErr.message);
+    }
+  }
+
   return await transformProjectMedia(updatedProject);
 };
 
@@ -339,6 +390,39 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
 
   if (!updatedProject) {
     throw new Error("Project not found");
+  }
+
+  // Side effect: Notify assigned vendor if applicable
+  if (updatedProject.vendorId) {
+    try {
+      const vendorObj = updatedProject.vendorId;
+      const vendorIdVal = vendorObj._id || vendorObj;
+      const vendorUserId = await getVendorUserId(vendorIdVal);
+      if (vendorUserId) {
+        let title = `Project Status: ${updatedProject.status}`;
+        let body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) status changed to ${updatedProject.status}.`;
+        if (updatedProject.status === "Approved") {
+          title = "Project Approved";
+          body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) has been approved.`;
+        } else if (updatedProject.status === "Rejected") {
+          title = "Project Rejected";
+          body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) was rejected: ${updatedProject.rejectionReason || "No reason specified"}.`;
+        }
+        await createNotification({
+          userId: vendorUserId,
+          title,
+          body,
+          type: "PROJECT_UPDATED",
+          data: {
+            projectId: updatedProject._id.toString(),
+            projectCode: updatedProject.projectId,
+            status: updatedProject.status,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate project status notification:", notifErr.message);
+    }
   }
 
   return await transformProjectMedia(updatedProject);

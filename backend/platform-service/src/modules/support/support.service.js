@@ -2,6 +2,18 @@ import Support from "./support.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import Project from "../project/project.model.js";
 import mongoose from "mongoose";
+import { createNotification } from "../notification/notification.service.js";
+
+/**
+ * Helper to get a vendor's user ID for notification delivery.
+ * @param {string|mongoose.Types.ObjectId} vendorId
+ * @returns {Promise<mongoose.Types.ObjectId|null>}
+ */
+const getVendorUserId = async (vendorId) => {
+  if (!vendorId) return null;
+  const vendor = await Vendor.findById(vendorId);
+  return vendor ? vendor.userId : null;
+};
 
 /**
  * Creates a new Support ticket document.
@@ -92,6 +104,25 @@ export const createTicket = async (ticketData, user = {}) => {
   ticketData.lastUpdate = new Date();
 
   const ticket = await Support.create(ticketData);
+
+  // Side effect: Notify vendor if ticket was created by non-vendor (Admin/Staff)
+  if (ticket && ticket.vendorId && user.role !== "VENDOR") {
+    try {
+      const vendorUserId = await getVendorUserId(ticket.vendorId);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "New Support Ticket Created",
+          body: `Support ticket ${ticket.ticketId} ("${ticket.subject}") has been created for your account.`,
+          type: "SUPPORT_TICKET_UPDATED",
+          data: { ticketId: ticket._id.toString(), ticketCode: ticket.ticketId },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate support ticket creation notification:", notifErr.message);
+    }
+  }
+
   return ticket;
 };
 
@@ -258,6 +289,24 @@ export const updateTicket = async (id, updateData) => {
   Object.assign(ticket, updateData);
   await ticket.save();
 
+  // Side effect: Notify vendor
+  if (ticket && ticket.vendorId) {
+    try {
+      const vendorUserId = await getVendorUserId(ticket.vendorId);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "Support Ticket Updated",
+          body: `Support ticket ${ticket.ticketId} ("${ticket.subject}") has been updated.`,
+          type: "SUPPORT_TICKET_UPDATED",
+          data: { ticketId: ticket._id.toString(), ticketCode: ticket.ticketId },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate support ticket update notification:", notifErr.message);
+    }
+  }
+
   return await Support.findById(ticket._id)
     .populate("vendorId", "companyName contactName initials avatarBg location status")
     .populate("projectId", "projectId projectName client status");
@@ -283,6 +332,30 @@ export const updateTicketStatus = async (id, status) => {
   ticket.lastUpdate = new Date();
 
   await ticket.save();
+
+  // Side effect: Notify vendor
+  if (ticket && ticket.vendorId) {
+    try {
+      const vendorUserId = await getVendorUserId(ticket.vendorId);
+      if (vendorUserId) {
+        let title = `Support Ticket Status: ${status}`;
+        if (status === "Resolved") {
+          title = "Support Ticket Resolved";
+        } else if (status === "Closed") {
+          title = "Support Ticket Closed";
+        }
+        await createNotification({
+          userId: vendorUserId,
+          title,
+          body: `Support ticket ${ticket.ticketId} status updated to ${status}.`,
+          type: "SUPPORT_TICKET_UPDATED",
+          data: { ticketId: ticket._id.toString(), ticketCode: ticket.ticketId, status },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate support ticket status notification:", notifErr.message);
+    }
+  }
 
   return await Support.findById(ticket._id)
     .populate("vendorId", "companyName contactName initials avatarBg location status")
