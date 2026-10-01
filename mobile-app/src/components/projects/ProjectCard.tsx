@@ -81,7 +81,9 @@ export const ProjectCard = ({
   showAcceptButton = false,
 }: ProjectCardProps) => {
   const badge = getStatusBadgeStyle(project.status);
-  const hasProgress = typeof project.progress === "number" && !isNaN(project.progress);
+  const statusUpper = (project.status || "").toUpperCase();
+  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
+  const hasProgress = !isPendingAcceptance && typeof project.progress === "number" && !isNaN(project.progress);
 
   return (
     <Pressable

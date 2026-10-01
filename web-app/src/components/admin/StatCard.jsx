@@ -1,47 +1,48 @@
 import { FiTrendingUp, FiTrendingDown, FiEye, FiCheckCircle } from "react-icons/fi";
 
-const statData = [
-  {
-    id: "new-projects",
-    title: "New Projects",
-    value: "24",
-    change: "+12%",
-    timeframe: "vs last month",
-    isPositive: true,
-  },
-  {
-    id: "in-progress",
-    title: "In Progress",
-    value: "18",
-    change: "+5%",
-    timeframe: "vs last month",
-    isPositive: true,
-  },
-  {
-    id: "under-review",
-    title: "Under Review",
-    value: "7",
-    change: "-3%",
-    timeframe: "vs last month",
-    isPositive: false,
-    icon: FiEye,
-  },
-  {
-    id: "completed",
-    title: "Completed",
-    value: "142",
-    change: "+22%",
-    timeframe: "vs last month",
-    isPositive: true,
-    icon: FiCheckCircle,
-  },
-];
+const StatCard = ({ kpis, loading }) => {
+  const cards = [
+    {
+      id: "new-projects",
+      title: "New Projects",
+      value: kpis?.newProjects?.count ?? (loading ? "..." : 0),
+      change: kpis?.newProjects?.change ?? "N/A",
+      timeframe: kpis?.newProjects?.timeframe ?? "vs last month",
+      isPositive: kpis?.newProjects?.isPositive ?? true,
+    },
+    {
+      id: "in-progress",
+      title: "In Progress",
+      value: kpis?.inProgress?.count ?? (loading ? "..." : 0),
+      change: kpis?.inProgress?.change ?? "N/A",
+      timeframe: kpis?.inProgress?.timeframe ?? "vs last month",
+      isPositive: kpis?.inProgress?.isPositive ?? true,
+    },
+    {
+      id: "under-review",
+      title: "Under Review",
+      value: kpis?.underReview?.count ?? (loading ? "..." : 0),
+      change: kpis?.underReview?.change ?? "N/A",
+      timeframe: kpis?.underReview?.timeframe ?? "vs last month",
+      isPositive: kpis?.underReview?.isPositive ?? false,
+      icon: FiEye,
+    },
+    {
+      id: "completed",
+      title: "Completed",
+      value: kpis?.completed?.count ?? (loading ? "..." : 0),
+      change: kpis?.completed?.change ?? "N/A",
+      timeframe: kpis?.completed?.timeframe ?? "vs last month",
+      isPositive: kpis?.completed?.isPositive ?? true,
+      icon: FiCheckCircle,
+    },
+  ];
 
-const StatCard = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-      {statData.map((card) => {
+      {cards.map((card) => {
         const IconComponent = card.icon;
+        const hasChange = card.change && card.change !== "N/A";
 
         return (
           <div
@@ -73,16 +74,20 @@ const StatCard = () => {
 
             {/* Trend Indicator */}
             <div className="flex items-center gap-1.5 text-[11px] z-10">
-              {card.isPositive ? (
-                <div className="flex items-center gap-1 text-[#2E7D32] font-semibold">
-                  <FiTrendingUp className="text-xs" />
-                  <span>{card.change}</span>
-                </div>
+              {hasChange ? (
+                card.isPositive ? (
+                  <div className="flex items-center gap-1 text-[#2E7D32] font-semibold">
+                    <FiTrendingUp className="text-xs" />
+                    <span>{card.change}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-[#C62828] font-semibold">
+                    <FiTrendingDown className="text-xs" />
+                    <span>{card.change}</span>
+                  </div>
+                )
               ) : (
-                <div className="flex items-center gap-1 text-[#C62828] font-semibold">
-                  <FiTrendingDown className="text-xs" />
-                  <span>{card.change}</span>
-                </div>
+                <span className="text-[#9E9792] font-semibold">N/A</span>
               )}
               <span className="text-[#9E9792]">{card.timeframe}</span>
             </div>

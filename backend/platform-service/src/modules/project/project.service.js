@@ -111,6 +111,11 @@ export const createProject = async (projectData, files = {}) => {
     if (!projectData.vendorName) {
       projectData.vendorName = vendor.companyName;
     }
+
+    // Automatically transition status to ASSIGNED when vendor is assigned on creation
+    if (!projectData.status || projectData.status === "New") {
+      projectData.status = "ASSIGNED";
+    }
   }
 
   // 6. Prevent duplicate projectId
@@ -124,6 +129,22 @@ export const createProject = async (projectData, files = {}) => {
   // Ensure serviceTypeName matches
   if (!projectData.serviceTypeName) {
     projectData.serviceTypeName = service.serviceTypeName;
+  }
+
+  // Parse and reset checklistItems on creation (ensure unchecked by default)
+  if (typeof projectData.checklistItems === "string") {
+    try {
+      projectData.checklistItems = JSON.parse(projectData.checklistItems);
+    } catch (e) {
+      console.warn("Failed to parse checklistItems JSON:", e.message);
+    }
+  }
+  if (Array.isArray(projectData.checklistItems)) {
+    projectData.checklistItems = projectData.checklistItems.map((item, idx) => ({
+      id: String(item.id || idx + 1),
+      label: item.label,
+      checked: false,
+    }));
   }
 
   const uploadedKeys = [];
@@ -172,9 +193,13 @@ export const createProject = async (projectData, files = {}) => {
           await createNotification({
             userId: vendorUserId,
             title: "New Project Assigned",
-            body: `Project "${project.projectName}" (${project.projectId}) has been assigned to you.`,
+            body: `You have been assigned a new project: "${project.projectName}".`,
             type: "PROJECT_UPDATED",
-            data: { projectId: project._id.toString(), projectCode: project.projectId },
+            data: {
+              projectId: project.projectId,
+              projectMongoId: project._id.toString(),
+              status: project.status || "ASSIGNED",
+            },
           });
         }
       } catch (notifErr) {
@@ -290,6 +315,7 @@ export const updateProject = async (id, updateData) => {
   }
 
   // Changing vendorId check
+  let isVendorAssignmentChanged = false;
   if (updateData.vendorId && (!project.vendorId || updateData.vendorId.toString() !== project.vendorId.toString())) {
     if (!mongoose.Types.ObjectId.isValid(updateData.vendorId)) {
       throw new Error("Invalid vendor ID format");
@@ -307,6 +333,11 @@ export const updateProject = async (id, updateData) => {
     if (!updateData.vendorName) {
       updateData.vendorName = vendor.companyName;
     }
+
+    isVendorAssignmentChanged = true;
+    if (!updateData.status || updateData.status === "New") {
+      updateData.status = "ASSIGNED";
+    }
   }
 
   const updatedProject = await Project.findByIdAndUpdate(id, updateData, {
@@ -323,13 +354,27 @@ export const updateProject = async (id, updateData) => {
       const vendorIdVal = vendorObj._id || vendorObj;
       const vendorUserId = await getVendorUserId(vendorIdVal);
       if (vendorUserId) {
-        await createNotification({
-          userId: vendorUserId,
-          title: "Project Updated",
-          body: `Project "${updatedProject.projectName}" (${updatedProject.projectId}) details have been updated.`,
-          type: "PROJECT_UPDATED",
-          data: { projectId: updatedProject._id.toString(), projectCode: updatedProject.projectId },
-        });
+        if (isVendorAssignmentChanged) {
+          await createNotification({
+            userId: vendorUserId,
+            title: "New Project Assigned",
+            body: `You have been assigned a new project: "${updatedProject.projectName}".`,
+            type: "PROJECT_UPDATED",
+            data: {
+              projectId: updatedProject.projectId,
+              projectMongoId: updatedProject._id.toString(),
+              status: updatedProject.status || "ASSIGNED",
+            },
+          });
+        } else {
+          await createNotification({
+            userId: vendorUserId,
+            title: "Project Updated",
+            body: `Project "${updatedProject.projectName}" (${updatedProject.projectId}) details have been updated.`,
+            type: "PROJECT_UPDATED",
+            data: { projectId: updatedProject._id.toString(), projectCode: updatedProject.projectId },
+          });
+        }
       }
     } catch (notifErr) {
       console.error("Failed to generate project update notification:", notifErr.message);
@@ -402,7 +447,10 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
       if (vendorUserId) {
         let title = `Project Status: ${updatedProject.status}`;
         let body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) status changed to ${updatedProject.status}.`;
-        if (updatedProject.status === "Approved") {
+        if (updatedProject.status === "ASSIGNED") {
+          title = "New Project Assigned";
+          body = `You have been assigned a new project: "${updatedProject.projectName}".`;
+        } else if (updatedProject.status === "Approved") {
           title = "Project Approved";
           body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) has been approved.`;
         } else if (updatedProject.status === "Rejected") {

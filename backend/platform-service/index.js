@@ -10,6 +10,7 @@ import invoiceRoutes from "./src/modules/invoice/invoice.routes.js";
 import supportRoutes from "./src/modules/support/support.routes.js";
 import auditRoutes from "./src/modules/audit/audit.routes.js";
 import notificationRoutes from "./src/modules/notification/notification.routes.js";
+import dashboardRoutes from "./src/modules/dashboard/dashboard.routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/invoices", invoiceRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

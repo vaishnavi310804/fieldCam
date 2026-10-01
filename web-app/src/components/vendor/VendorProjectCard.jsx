@@ -88,17 +88,20 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
   const checkedCount = checklist.filter((item) => item.checked).length;
   const totalCount = checklist.length;
 
+  const statusUpper = (project.status || "").toUpperCase();
+  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
+
   let progressPercentage = null;
-  if (totalCount > 0) {
-    progressPercentage = Math.round((checkedCount / totalCount) * 100);
-  } else if (project.status === "Approved") {
-    progressPercentage = 100;
-  } else if (project.status === "New") {
-    progressPercentage = 0;
-  } else if (project.status === "In Progress") {
-    progressPercentage = 50;
-  } else if (project.status === "Submitted" || project.status === "Under Review") {
-    progressPercentage = 85;
+  if (!isPendingAcceptance) {
+    if (totalCount > 0) {
+      progressPercentage = Math.round((checkedCount / totalCount) * 100);
+    } else if (project.status === "Approved") {
+      progressPercentage = 100;
+    } else if (project.status === "In Progress") {
+      progressPercentage = 50;
+    } else if (project.status === "Submitted" || project.status === "Under Review") {
+      progressPercentage = 85;
+    }
   }
 
   // Cover Image from Presigned S3 URL

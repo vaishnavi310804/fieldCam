@@ -28,7 +28,7 @@ import {
 } from "@/src/components/projects/ProjectCard";
 
 export const VendorProjectsScreen = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("All");
@@ -45,16 +45,21 @@ export const VendorProjectsScreen = () => {
   ): ProjectCardData => {
     let calculatedProgress: number | undefined = undefined;
 
-    if (typeof item.progress === "number" && !isNaN(item.progress)) {
-      calculatedProgress = item.progress;
-    } else if (
-      Array.isArray(item.checklistItems) &&
-      item.checklistItems.length > 0
-    ) {
-      const checked = item.checklistItems.filter((c) => c.checked).length;
-      calculatedProgress = Math.round(
-        (checked / item.checklistItems.length) * 100,
-      );
+    const statusUpper = (item.status || "").toUpperCase();
+    const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
+
+    if (!isPendingAcceptance) {
+      if (typeof item.progress === "number" && !isNaN(item.progress)) {
+        calculatedProgress = item.progress;
+      } else if (
+        Array.isArray(item.checklistItems) &&
+        item.checklistItems.length > 0
+      ) {
+        const checked = item.checklistItems.filter((c) => c.checked).length;
+        calculatedProgress = Math.round(
+          (checked / item.checklistItems.length) * 100,
+        );
+      }
     }
 
     const firstPhotoUrl =
@@ -132,9 +137,6 @@ export const VendorProjectsScreen = () => {
       setAcceptingId(null);
     }
   };
-
-  const displayName = user?.name || "Vendor Partner";
-  const initials = user?.name ? user.name.slice(0, 2).toUpperCase() : "VD";
 
   // Filter projects by selected tab & search query
   const filteredProjects = projects.filter((project) => {

@@ -132,17 +132,17 @@ const VendorDashboard = () => {
     }
   };
 
-  // Helper to calculate project progress percentage from checklist items or status
   const calculateProgress = (proj) => {
+    const statusUpper = (proj?.status || "").toUpperCase();
+    if (statusUpper === "NEW" || statusUpper === "ASSIGNED") return null;
     if (proj.status === "Approved") return 100;
-    if (proj.status === "New") return 0;
     if (Array.isArray(proj.checklistItems) && proj.checklistItems.length > 0) {
       const checked = proj.checklistItems.filter((i) => i.checked).length;
       return Math.round((checked / proj.checklistItems.length) * 100);
     }
     if (proj.status === "In Progress") return 50;
     if (proj.status === "Submitted" || proj.status === "Under Review") return 85;
-    return 0;
+    return null;
   };
 
   const vendorDisplayName =

@@ -307,11 +307,15 @@ const VendorDashboardScreen = () => {
               ) : (
                 projects.slice(0, 3).map((item) => {
                   let calcProgress: number | undefined = undefined;
-                  if (typeof item.progress === "number" && !isNaN(item.progress)) {
-                    calcProgress = item.progress;
-                  } else if (Array.isArray(item.checklistItems) && item.checklistItems.length > 0) {
-                    const checked = item.checklistItems.filter((c) => c.checked).length;
-                    calcProgress = Math.round((checked / item.checklistItems.length) * 100);
+                  const statusUpper = (item.status || "").toUpperCase();
+                  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
+                  if (!isPendingAcceptance) {
+                    if (typeof item.progress === "number" && !isNaN(item.progress)) {
+                      calcProgress = item.progress;
+                    } else if (Array.isArray(item.checklistItems) && item.checklistItems.length > 0) {
+                      const checked = item.checklistItems.filter((c) => c.checked).length;
+                      calcProgress = Math.round((checked / item.checklistItems.length) * 100);
+                    }
                   }
 
                   const hasPhoto = item.photos && item.photos.length > 0 && item.photos[0].url;

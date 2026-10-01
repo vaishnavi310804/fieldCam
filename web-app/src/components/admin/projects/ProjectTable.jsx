@@ -19,6 +19,7 @@ import {
 
 const ALLOWED_STATUSES = [
   "New",
+  "ASSIGNED",
   "In Progress",
   "Submitted",
   "Under Review",
@@ -123,45 +124,38 @@ const ProjectTable = ({
           <thead>
             <tr className="border-b border-[#F2EBE5] text-[10px] font-bold tracking-wider text-[#A39A94] uppercase bg-[#FAF8F6]">
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>PROJECT ID</span>
-                  <span className="text-[8px] text-[#A39A94]">▼</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>PROPERTY ADDRESS / LOCATION</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>SERVICE TYPE</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>VENDOR</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>MEDIA</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>DUE DATE</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   <span>STATUS</span>
-                  <span className="text-[8px] text-[#A39A94]">⇅</span>
                 </div>
               </th>
               <th className="py-3 px-4 text-center">ACTIONS</th>
