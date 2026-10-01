@@ -15,20 +15,30 @@ const NotificationLifecycle = () => {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
+    let isMounted = true;
+    let cleanupNotifications: (() => void) | undefined;
+
     if (isAuthenticated && user) {
-      initializeNotifications().then((token) => {
-        if (token) {
-          console.log(`[FCM Lifecycle] Token active for user ${user._id}:`, token);
+      initializeNotifications().then((cleanup) => {
+        if (isMounted) {
+          cleanupNotifications = cleanup;
+          console.log(`[FCM Lifecycle] Notifications active for user ${user._id}`);
+        } else if (cleanup) {
+          cleanup();
         }
       });
 
-      const unsubscribe = onTokenRefresh((newToken) => {
+      const unsubscribeRefresh = onTokenRefresh((newToken) => {
         console.log(`[FCM Lifecycle] Token refreshed for user ${user._id}:`, newToken);
         registerDeviceTokenWithBackend(newToken);
       });
 
       return () => {
-        unsubscribe();
+        isMounted = false;
+        if (cleanupNotifications) {
+          cleanupNotifications();
+        }
+        unsubscribeRefresh();
       };
     }
   }, [isAuthenticated, user]);

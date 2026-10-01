@@ -354,6 +354,7 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
 
   const ALLOWED_STATUSES = [
     "New",
+    "ASSIGNED",
     "In Progress",
     "Submitted",
     "Under Review",
@@ -426,4 +427,70 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
   }
 
   return await transformProjectMedia(updatedProject);
+};
+
+/**
+ * Handles Vendor acceptance of an assigned project (ASSIGNED -> In Progress).
+ * @param {string} projectIdOrId - MongoDB _id or string projectId
+ * @param {string} userId - Authenticated Vendor user ID
+ * @returns {Promise<Object>}
+ */
+export const acceptProject = async (projectIdOrId, userId) => {
+  const vendor = await Vendor.findOne({ userId });
+  if (!vendor) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(projectIdOrId)) {
+    project = await Project.findById(projectIdOrId);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: projectIdOrId });
+  }
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const err = new Error("You are not authorized to accept this project");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (project.status === "In Progress") {
+    return await transformProjectMedia(project);
+  }
+
+  if (project.status !== "ASSIGNED" && project.status !== "New") {
+    const err = new Error(`Cannot accept project with current status '${project.status}'`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  project.status = "In Progress";
+  await project.save();
+
+  try {
+    await createNotification({
+      userId,
+      title: "Project Accepted",
+      body: `You have accepted project "${project.projectName}" (${project.projectId}). It is now In Progress.`,
+      type: "PROJECT_UPDATED",
+      data: {
+        projectId: project._id.toString(),
+        projectCode: project.projectId,
+        status: "In Progress",
+      },
+    });
+  } catch (notifErr) {
+    console.error("Failed to generate project acceptance notification:", notifErr.message);
+  }
+
+  return await transformProjectMedia(project);
 };

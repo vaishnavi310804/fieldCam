@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { FiBell, FiChevronDown, FiLogOut, FiUser, FiSearch } from "react-icons/fi";
+import { FiChevronDown, FiLogOut, FiUser, FiSearch } from "react-icons/fi";
+import NotificationPopover from "../common/NotificationPopover";
 
 const AdminHeader = ({ title = "Dashboard", subtitle, showSearch = false }) => {
   const { user, logout } = useAuth();
@@ -41,13 +42,10 @@ const AdminHeader = ({ title = "Dashboard", subtitle, showSearch = false }) => {
         )}
 
         {/* Notification Bell */}
-        <button
-          className="relative p-2 rounded-full bg-white border border-[#EAE4DF] text-[#6E6763] hover:text-[#3E3734] hover:bg-[#F2EBE5] transition-colors"
-          aria-label="Notifications"
-        >
-          <FiBell className="text-base" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-[#E07A5F] rounded-full"></span>
-        </button>
+        <NotificationPopover
+          buttonClassName="relative p-2 rounded-full bg-white border border-[#EAE4DF] text-[#6E6763] hover:text-[#3E3734] hover:bg-[#F2EBE5] transition-colors cursor-pointer"
+          iconClassName="text-base"
+        />
 
         {/* Profile Area */}
         <div className="relative">

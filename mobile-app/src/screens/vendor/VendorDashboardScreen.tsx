@@ -130,22 +130,6 @@ const VendorDashboardScreen = () => {
     }).format(val);
   };
 
-  const getStatusProgress = (status: string): number => {
-    switch (status) {
-      case "Approved":
-      case "Completed":
-        return 100;
-      case "In Progress":
-        return 65;
-      case "Submitted":
-        return 50;
-      case "Under Review":
-        return 30;
-      default:
-        return 10;
-    }
-  };
-
   const handleQuickAction = (title: string, targetRoute?: string) => {
     if (targetRoute) {
       router.push(targetRoute as any);
@@ -288,9 +272,7 @@ const VendorDashboardScreen = () => {
                   <View style={[styles.perfIconBadge, { backgroundColor: "#E0F2FE" }]}>
                     <Ionicons name="pulse-outline" size={18} color="#0284C7" />
                   </View>
-                  <Text style={styles.perfValue}>
-                    {projectStats.assigned > 0 ? "98%" : "N/A"}
-                  </Text>
+                  <Text style={styles.perfValue}>N/A</Text>
                   <Text style={styles.perfLabel}>On-Time Rate</Text>
                 </View>
 
@@ -324,7 +306,14 @@ const VendorDashboardScreen = () => {
                 </View>
               ) : (
                 projects.slice(0, 3).map((item) => {
-                  const progress = getStatusProgress(item.status);
+                  let calcProgress: number | undefined = undefined;
+                  if (typeof item.progress === "number" && !isNaN(item.progress)) {
+                    calcProgress = item.progress;
+                  } else if (Array.isArray(item.checklistItems) && item.checklistItems.length > 0) {
+                    const checked = item.checklistItems.filter((c) => c.checked).length;
+                    calcProgress = Math.round((checked / item.checklistItems.length) * 100);
+                  }
+
                   const hasPhoto = item.photos && item.photos.length > 0 && item.photos[0].url;
 
                   return (
@@ -348,17 +337,19 @@ const VendorDashboardScreen = () => {
                           {item.projectId || item.serviceTypeName || "Project"}
                         </Text>
 
-                        <View style={styles.progressBarWrapper}>
-                          <View style={styles.progressBarTrack}>
-                            <View
-                              style={[
-                                styles.progressBarFill,
-                                { width: `${progress}%` },
-                              ]}
-                            />
+                        {typeof calcProgress === "number" ? (
+                          <View style={styles.progressBarWrapper}>
+                            <View style={styles.progressBarTrack}>
+                              <View
+                                style={[
+                                  styles.progressBarFill,
+                                  { width: `${calcProgress}%` },
+                                ]}
+                              />
+                            </View>
+                            <Text style={styles.progressPercent}>{calcProgress}%</Text>
                           </View>
-                          <Text style={styles.progressPercent}>{progress}%</Text>
-                        </View>
+                        ) : null}
                       </View>
                     </View>
                   );
@@ -380,38 +371,46 @@ const VendorDashboardScreen = () => {
                 </View>
               ) : (
                 <View style={styles.deadlinesCard}>
-                  {upcomingDeadlines.map((item, idx) => (
-                    <View
-                      key={item._id}
-                      style={[
-                        styles.deadlineRow,
-                        idx < upcomingDeadlines.length - 1 && styles.deadlineBorder,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.urgencyDot,
-                          idx === 0 ? styles.dotRed : styles.dotYellow,
-                        ]}
-                      />
-                      <View style={styles.deadlineInfo}>
-                        <Text style={styles.deadlineTitle}>
-                          {item.location || item.projectName}
-                        </Text>
-                        <Text style={styles.deadlineTime}>
-                          {idx === 0 ? "Today, 5:00 PM" : "Tomorrow, 12:00 PM"}
-                        </Text>
-                      </View>
+                  {upcomingDeadlines.map((item, idx) => {
+                    const deadlineText = item.deadline
+                      ? new Date(item.deadline).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                      : "Deadline pending";
 
-                      {idx === 0 ? (
-                        <View style={styles.urgentPill}>
-                          <Text style={styles.urgentText}>Urgent</Text>
+                    return (
+                      <View
+                        key={item._id}
+                        style={[
+                          styles.deadlineRow,
+                          idx < upcomingDeadlines.length - 1 && styles.deadlineBorder,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.urgencyDot,
+                            idx === 0 ? styles.dotRed : styles.dotYellow,
+                          ]}
+                        />
+                        <View style={styles.deadlineInfo}>
+                          <Text style={styles.deadlineTitle}>
+                            {item.location || item.projectName}
+                          </Text>
+                          <Text style={styles.deadlineTime}>{deadlineText}</Text>
                         </View>
-                      ) : (
-                        <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
-                      )}
-                    </View>
-                  ))}
+
+                        {item.status === "New" ? (
+                          <View style={styles.urgentPill}>
+                            <Text style={styles.urgentText}>New</Text>
+                          </View>
+                        ) : (
+                          <Ionicons name="chevron-forward" size={16} color="#A1A1AA" />
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 

@@ -17,9 +17,6 @@ import {
 } from "@/src/api/notifications.api";
 import { PageHeader } from "@/src/components/navigation/PageHeader";
 
-/**
- * Format ISO timestamp into a clean relative time string matching Figma.
- */
 const formatNotificationTime = (isoString: string): string => {
   if (!isoString) return "";
   const date = new Date(isoString);

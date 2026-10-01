@@ -114,35 +114,48 @@ export const unregisterDeviceTokenWithBackend = async (
   }
 };
 
-export const setupForegroundNotificationHandler = () => {
+export const ensureNotificationChannel = async (): Promise<void> => {
   if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
+    const channel = await Notifications.setNotificationChannelAsync("default", {
       name: "FieldCam Notifications",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#0066CC",
-    }).catch((err) =>
-      console.warn("Failed to set Android notification channel:", err)
-    );
+      sound: "default",
+    });
+    console.log("[Expo Notifications] Default Channel set:", channel);
   }
+};
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
+// Immediately initialize default channel at module load time on Android
+ensureNotificationChannel().catch((err) =>
+  console.warn("Failed to set Android default notification channel:", err)
+);
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export const setupForegroundNotificationHandler = () => {
   const messagingInstance = getMessaging();
-  const unsubscribe = onMessage(
+
+  return onMessage(
     messagingInstance,
     async (remoteMessage: RemoteMessage) => {
       console.log("Foreground FCM message received:", remoteMessage);
 
-      if (remoteMessage.notification) {
+      if (!remoteMessage.notification) {
+        return;
+      }
+
+      try {
+        await ensureNotificationChannel();
+
         await Notifications.scheduleNotificationAsync({
           content: {
             title:
@@ -157,11 +170,18 @@ export const setupForegroundNotificationHandler = () => {
           },
           trigger: null,
         });
+
+        console.log(
+          "[Expo Notifications] Foreground notification scheduled successfully."
+        );
+      } catch (error) {
+        console.error(
+          "[Expo Notifications] Error scheduling foreground notification:",
+          error
+        );
       }
     }
   );
-
-  return unsubscribe;
 };
 
 export const setupBackgroundNotificationHandler = () => {
@@ -189,14 +209,21 @@ export const setupNotificationResponseListener = () => {
   };
 };
 
-export const initializeNotifications = async (): Promise<string | null> => {
+export const initializeNotifications = async (): Promise<(() => void)> => {
+  await ensureNotificationChannel();
+
   const token = await getFcmToken();
+
   if (token) {
     console.log("FCM Infrastructure Initialized. Device Token:", token);
     await registerDeviceTokenWithBackend(token);
   }
-  setupForegroundNotificationHandler();
-  setupNotificationResponseListener();
 
-  return token;
+  const unsubscribeForeground = setupForegroundNotificationHandler();
+  const unsubscribeResponse = setupNotificationResponseListener();
+
+  return () => {
+    unsubscribeForeground();
+    unsubscribeResponse();
+  };
 };

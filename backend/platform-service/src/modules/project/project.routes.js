@@ -12,6 +12,7 @@ import {
   getProjectByIdController,
   updateProjectController,
   updateProjectStatusController,
+  acceptProjectController,
 } from "./project.controller.js";
 import { handleUpload } from "../../middleware/upload.middleware.js";
 
@@ -22,6 +23,14 @@ router.get(
   protect,
   authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
   getProjectsController
+);
+
+// PATCH /api/projects/:id/accept - Vendor accepts an assigned project (VENDOR)
+router.patch(
+  "/:id/accept",
+  protect,
+  authorize("VENDOR"),
+  acceptProjectController
 );
 
 // GET /api/projects/:id - Read single project details (SUPER_ADMIN, ADMIN, VENDOR)

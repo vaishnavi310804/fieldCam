@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { FiSearch, FiCalendar, FiBell } from "react-icons/fi";
+import { FiSearch, FiCalendar } from "react-icons/fi";
+import NotificationPopover from "../common/NotificationPopover";
 
 const VendorHeader = ({ title = "Dashboard", vendorName = "", searchTerm = "", setSearchTerm = () => {} }) => {
   const { user } = useAuth();
@@ -51,14 +52,10 @@ const VendorHeader = ({ title = "Dashboard", vendorName = "", searchTerm = "", s
         </div>
 
         {/* Notification Bell Icon */}
-        <button
-          type="button"
-          className="relative text-[#817B77] hover:text-[#3E3734] p-2 rounded-xl bg-[#FAF7F5] border border-[#E8E2DE] hover:bg-[#EAE4DF] transition-colors cursor-pointer"
-          aria-label="Notifications"
-        >
-          <FiBell className="text-sm" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C62828] rounded-full" />
-        </button>
+        <NotificationPopover
+          buttonClassName="relative text-[#817B77] hover:text-[#3E3734] p-2 rounded-xl bg-[#FAF7F5] border border-[#E8E2DE] hover:bg-[#EAE4DF] transition-colors cursor-pointer"
+          iconClassName="text-sm"
+        />
 
         {/* User Avatar Circle */}
         <Link

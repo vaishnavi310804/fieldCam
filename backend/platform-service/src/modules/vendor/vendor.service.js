@@ -253,10 +253,13 @@ export const getVendorById = async (id) => {
   // Calculate live project metrics for this vendor from Project collection
   const [assignedCount, activeCount, completedCount, waitingForApprovalCount, assignedProjectsList] =
     await Promise.all([
-      Project.countDocuments({ vendorId: vendorObjectId }),
       Project.countDocuments({
         vendorId: vendorObjectId,
-        status: { $in: ["New", "In Progress", "Submitted", "Under Review"] },
+        status: { $in: ["ASSIGNED", "New"] },
+      }),
+      Project.countDocuments({
+        vendorId: vendorObjectId,
+        status: "In Progress",
       }),
       Project.countDocuments({ vendorId: vendorObjectId, status: "Approved" }),
       Project.countDocuments({

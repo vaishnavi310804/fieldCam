@@ -12,6 +12,12 @@ export interface VendorProjectPhoto {
   uploadedAt?: string;
 }
 
+export interface VendorChecklistItem {
+  id: string;
+  label: string;
+  checked: boolean;
+}
+
 export interface VendorProjectItem {
   _id: string;
   projectId: string;
@@ -19,9 +25,12 @@ export interface VendorProjectItem {
   serviceTypeName?: string;
   client?: string;
   location?: string;
+  deadline?: string;
   status: string;
   createdAt: string;
   photos?: VendorProjectPhoto[];
+  checklistItems?: VendorChecklistItem[];
+  progress?: number;
 }
 
 export interface VendorProfileData {
@@ -83,6 +92,39 @@ export const getVendorProfile = async (): Promise<VendorProfileData> => {
   return response.data.data;
 };
 
+export const getVendorProjects = async (): Promise<VendorProjectItem[]> => {
+  try {
+    const response = await platformClient.get<{
+      success: boolean;
+      data: VendorProjectItem[];
+      message?: string;
+    }>("/projects");
+
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch /projects endpoint, falling back to profile projects:", err);
+  }
+
+  const profile = await getVendorProfile();
+  return profile.projects || [];
+};
+
+export const acceptProject = async (projectId: string): Promise<VendorProjectItem> => {
+  const response = await platformClient.patch<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/accept`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to accept project");
+  }
+
+  return response.data.data;
+};
+
 export const getVendorInvoices = async (): Promise<VendorInvoiceItem[]> => {
   const response = await platformClient.get<{
     success: boolean;
@@ -131,6 +173,7 @@ export const getVendorDashboardData =
 
 export const dashboardApi = {
   getVendorProfile,
+  getVendorProjects,
   getVendorInvoices,
   getVendorSupportStats,
   getVendorDashboardData,

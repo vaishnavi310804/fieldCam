@@ -4,6 +4,7 @@ import {
   getProjectById,
   updateProject,
   updateProjectStatus,
+  acceptProject,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -169,6 +170,40 @@ export const updateProjectStatusController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to update project status",
+    });
+  }
+};
+
+/**
+ * Controller to handle Vendor Project Acceptance (ASSIGNED -> In Progress).
+ * PATCH /api/projects/:id/accept
+ */
+export const acceptProjectController = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const projectId = req.params.id;
+
+    const result = await acceptProject(projectId, userId);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_ACCEPTED",
+      entityType: "Project",
+      entityId: result.projectId || result._id?.toString() || "",
+      description: `Vendor accepted project ${result.projectName || ""} (${result.projectId || ""})`.trim(),
+      metadata: { projectId: result.projectId, newStatus: result.status },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Project accepted successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to accept project",
     });
   }
 };

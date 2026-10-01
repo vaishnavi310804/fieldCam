@@ -149,6 +149,7 @@ const projectSchema = new mongoose.Schema(
       enum: {
         values: [
           "New",
+          "ASSIGNED",
           "In Progress",
           "Submitted",
           "Under Review",
