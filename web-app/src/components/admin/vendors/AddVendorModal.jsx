@@ -158,7 +158,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  placeholder="e.g., Jane Doe"
+                  placeholder="Your Name"
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>
@@ -175,7 +175,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g., +1 555-019-2831"
+                  placeholder="+91 Phone Number"
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>
@@ -189,7 +189,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g., vendor@apexfield.com"
+                  placeholder="vendor@example.com"
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>
@@ -220,7 +220,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="text"
                   value={servicesInput}
                   onChange={(e) => setServicesInput(e.target.value)}
-                  placeholder="e.g., Site Inspection, Maintenance"
+                  placeholder="Company Services..."
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>

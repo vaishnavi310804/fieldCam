@@ -2,16 +2,6 @@ import mongoose from "mongoose";
 import Notification from "./notification.model.js";
 import { sendPushNotificationForUser } from "./push.service.js";
 
-/**
- * Internal service function to create and persist a notification, then attempt FCM push delivery.
- * @param {Object} payload
- * @param {string|mongoose.Types.ObjectId} payload.userId - Recipient user ID
- * @param {string} payload.title - Notification title
- * @param {string} payload.body - Notification body content
- * @param {string} [payload.type="SYSTEM"] - Notification type enum
- * @param {Object} [payload.data={}] - Optional metadata payload
- * @returns {Promise<Object>} Created Notification document
- */
 export const createNotification = async ({
   userId,
   title,
@@ -59,11 +49,6 @@ export const createNotification = async ({
   return notification;
 };
 
-/**
- * Get all notifications for the authenticated user sorted by newest first.
- * @param {string} userId - Authenticated user ID
- * @returns {Promise<Array>} List of notifications
- */
 export const getUserNotifications = async (userId) => {
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error("Invalid or missing user identity");
@@ -76,11 +61,6 @@ export const getUserNotifications = async (userId) => {
   return notifications;
 };
 
-/**
- * Get unread notification count for the authenticated user.
- * @param {string} userId - Authenticated user ID
- * @returns {Promise<number>} Unread notification count
- */
 export const getUnreadCount = async (userId) => {
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error("Invalid or missing user identity");
@@ -94,12 +74,6 @@ export const getUnreadCount = async (userId) => {
   return count;
 };
 
-/**
- * Mark a single notification as read, strictly scoped to the owner user ID.
- * @param {string} notificationId - Target notification ObjectId
- * @param {string} userId - Authenticated user ID
- * @returns {Promise<Object>} Updated Notification document
- */
 export const markNotificationAsRead = async (notificationId, userId) => {
   if (!notificationId || !mongoose.Types.ObjectId.isValid(notificationId)) {
     throw new Error("Invalid notification ID format");
@@ -127,11 +101,7 @@ export const markNotificationAsRead = async (notificationId, userId) => {
   return notification;
 };
 
-/**
- * Mark all unread notifications as read for the authenticated user.
- * @param {string} userId - Authenticated user ID
- * @returns {Promise<Object>} Update summary with modifiedCount
- */
+
 export const markAllNotificationsAsRead = async (userId) => {
   if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
     throw new Error("Invalid or missing user identity");

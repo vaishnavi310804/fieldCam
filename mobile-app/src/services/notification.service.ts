@@ -12,9 +12,6 @@ import * as Notifications from "expo-notifications";
 import { PermissionsAndroid, Platform } from "react-native";
 import { platformClient } from "../api/platformClient";
 
-/**
- * Request notification permission from the user (Android 13+ and iOS).
- */
 export const requestNotificationPermission = async (): Promise<boolean> => {
   try {
     if (Platform.OS === "android" && Platform.Version >= 33) {
@@ -40,9 +37,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
   }
 };
 
-/**
- * Obtain current FCM Device Token.
- */
 export const getFcmToken = async (): Promise<string | null> => {
   try {
     const hasPermission = await requestNotificationPermission();
@@ -60,9 +54,7 @@ export const getFcmToken = async (): Promise<string | null> => {
   }
 };
 
-/**
- * Listen for FCM token refresh events.
- */
+
 export const onTokenRefresh = (callback: (token: string) => void) => {
   const messagingInstance = getMessaging();
   return onFcmTokenRefresh(messagingInstance, (token: string) => {
@@ -71,28 +63,44 @@ export const onTokenRefresh = (callback: (token: string) => void) => {
   });
 };
 
-/**
- * Register or update device token on FieldCam Platform Service backend.
- * Non-blocking: Errors are caught gracefully so app/auth flow is never interrupted.
- */
 export const registerDeviceTokenWithBackend = async (
   token: string
 ): Promise<void> => {
-  try {
-    const platform = Platform.OS === "ios" ? "ios" : "android";
-    await platformClient.post("/notifications/device-token", {
-      deviceToken: token,
-      platform,
-    });
-    console.log("Device token synchronized with backend successfully.");
-  } catch (error) {
-    console.warn("Failed to synchronize device token with backend:", error);
+  const platform = Platform.OS === "ios" ? "ios" : "android";
+  const maxAttempts = 3;
+  const retryDelays = [0, 2000, 4000];
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await platformClient.post("/notifications/device-token", {
+        deviceToken: token,
+        platform,
+      });
+
+      console.log(
+        `Device token synchronized with backend successfully (attempt ${attempt}).`
+      );
+
+      return;
+    } catch (error) {
+      console.warn(
+        `Failed to synchronize device token with backend (attempt ${attempt}/${maxAttempts}):`,
+        error
+      );
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, retryDelays[attempt] ?? 2000)
+        );
+      }
+    }
   }
+
+  console.warn(
+    "Device token synchronization failed after all retry attempts."
+  );
 };
 
-/**
- * Unregister device token on FieldCam Platform Service backend during logout.
- */
 export const unregisterDeviceTokenWithBackend = async (
   token: string
 ): Promise<void> => {
@@ -106,9 +114,6 @@ export const unregisterDeviceTokenWithBackend = async (
   }
 };
 
-/**
- * Set up foreground notification presentation using expo-notifications and FCM messaging.
- */
 export const setupForegroundNotificationHandler = () => {
   if (Platform.OS === "android") {
     Notifications.setNotificationChannelAsync("default", {
@@ -153,9 +158,6 @@ export const setupForegroundNotificationHandler = () => {
   return unsubscribe;
 };
 
-/**
- * Set up background / quit state notification handler.
- */
 export const setupBackgroundNotificationHandler = () => {
   const messagingInstance = getMessaging();
   setBackgroundMessageHandler(
@@ -166,9 +168,6 @@ export const setupBackgroundNotificationHandler = () => {
   );
 };
 
-/**
- * Set up notification response / tap listener (logs payload only for Phase 3A).
- */
 export const setupNotificationResponseListener = () => {
   const subscription = Notifications.addNotificationResponseReceivedListener(
     (response: Notifications.NotificationResponse) => {
@@ -184,9 +183,6 @@ export const setupNotificationResponseListener = () => {
   };
 };
 
-/**
- * Initialize FCM Notification Infrastructure and synchronize token with backend.
- */
 export const initializeNotifications = async (): Promise<string | null> => {
   const token = await getFcmToken();
   if (token) {

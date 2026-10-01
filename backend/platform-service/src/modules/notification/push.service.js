@@ -5,10 +5,6 @@ import {
   deactivateDeviceTokenService,
 } from "./deviceToken.service.js";
 
-/**
- * Normalize data object values to Strings for FCM data payload compliance.
- * MongoDB notification.data retains its original structured types.
- */
 const normalizeFcmDataPayload = (dataObj = {}) => {
   const normalized = {};
   if (!dataObj || typeof dataObj !== "object") return normalized;
@@ -26,10 +22,6 @@ const normalizeFcmDataPayload = (dataObj = {}) => {
   return normalized;
 };
 
-/**
- * Send FCM push notification to all active registered devices of a recipient user.
- * Isolated: Failures do NOT interrupt calling functions or business logic.
- */
 export const sendPushNotificationForUser = async ({
   userId,
   title,
@@ -89,7 +81,6 @@ export const sendPushNotificationForUser = async ({
           `[FCM Push] Delivery failed for token ending in ...${targetToken.slice(-6)}: ${errorCode}`
         );
 
-        // Deactivate token if Firebase reports it as invalid or unregistered
         if (
           errorCode === "messaging/invalid-registration-token" ||
           errorCode === "messaging/registration-token-not-registered"

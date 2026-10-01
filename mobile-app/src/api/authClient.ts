@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const authClient = axios.create({
   baseURL: "https://fieldcam-auth-service-bhzm.onrender.com/api",
-  timeout: 10000,
+  timeout: 20000,
   headers: {
     "Content-Type": "application/json",
   },

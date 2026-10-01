@@ -28,7 +28,6 @@ export const PageHeader = ({
       style={[styles.headerContainer, { paddingTop: topPadding }]}
     >
       <View style={styles.headerRow}>
-        {/* Left Action / Back Button */}
         <View style={styles.leftContainer}>
           {showBackButton ? (
             <Pressable
@@ -42,14 +41,12 @@ export const PageHeader = ({
           ) : null}
         </View>
 
-        {/* Center Title */}
         <View style={styles.titleContainer}>
           <Text style={styles.titleText} numberOfLines={1}>
             {title}
           </Text>
         </View>
 
-        {/* Right Action / Custom Element */}
         <View style={styles.rightContainer}>
           {rightElement || null}
         </View>
