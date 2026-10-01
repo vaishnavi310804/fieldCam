@@ -59,6 +59,14 @@ export const sendPushNotificationForUser = async ({
         body,
       },
       data: normalizedData,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "default",
+          sound: "default",
+          priority: "high",
+        },
+      },
     };
 
     const batchResponse = await messaging.sendEachForMulticast(multicastPayload);

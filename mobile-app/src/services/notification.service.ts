@@ -145,9 +145,15 @@ export const setupForegroundNotificationHandler = () => {
       if (remoteMessage.notification) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: remoteMessage.notification.title || "FieldCam Notification",
+            title:
+              remoteMessage.notification.title ||
+              "FieldCam Notification",
             body: remoteMessage.notification.body || "",
             data: remoteMessage.data || {},
+            sound: "default",
+            ...(Platform.OS === "android" && {
+              channelId: "default",
+            }),
           },
           trigger: null,
         });
