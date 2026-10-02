@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
 export interface PageHeaderProps {
   title: string;
@@ -19,6 +20,17 @@ export const PageHeader = ({
 }: PageHeaderProps) => {
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(insets.top, 20) + 30;
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (onBackPress) {
+      onBackPress();
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(app)");
+    }
+  };
 
   return (
     <LinearGradient
@@ -32,7 +44,7 @@ export const PageHeader = ({
           {showBackButton ? (
             <Pressable
               style={styles.actionSquare}
-              onPress={onBackPress}
+              onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Back"
             >

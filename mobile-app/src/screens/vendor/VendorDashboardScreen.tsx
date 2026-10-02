@@ -30,7 +30,7 @@ import { VendorDashboardHeader } from "@/src/components/dashboard/VendorDashboar
 const { width } = Dimensions.get("window");
 
 const VendorDashboardScreen = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<VendorDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -158,7 +158,7 @@ const VendorDashboardScreen = () => {
           initials={vendor?.initials || user?.name?.slice(0, 2).toUpperCase() || "VD"}
           notificationCount={unreadCount}
           onNotificationPress={() => router.push("/notifications" as any)}
-          onAvatarPress={logout}
+          onAvatarPress={() => router.push("/profile" as any)}
         />
 
         <View style={styles.bodyContent}>
@@ -321,7 +321,18 @@ const VendorDashboardScreen = () => {
                   const hasPhoto = item.photos && item.photos.length > 0 && item.photos[0].url;
 
                   return (
-                    <View key={item._id} style={styles.projectCard}>
+                    <Pressable
+                      key={item._id}
+                      style={styles.projectCard}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(app)/project-details",
+                          params: { id: item._id },
+                        } as any)
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Project ${item.projectId || item.projectName}`}
+                    >
                       {hasPhoto ? (
                         <Image
                           source={{ uri: item.photos![0].url }}
@@ -355,7 +366,7 @@ const VendorDashboardScreen = () => {
                           </View>
                         ) : null}
                       </View>
-                    </View>
+                    </Pressable>
                   );
                 })
               )}
@@ -482,7 +493,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F6F6F6",
   },
   scrollContent: {
-    paddingBottom: 110,
+    paddingBottom: 100,
   },
   headerGradient: {
     paddingTop: 54,

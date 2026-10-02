@@ -63,6 +63,32 @@ const attachmentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const noteSchema = new mongoose.Schema(
+  {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
+    text: {
+      type: String,
+      required: [true, "Note text is required"],
+      trim: true,
+    },
+    authorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    authorName: {
+      type: String,
+      trim: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }
+);
+
 const projectSchema = new mongoose.Schema(
   {
     projectId: {
@@ -141,6 +167,11 @@ const projectSchema = new mongoose.Schema(
 
     attachments: {
       type: [attachmentSchema],
+      default: [],
+    },
+
+    notes: {
+      type: [noteSchema],
       default: [],
     },
 

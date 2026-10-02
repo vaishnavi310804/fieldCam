@@ -21,7 +21,7 @@ const getStatusStyle = (status) => {
 
 const RecentSubmissions = ({ submissions = [], loading = false }) => {
   return (
-    <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between h-full">
+    <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-[#3E3734]">Recent Submissions</h2>
@@ -34,9 +34,9 @@ const RecentSubmissions = ({ submissions = [], loading = false }) => {
       </div>
 
       {/* Content area */}
-      <div className="overflow-x-auto flex-1 flex flex-col justify-center">
+      <div className="overflow-x-auto flex-1 flex flex-col">
         {loading ? (
-          <div className="py-8 text-center text-xs text-[#817B77]">
+          <div className="flex-1 flex items-center justify-center py-8 text-center text-xs text-[#817B77]">
             Loading recent submissions...
           </div>
         ) : submissions.length > 0 ? (
@@ -121,7 +121,7 @@ const RecentSubmissions = ({ submissions = [], loading = false }) => {
             </tbody>
           </table>
         ) : (
-          <div className="py-8 flex flex-col items-center justify-center text-center space-y-1.5">
+          <div className="flex-1 flex flex-col items-center justify-center py-8 text-center space-y-1.5">
             <FiFolder className="text-xl text-[#A39A94]" />
             <p className="text-xs font-medium text-[#817B77]">
               No project submissions found.

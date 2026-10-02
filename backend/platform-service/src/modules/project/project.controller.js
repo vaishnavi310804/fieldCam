@@ -5,6 +5,8 @@ import {
   updateProject,
   updateProjectStatus,
   acceptProject,
+  getProjectNotes,
+  addProjectNote,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -204,6 +206,58 @@ export const acceptProjectController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to accept project",
+    });
+  }
+};
+
+/**
+ * Controller to fetch project notes.
+ * GET /api/projects/:id/notes
+ */
+export const getProjectNotesController = async (req, res) => {
+  try {
+    const notes = await getProjectNotes(req.params.id, req.user);
+    return res.status(200).json({
+      success: true,
+      count: notes.length,
+      data: notes,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to fetch project notes",
+    });
+  }
+};
+
+/**
+ * Controller to add a note to a project.
+ * POST /api/projects/:id/notes
+ */
+export const addProjectNoteController = async (req, res) => {
+  try {
+    const note = await addProjectNote(req.params.id, req.body.text, req.user);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_NOTE_ADDED",
+      entityType: "Project",
+      entityId: req.params.id,
+      description: `Added note to project: ${note.text.slice(0, 40)}...`,
+      metadata: { noteId: note._id, textLength: note.text.length },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Note added successfully",
+      data: note,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to add project note",
     });
   }
 };

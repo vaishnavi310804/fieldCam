@@ -8,6 +8,7 @@ export default function AppLayout() {
 
   return (
     <Tabs
+      backBehavior="history"
       tabBar={(props) => (isVendor ? <VendorBottomTab {...props} /> : null)}
       screenOptions={{
         headerShown: false,

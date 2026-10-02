@@ -13,6 +13,8 @@ import {
   updateProjectController,
   updateProjectStatusController,
   acceptProjectController,
+  getProjectNotesController,
+  addProjectNoteController,
 } from "./project.controller.js";
 import { handleUpload } from "../../middleware/upload.middleware.js";
 
@@ -70,6 +72,20 @@ router.patch(
   updateProjectStatusValidation,
   validate,
   updateProjectStatusController
+);
+router.get(
+  "/:id/notes",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  getProjectNotesController
+);
+
+// POST /api/projects/:id/notes - Add a note to a project
+router.post(
+  "/:id/notes",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  addProjectNoteController
 );
 
 export default router;

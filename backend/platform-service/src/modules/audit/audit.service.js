@@ -91,7 +91,14 @@ export const getMyAuditLogs = async (actorId, query = {}) => {
  * @returns {Promise<Array>}
  */
 export const getEntityAuditLogs = async (entityType, entityId) => {
-  return await AuditLog.find({ entityType, entityId })
+  const strId = String(entityId);
+  return await AuditLog.find({
+    entityType,
+    $or: [
+      { entityId: strId },
+      { "metadata.projectId": strId },
+    ],
+  })
     .sort({ createdAt: -1 })
     .limit(50);
 };

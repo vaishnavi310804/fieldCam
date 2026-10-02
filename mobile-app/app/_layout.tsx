@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import {
   initializeNotifications,
@@ -10,6 +10,24 @@ import {
 
 // Register FCM background handler at top level module scope
 setupBackgroundNotificationHandler();
+
+const AuthNavigationGuard = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAppGroup = segments[0] === "(app)";
+
+    if (!isAuthenticated && inAppGroup) {
+      router.replace("/(auth)/login");
+    }
+  }, [isAuthenticated, isLoading, segments, router]);
+
+  return null;
+};
 
 const NotificationLifecycle = () => {
   const { user, isAuthenticated } = useAuth();
@@ -49,9 +67,11 @@ const NotificationLifecycle = () => {
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <AuthNavigationGuard />
       <NotificationLifecycle />
       <Stack screenOptions={{ headerShown: false }} />
     </AuthProvider>
   );
 }
+
 

@@ -249,6 +249,12 @@ export const VendorProjectsScreen = () => {
             <ProjectCard
               key={item.id || item.projectId}
               project={item}
+              onPress={() =>
+                router.push({
+                  pathname: "/(app)/project-details",
+                  params: { id: item.id || item.projectId },
+                } as any)
+              }
               onAcceptPress={() =>
                 handleAcceptProject(item.id || item.projectId)
               }

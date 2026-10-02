@@ -131,10 +131,11 @@ const CreateProject = () => {
     }
 
     if (checklistItems && checklistItems.length > 0) {
-      const formattedChecklist = checklistItems.map((item, idx) => ({
+      const selectedItems = checklistItems.filter((item) => item.checked);
+      const formattedChecklist = selectedItems.map((item, idx) => ({
         id: String(item.id || idx + 1),
         label: item.label,
-        checked: Boolean(item.checked),
+        checked: false,
       }));
       formData.append("checklistItems", JSON.stringify(formattedChecklist));
     }

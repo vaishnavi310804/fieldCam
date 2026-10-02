@@ -131,7 +131,7 @@ export const createProject = async (projectData, files = {}) => {
     projectData.serviceTypeName = service.serviceTypeName;
   }
 
-  // Parse and reset checklistItems on creation (ensure unchecked by default)
+  // Parse and reset checklistItems on creation (ensure only selected items are stored, unchecked by default)
   if (typeof projectData.checklistItems === "string") {
     try {
       projectData.checklistItems = JSON.parse(projectData.checklistItems);
@@ -140,7 +140,10 @@ export const createProject = async (projectData, files = {}) => {
     }
   }
   if (Array.isArray(projectData.checklistItems)) {
-    projectData.checklistItems = projectData.checklistItems.map((item, idx) => ({
+    const selectedItems = projectData.checklistItems.filter(
+      (item) => item.checked !== false || projectData.checklistItems.every((i) => i.checked === false)
+    );
+    projectData.checklistItems = selectedItems.map((item, idx) => ({
       id: String(item.id || idx + 1),
       label: item.label,
       checked: false,
@@ -541,4 +544,84 @@ export const acceptProject = async (projectIdOrId, userId) => {
   }
 
   return await transformProjectMedia(project);
+};
+
+/**
+ * Helper to find project by ObjectId or string projectId
+ */
+const findProjectByIdOrCode = async (idOrCode) => {
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(idOrCode)) {
+    project = await Project.findById(idOrCode);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: idOrCode });
+  }
+  return project;
+};
+
+/**
+ * Retrieves notes for a project.
+ * @param {string} projectIdOrId 
+ * @param {Object} [user] - Authenticated user object
+ * @returns {Promise<Array>} Array of note objects
+ */
+export const getProjectNotes = async (projectIdOrId, user) => {
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // If role is VENDOR, ensure vendor has access to this project
+  if (user && user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor || !project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to access notes for this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  return project.notes || [];
+};
+
+/**
+ * Adds a new note to a project.
+ * @param {string} projectIdOrId 
+ * @param {string} text 
+ * @param {Object} user - Authenticated user object
+ * @returns {Promise<Object>} Created note document
+ */
+export const addProjectNote = async (projectIdOrId, text, user) => {
+  if (!text || typeof text !== "string" || !text.trim()) {
+    throw new Error("Note text cannot be empty");
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Authorization check for VENDOR
+  if (user && user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor || !project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to add notes to this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  const newNote = {
+    _id: new mongoose.Types.ObjectId(),
+    text: text.trim(),
+    authorId: user ? (user.id || user._id) : null,
+    authorName: user ? (user.name || user.email || "Vendor") : "Vendor",
+    createdAt: new Date(),
+  };
+
+  project.notes.push(newNote);
+  await project.save();
+
+  return newNote;
 };

@@ -4,11 +4,13 @@ export interface VendorProjectStats {
   assigned: number;
   completed: number;
   waitingForApproval: number;
+  active?: number;
 }
 
 export interface VendorProjectPhoto {
   url: string;
   caption?: string;
+  category?: string;
   uploadedAt?: string;
 }
 
@@ -18,18 +20,40 @@ export interface VendorChecklistItem {
   checked: boolean;
 }
 
+export interface VendorAttachmentItem {
+  url: string;
+  filename: string;
+  size?: number;
+  uploadedAt?: string;
+}
+
+export interface VendorProjectNote {
+  _id: string;
+  text: string;
+  authorId?: string;
+  authorName?: string;
+  createdAt: string;
+}
+
 export interface VendorProjectItem {
   _id: string;
   projectId: string;
   projectName: string;
   serviceTypeName?: string;
   client?: string;
+  vendorName?: string;
   location?: string;
   deadline?: string;
+  description?: string;
+  rejectionReason?: string;
+  reviewComments?: string;
   status: string;
   createdAt: string;
+  updatedAt?: string;
   photos?: VendorProjectPhoto[];
   checklistItems?: VendorChecklistItem[];
+  attachments?: VendorAttachmentItem[];
+  notes?: VendorProjectNote[];
   progress?: number;
 }
 
@@ -40,6 +64,7 @@ export interface VendorProfileData {
   initials?: string;
   avatarBg?: string;
   location?: string;
+  services?: string[];
   rating?: number;
   status?: string;
   userId?: {
@@ -120,6 +145,53 @@ export const acceptProject = async (projectId: string): Promise<VendorProjectIte
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || "Failed to accept project");
+  }
+
+  return response.data.data;
+};
+
+export const getProjectById = async (id: string): Promise<VendorProjectItem> => {
+  const response = await platformClient.get<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${id}`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to fetch project details");
+  }
+
+  return response.data.data;
+};
+
+export const getProjectNotes = async (
+  projectId: string
+): Promise<VendorProjectNote[]> => {
+  const response = await platformClient.get<{
+    success: boolean;
+    data: VendorProjectNote[];
+    message?: string;
+  }>(`/projects/${projectId}/notes`);
+
+  if (!response.data.success || !Array.isArray(response.data.data)) {
+    throw new Error(response.data.message || "Failed to fetch project notes");
+  }
+
+  return response.data.data;
+};
+
+export const addProjectNote = async (
+  projectId: string,
+  text: string
+): Promise<VendorProjectNote> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: VendorProjectNote;
+    message?: string;
+  }>(`/projects/${projectId}/notes`, { text });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to add project note");
   }
 
   return response.data.data;
