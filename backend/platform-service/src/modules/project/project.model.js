@@ -19,8 +19,45 @@ const checklistItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const aiValidationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["PASSED", "FAILED", "PENDING"],
+      default: "PENDING",
+    },
+    clarity: {
+      passed: { type: Boolean },
+      score: { type: Number },
+    },
+    lighting: {
+      passed: { type: Boolean },
+      score: { type: Number },
+    },
+    subject: {
+      passed: { type: Boolean },
+      confidence: { type: Number },
+      expectedCategory: { type: String, trim: true },
+      detectedDescription: { type: String, trim: true },
+      reason: { type: String, trim: true },
+    },
+    reason: {
+      type: String,
+      trim: true,
+    },
+    validatedAt: {
+      type: Date,
+    },
+  },
+  { _id: false }
+);
+
 const photoSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId(),
+    },
     url: {
       type: String,
       required: [true, "Photo URL is required"],
@@ -33,12 +70,42 @@ const photoSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    checklistItemId: {
+      type: String,
+      trim: true,
+    },
+    capturedAt: {
+      type: Date,
+    },
+    location: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      accuracy: { type: Number },
+    },
+    filename: {
+      type: String,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      trim: true,
+    },
+    fileSize: {
+      type: Number,
+    },
+    dimensions: {
+      width: { type: Number },
+      height: { type: Number },
+    },
+    aiValidation: {
+      type: aiValidationSchema,
+      default: () => ({ status: "PENDING" }),
+    },
     uploadedAt: {
       type: Date,
       default: Date.now,
     },
-  },
-  { _id: false }
+  }
 );
 
 const attachmentSchema = new mongoose.Schema(
@@ -143,6 +210,19 @@ const projectSchema = new mongoose.Schema(
       type: String,
       required: [true, "Location is required"],
       trim: true,
+    },
+
+    locationCoordinates: {
+      latitude: {
+        type: Number,
+        min: [-90, "Latitude must be between -90 and 90"],
+        max: [90, "Latitude must be between -90 and 90"],
+      },
+      longitude: {
+        type: Number,
+        min: [-180, "Longitude must be between -180 and 180"],
+        max: [180, "Longitude must be between -180 and 180"],
+      },
     },
 
     deadline: {

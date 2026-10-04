@@ -71,3 +71,52 @@ export const handleUpload = (req, res, next) => {
     next();
   });
 };
+
+const vendorPhotoFilter = (req, file, cb) => {
+  const allowedPhotoTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/heic",
+  ];
+  if (allowedPhotoTypes.includes(file.mimetype.toLowerCase())) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(`Invalid photo format in "${file.originalname}". Only JPG, PNG, and HEIC images are allowed.`),
+      false
+    );
+  }
+};
+
+export const uploadSinglePhoto = multer({
+  storage,
+  fileFilter: vendorPhotoFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+}).single("photo");
+
+export const handleVendorPhotoUpload = (req, res, next) => {
+  uploadSinglePhoto(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({
+            success: false,
+            message: "File size limit exceeded (Max 10MB per file).",
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: err.message,
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || "File upload processing failed.",
+      });
+    }
+    next();
+  });
+};

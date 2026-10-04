@@ -2,7 +2,7 @@ import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sd
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import s3Client from "../config/s3.js";
 
-export const getPresignedMediaUrl = async (keyOrUrl) => {
+export const getPresignedMediaUrl = async (keyOrUrl, expiresIn = 604800) => {
   if (!keyOrUrl) return null;
 
   try {
@@ -20,7 +20,7 @@ export const getPresignedMediaUrl = async (keyOrUrl) => {
     });
 
     return await getSignedUrl(s3Client, command, {
-      expiresIn: 604800,
+      expiresIn,
     });
   } catch (err) {
     console.error("Presigned URL generation error:", err);

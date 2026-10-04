@@ -7,6 +7,9 @@ import {
   acceptProject,
   getProjectNotes,
   addProjectNote,
+  uploadVendorPhoto,
+  deleteVendorPhoto,
+  submitVendorProject,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -79,16 +82,17 @@ export const getProjectsController = async (req, res) => {
  */
 export const getProjectByIdController = async (req, res) => {
   try {
-    const result = await getProjectById(req.params.id);
+    const result = await getProjectById(req.params.id, req.user);
     return res.status(200).json({
       success: true,
       data: result,
     });
   } catch (error) {
     const statusCode =
-      error.message === "Project not found" || error.message.includes("Invalid project ID")
+      error.statusCode ||
+      (error.message === "Project not found" || error.message.includes("Invalid project ID")
         ? 404
-        : 400;
+        : 400);
 
     return res.status(statusCode).json({
       success: false,
@@ -259,5 +263,84 @@ export const addProjectNoteController = async (req, res) => {
       success: false,
       message: error.message || "Failed to add project note",
     });
+  }
+};
+
+/**
+ * Controller to handle Vendor photo upload.
+ * POST /api/projects/:id/photos
+ */
+export const uploadVendorPhotoController = async (req, res) => {
+  try {
+    const result = await uploadVendorPhoto(
+      req.params.id,
+      req.file,
+      req.body,
+      req.user
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Photo uploaded successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to upload photo",
+    });
+  }
+};
+
+/**
+ * Controller to handle Vendor photo deletion.
+ * DELETE /api/projects/:id/photos/:photoId
+ */
+export const deleteVendorPhotoController = async (req, res) => {
+  try {
+    const result = await deleteVendorPhoto(
+      req.params.id,
+      req.params.photoId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Photo deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to delete photo",
+    });
+  }
+};
+
+/**
+ * Controller to handle Vendor Project Submission (In Progress -> Submitted).
+ * POST /api/projects/:id/submit
+ */
+export const submitVendorProjectController = async (req, res) => {
+  try {
+    const result = await submitVendorProject(req.params.id, req.user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Project submitted successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    const responsePayload = {
+      success: false,
+      message: error.message || "Failed to submit project",
+    };
+    if (Array.isArray(error.errors) && error.errors.length > 0) {
+      responsePayload.errors = error.errors;
+    }
+    return res.status(statusCode).json(responsePayload);
   }
 };

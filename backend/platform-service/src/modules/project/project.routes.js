@@ -5,6 +5,9 @@ import {
   createProjectValidation,
   updateProjectValidation,
   updateProjectStatusValidation,
+  uploadVendorPhotoValidation,
+  deleteVendorPhotoValidation,
+  submitVendorProjectValidation,
 } from "./project.validation.js";
 import {
   createProjectController,
@@ -15,8 +18,11 @@ import {
   acceptProjectController,
   getProjectNotesController,
   addProjectNoteController,
+  uploadVendorPhotoController,
+  deleteVendorPhotoController,
+  submitVendorProjectController,
 } from "./project.controller.js";
-import { handleUpload } from "../../middleware/upload.middleware.js";
+import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
 const router = Router();
 
@@ -80,12 +86,35 @@ router.get(
   getProjectNotesController
 );
 
-// POST /api/projects/:id/notes - Add a note to a project
+// POST /api/projects/:id/photos - Vendor uploads photo for a checklist item (VENDOR)
 router.post(
-  "/:id/notes",
+  "/:id/photos",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
-  addProjectNoteController
+  authorize("VENDOR"),
+  handleVendorPhotoUpload,
+  uploadVendorPhotoValidation,
+  validate,
+  uploadVendorPhotoController
+);
+
+// POST /api/projects/:id/submit - Vendor submits project for review (VENDOR)
+router.post(
+  "/:id/submit",
+  protect,
+  authorize("VENDOR"),
+  submitVendorProjectValidation,
+  validate,
+  submitVendorProjectController
+);
+
+// DELETE /api/projects/:id/photos/:photoId - Vendor deletes photo (VENDOR)
+router.delete(
+  "/:id/photos/:photoId",
+  protect,
+  authorize("VENDOR"),
+  deleteVendorPhotoValidation,
+  validate,
+  deleteVendorPhotoController
 );
 
 export default router;

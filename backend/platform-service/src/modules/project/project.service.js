@@ -3,7 +3,10 @@ import Service from "../service/service.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import mongoose from "mongoose";
 import { uploadToS3, deleteFromS3, getPresignedMediaUrl } from "../../services/s3Service.js";
+import { validatePhotoWithAI } from "../../services/aiService.js";
+import { validatePhotoLocation, validateCaptureTimestamp } from "../../utils/geo.utils.js";
 import { createNotification } from "../notification/notification.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 
 /**
  * Helper to get a vendor's user ID for notification delivery.
@@ -73,6 +76,26 @@ export const createProject = async (projectData, files = {}) => {
       projectData.checklistItems = JSON.parse(projectData.checklistItems);
     } catch (e) {
       // Keep original value if parsing fails
+    }
+  }
+
+  // Parse locationCoordinates if sent as JSON string in FormData
+  if (typeof projectData.locationCoordinates === "string") {
+    try {
+      projectData.locationCoordinates = JSON.parse(projectData.locationCoordinates);
+    } catch (e) {
+      // Keep original value if parsing fails
+    }
+  }
+
+  if (projectData.locationCoordinates) {
+    const lat = Number(projectData.locationCoordinates.latitude);
+    const lng = Number(projectData.locationCoordinates.longitude);
+    if (projectData.locationCoordinates.latitude !== undefined && (isNaN(lat) || lat < -90 || lat > 90)) {
+      throw new Error("Latitude must be a number between -90 and 90");
+    }
+    if (projectData.locationCoordinates.longitude !== undefined && (isNaN(lng) || lng < -180 || lng > 180)) {
+      throw new Error("Longitude must be a number between -180 and 180");
     }
   }
 
@@ -263,19 +286,44 @@ export const getProjects = async (query = {}) => {
 /**
  * Retrieves a single project document by ID.
  * @param {string} id 
+ * @param {Object} [user] - Authenticated user object
  * @returns {Promise<Object>}
  */
-export const getProjectById = async (id) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid project ID format");
+export const getProjectById = async (id, user) => {
+  let project = null;
+
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    project = await Project.findById(id)
+      .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
+      .populate("vendorId", "companyName contactName location rating status");
   }
 
-  const project = await Project.findById(id)
-    .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
-    .populate("vendorId", "companyName contactName location rating status");
+  if (!project) {
+    project = await Project.findOne({ projectId: id })
+      .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
+      .populate("vendorId", "companyName contactName location rating status");
+  }
 
   if (!project) {
-    throw new Error("Project not found");
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Authorization check for VENDOR role
+  if (user && user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    const projectVendorIdStr = project.vendorId?._id
+      ? project.vendorId._id.toString()
+      : project.vendorId
+      ? project.vendorId.toString()
+      : null;
+
+    if (!vendor || !projectVendorIdStr || projectVendorIdStr !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to access this project");
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   return await transformProjectMedia(project);
@@ -295,6 +343,25 @@ export const updateProject = async (id, updateData) => {
   const project = await Project.findById(id);
   if (!project) {
     throw new Error("Project not found");
+  }
+
+  if (typeof updateData.locationCoordinates === "string") {
+    try {
+      updateData.locationCoordinates = JSON.parse(updateData.locationCoordinates);
+    } catch (e) {
+      // Keep original value if parsing fails
+    }
+  }
+
+  if (updateData.locationCoordinates) {
+    const lat = Number(updateData.locationCoordinates.latitude);
+    const lng = Number(updateData.locationCoordinates.longitude);
+    if (updateData.locationCoordinates.latitude !== undefined && (isNaN(lat) || lat < -90 || lat > 90)) {
+      throw new Error("Latitude must be a number between -90 and 90");
+    }
+    if (updateData.locationCoordinates.longitude !== undefined && (isNaN(lng) || lng < -180 || lng > 180)) {
+      throw new Error("Longitude must be a number between -180 and 180");
+    }
   }
 
   // Changing serviceId check
@@ -624,4 +691,459 @@ export const addProjectNote = async (projectIdOrId, text, user) => {
   await project.save();
 
   return newNote;
+};
+
+/**
+ * Handles Vendor photo upload for a specific project checklist item.
+ * @param {string} projectIdOrId - MongoDB _id or string projectId
+ * @param {Object} file - Multer file object
+ * @param {Object} body - Request body containing checklistItemId, capturedAt, location params
+ * @param {Object} user - Authenticated user object (role: VENDOR)
+ * @returns {Promise<Object>} { photo, project }
+ */
+export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) => {
+  if (!user || user.role !== "VENDOR") {
+    const err = new Error("Only authenticated vendors can upload photos");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!file) {
+    const err = new Error("Photo file is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!body.checklistItemId || !String(body.checklistItemId).trim()) {
+    const err = new Error("Checklist item ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const vendor = await Vendor.findOne({ userId: user.id || user._id });
+  if (!vendor) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const err = new Error("You are not authorized to upload photos to this project");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (project.status !== "In Progress") {
+    const err = new Error(`Photo capture is only allowed when project status is 'In Progress'. Current status is '${project.status}'`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const targetChecklistItemId = String(body.checklistItemId).trim();
+  const checklistItem = project.checklistItems?.find(
+    (item) => String(item.id) === targetChecklistItemId
+  );
+  if (!checklistItem) {
+    const err = new Error(`Referenced checklist item ID '${targetChecklistItemId}' does not exist in this project`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Location validation
+  let locationData = undefined;
+  if (body.latitude !== undefined && body.longitude !== undefined && body.latitude !== "" && body.longitude !== "") {
+    const lat = Number(body.latitude);
+    const lng = Number(body.longitude);
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      const err = new Error("Latitude must be a number between -90 and 90");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      const err = new Error("Longitude must be a number between -180 and 180");
+      err.statusCode = 400;
+      throw err;
+    }
+    let accuracyVal = undefined;
+    if (body.accuracy !== undefined && body.accuracy !== "") {
+      accuracyVal = Number(body.accuracy);
+      if (isNaN(accuracyVal) || accuracyVal < 0) {
+        const err = new Error("Accuracy must be a non-negative number");
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+    locationData = {
+      latitude: lat,
+      longitude: lng,
+      accuracy: accuracyVal,
+    };
+  }
+
+  // Captured date validation
+  let capturedDate = new Date();
+  if (body.capturedAt) {
+    const parsedDate = new Date(body.capturedAt);
+    if (isNaN(parsedDate.getTime())) {
+      const err = new Error("capturedAt must be a valid ISO 8601 date string");
+      err.statusCode = 400;
+      throw err;
+    }
+    capturedDate = parsedDate;
+  }
+
+  const uploadResult = await uploadToS3(file, "images");
+
+  const photoId = new mongoose.Types.ObjectId();
+  const newPhoto = {
+    _id: photoId,
+    url: uploadResult.key,
+    caption: body.caption?.trim() || file.originalname,
+    category: checklistItem.label,
+    checklistItemId: checklistItem.id,
+    capturedAt: capturedDate,
+    location: locationData,
+    filename: file.originalname,
+    mimeType: file.mimetype,
+    fileSize: file.size || file.buffer?.length,
+    uploadedAt: new Date(),
+  };
+
+  try {
+    project.photos.push(newPhoto);
+    checklistItem.checked = true;
+    await project.save();
+  } catch (saveError) {
+    await deleteFromS3(uploadResult.key);
+    throw saveError;
+  }
+
+  // Trigger AI validation via standalone ai-service
+  let aiResult = { status: "PENDING", validatedAt: new Date() };
+  try {
+    const shortLivedPresignedUrl = await getPresignedMediaUrl(uploadResult.key, 900);
+    if (shortLivedPresignedUrl) {
+      aiResult = await validatePhotoWithAI(shortLivedPresignedUrl, checklistItem.label);
+    }
+  } catch (aiErr) {
+    console.error("AI photo validation invocation error:", aiErr.message);
+    aiResult = {
+      status: "PENDING",
+      reason: `AI validation failed: ${aiErr.message}`,
+      validatedAt: new Date(),
+    };
+  }
+
+  // Persist aiValidation result in photo document
+  const savedPhotoIndex = project.photos.findIndex(
+    (p) => p._id?.toString() === photoId.toString()
+  );
+  if (savedPhotoIndex !== -1) {
+    project.photos[savedPhotoIndex].aiValidation = aiResult;
+    await project.save();
+  }
+
+  try {
+    await logAuditEvent({
+      actor: user,
+      action: "PHOTO_UPLOADED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Uploaded photo for checklist item "${checklistItem.label}" in project ${project.projectId}`,
+      metadata: {
+        projectId: project.projectId,
+        photoId: photoId.toString(),
+        checklistItemId: checklistItem.id,
+        category: checklistItem.label,
+      },
+    });
+
+    if (aiResult.status === "PASSED" || aiResult.status === "FAILED") {
+      await logAuditEvent({
+        actor: user,
+        action: "PHOTO_VALIDATED",
+        entityType: "Project",
+        entityId: project.projectId || project._id.toString(),
+        description: `AI validated photo for checklist item "${checklistItem.label}" in project ${project.projectId}: ${aiResult.status}`,
+        metadata: {
+          projectId: project.projectId,
+          photoId: photoId.toString(),
+          checklistItemId: checklistItem.id,
+          validationStatus: aiResult.status,
+        },
+      });
+    }
+  } catch (auditErr) {
+    console.error("Failed to log audit event:", auditErr.message);
+  }
+
+  const updatedProject = await getProjectById(project._id.toString(), user);
+  const createdPhoto = updatedProject.photos.find(
+    (p) => p._id?.toString() === photoId.toString()
+  ) || newPhoto;
+
+  return {
+    photo: createdPhoto,
+    project: updatedProject,
+  };
+};
+
+/**
+ * Handles Vendor photo deletion for a specific project.
+ * @param {string} projectIdOrId - MongoDB _id or string projectId
+ * @param {string} photoId - MongoDB _id of photo or S3 key
+ * @param {Object} user - Authenticated user object (role: VENDOR)
+ * @returns {Promise<Object>} Updated project object
+ */
+export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
+  if (!user || user.role !== "VENDOR") {
+    const err = new Error("Only authenticated vendors can delete photos");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const vendor = await Vendor.findOne({ userId: user.id || user._id });
+  if (!vendor) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const err = new Error("You are not authorized to delete photos from this project");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (project.status !== "In Progress") {
+    const err = new Error(`Photo deletion is only allowed when project status is 'In Progress'. Current status is '${project.status}'`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const photoIndex = project.photos.findIndex(
+    (p) => p._id?.toString() === photoId || p.url === photoId
+  );
+
+  if (photoIndex === -1) {
+    const err = new Error("Photo not found in this project");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const targetPhoto = project.photos[photoIndex];
+  const s3Key = targetPhoto.url;
+
+  try {
+    await deleteFromS3(s3Key);
+  } catch (s3Err) {
+    console.error("S3 deletion failed:", s3Err);
+    const err = new Error("Failed to delete photo from S3 storage");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const checklistItemId = targetPhoto.checklistItemId;
+
+  project.photos.splice(photoIndex, 1);
+
+  if (checklistItemId) {
+    const remainingCategoryPhotos = project.photos.filter(
+      (p) => String(p.checklistItemId) === String(checklistItemId)
+    );
+    if (remainingCategoryPhotos.length === 0) {
+      const item = project.checklistItems?.find(
+        (c) => String(c.id) === String(checklistItemId)
+      );
+      if (item) {
+        item.checked = false;
+      }
+    }
+  }
+
+  await project.save();
+
+  try {
+    await logAuditEvent({
+      actor: user,
+      action: "PHOTO_DELETED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Deleted photo ${photoId} from project ${project.projectId}`,
+      metadata: {
+        projectId: project.projectId,
+        photoId,
+        checklistItemId,
+      },
+    });
+  } catch (auditErr) {
+    console.error("Failed to log PHOTO_DELETED audit event:", auditErr.message);
+  }
+
+  return await getProjectById(project._id.toString(), user);
+};
+
+/**
+ * Handles Vendor project submission (In Progress -> Submitted).
+ * Enforces precondition: all required checklist items must have uploaded photos.
+ * @param {string} projectIdOrId - MongoDB _id or string projectId
+ * @param {Object} user - Authenticated user object (role: VENDOR)
+ * @returns {Promise<Object>} Updated project object
+ */
+export const submitVendorProject = async (projectIdOrId, user) => {
+  if (!user || user.role !== "VENDOR") {
+    const err = new Error("Only authenticated vendors can submit projects");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const vendor = await Vendor.findOne({ userId: user.id || user._id });
+  if (!vendor) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const err = new Error("You are not authorized to submit this project");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (project.status !== "In Progress") {
+    const err = new Error(`Cannot submit project with current status '${project.status}'. Only 'In Progress' projects can be submitted.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Comprehensive Submission Gating (Phase 2C):
+  // Checks: Checklist presence, AI Validation (PASSED), GPS Validation, Timestamp Validation
+  const checklist = project.checklistItems || [];
+  const validationErrors = [];
+
+  if (checklist.length > 0) {
+    for (const item of checklist) {
+      const associatedPhotos = (project.photos || []).filter(
+        (p) => String(p.checklistItemId) === String(item.id)
+      );
+
+      if (associatedPhotos.length === 0) {
+        validationErrors.push({
+          checklistItemId: String(item.id),
+          category: item.label,
+          reason: `Missing required photo evidence for checklist item "${item.label}"`,
+        });
+        continue;
+      }
+
+      for (const photo of associatedPhotos) {
+        const photoIdStr = photo._id ? photo._id.toString() : null;
+
+        // 1. AI Validation Check
+        const aiVal = photo.aiValidation;
+        if (!aiVal || !aiVal.status) {
+          validationErrors.push({
+            checklistItemId: String(item.id),
+            category: item.label,
+            photoId: photoIdStr,
+            reason: `AI validation missing for checklist item "${item.label}"`,
+          });
+        } else if (aiVal.status === "PENDING") {
+          validationErrors.push({
+            checklistItemId: String(item.id),
+            category: item.label,
+            photoId: photoIdStr,
+            reason: `AI validation is pending for checklist item "${item.label}"`,
+          });
+        } else if (aiVal.status === "FAILED") {
+          validationErrors.push({
+            checklistItemId: String(item.id),
+            category: item.label,
+            photoId: photoIdStr,
+            reason: `AI validation failed for checklist item "${item.label}": ${aiVal.reason || "Validation rejected by AI"}`,
+          });
+        }
+
+        // 2. GPS Validation Check (if project.locationCoordinates exists)
+        const gpsRes = validatePhotoLocation({
+          photoLocation: photo.location,
+          projectLocationCoordinates: project.locationCoordinates,
+        });
+        if (gpsRes.valid === false) {
+          validationErrors.push({
+            checklistItemId: String(item.id),
+            category: item.label,
+            photoId: photoIdStr,
+            reason: `GPS validation failed for checklist item "${item.label}": ${gpsRes.reason}`,
+          });
+        }
+
+        // 3. Timestamp Validation Check
+        const tsRes = validateCaptureTimestamp({
+          capturedAt: photo.capturedAt,
+          uploadedAt: photo.uploadedAt,
+        });
+        if (tsRes.valid === false) {
+          validationErrors.push({
+            checklistItemId: String(item.id),
+            category: item.label,
+            photoId: photoIdStr,
+            reason: `Timestamp validation failed for checklist item "${item.label}": ${tsRes.reason}`,
+          });
+        }
+      }
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    const errorMsg = `Cannot submit project: ${validationErrors.length} validation requirement(s) failed.`;
+    const err = new Error(errorMsg);
+    err.statusCode = 400;
+    err.errors = validationErrors;
+    throw err;
+  }
+
+  const previousStatus = project.status;
+  project.status = "Submitted";
+  await project.save();
+
+  try {
+    await logAuditEvent({
+      actor: user,
+      action: "PROJECT_SUBMITTED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Vendor submitted project ${project.projectName || ""} (${project.projectId || ""}) for review`,
+      metadata: {
+        projectId: project.projectId,
+        previousStatus,
+        newStatus: "Submitted",
+      },
+    });
+  } catch (auditErr) {
+    console.error("Failed to log PROJECT_SUBMITTED audit event:", auditErr.message);
+  }
+
+  return await getProjectById(project._id.toString(), user);
 };

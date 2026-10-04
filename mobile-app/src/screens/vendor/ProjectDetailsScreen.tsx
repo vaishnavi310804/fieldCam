@@ -253,10 +253,14 @@ export const ProjectDetailsScreen = () => {
   };
 
   const handleStartCapture = () => {
-    Alert.alert(
-      "Start Capture",
-      "Photo capture workflow for this project is coming soon."
-    );
+    if (!project && !projectIdParam) return;
+    const targetId = project?._id || project?.projectId || projectIdParam;
+    if (targetId) {
+      router.push({
+        pathname: "/(app)/capture",
+        params: { id: targetId },
+      } as any);
+    }
   };
 
   const handleOpenTimeline = () => {

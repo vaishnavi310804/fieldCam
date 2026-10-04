@@ -41,6 +41,29 @@ export const createProjectValidation = [
     .notEmpty()
     .withMessage("Location is required"),
 
+  body("locationCoordinates")
+    .optional({ nullable: true })
+    .customSanitizer((value) => {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch (e) {
+          return value;
+        }
+      }
+      return value;
+    }),
+
+  body("locationCoordinates.latitude")
+    .optional({ nullable: true })
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Latitude must be a number between -90 and 90"),
+
+  body("locationCoordinates.longitude")
+    .optional({ nullable: true })
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Longitude must be a number between -180 and 180"),
+
   body("deadline")
     .notEmpty()
     .withMessage("Deadline date is required")
@@ -184,6 +207,29 @@ export const updateProjectValidation = [
     .notEmpty()
     .withMessage("Location cannot be empty"),
 
+  body("locationCoordinates")
+    .optional({ nullable: true })
+    .customSanitizer((value) => {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch (e) {
+          return value;
+        }
+      }
+      return value;
+    }),
+
+  body("locationCoordinates.latitude")
+    .optional({ nullable: true })
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Latitude must be a number between -90 and 90"),
+
+  body("locationCoordinates.longitude")
+    .optional({ nullable: true })
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Longitude must be a number between -180 and 180"),
+
   body("deadline")
     .optional()
     .isISO8601()
@@ -223,4 +269,59 @@ export const updateProjectStatusValidation = [
     .trim()
     .isString()
     .withMessage("Review comments must be a string"),
+];
+
+export const uploadVendorPhotoValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Project ID is required"),
+
+  body("checklistItemId")
+    .notEmpty()
+    .withMessage("Checklist item ID is required")
+    .trim()
+    .isString()
+    .withMessage("Checklist item ID must be a string"),
+
+  body("capturedAt")
+    .optional()
+    .isISO8601()
+    .withMessage("capturedAt must be a valid ISO 8601 date string"),
+
+  body("latitude")
+    .optional()
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Latitude must be a number between -90 and 90"),
+
+  body("longitude")
+    .optional()
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Longitude must be a number between -180 and 180"),
+
+  body("accuracy")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Accuracy must be a non-negative number"),
+
+  body("caption")
+    .optional()
+    .trim()
+    .isString()
+    .withMessage("Caption must be a string"),
+];
+
+export const deleteVendorPhotoValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Project ID is required"),
+
+  param("photoId")
+    .notEmpty()
+    .withMessage("Photo ID is required"),
+];
+
+export const submitVendorProjectValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Project ID is required"),
 ];
