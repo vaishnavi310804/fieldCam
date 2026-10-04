@@ -21,7 +21,7 @@ import { RelatedProjectSelector } from "@/src/components/support/RelatedProjectS
 import { TicketAttachmentPicker } from "@/src/components/support/TicketAttachmentPicker";
 import { createSupportTicket } from "@/src/api/support.api";
 
-export const NewTicketScreen = () => {
+ const NewTicketScreen = () => {
   const [category, setCategory] = useState<string>("General");
   const [priority, setPriority] = useState<string>("Medium");
   const [subject, setSubject] = useState<string>("");

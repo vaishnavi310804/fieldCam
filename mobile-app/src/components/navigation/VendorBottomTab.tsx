@@ -6,10 +6,18 @@ import Colors from "@/src/constants/color";
 
 export const VendorBottomTab = ({
   state,
+  descriptors,
   navigation,
 }: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
   const bottomMargin = Math.max(insets.bottom, 12);
+
+  const focusedRoute = state.routes[state.index];
+  const focusedOptions = descriptors?.[focusedRoute.key]?.options;
+
+  if ((focusedOptions?.tabBarStyle as any)?.display === "none") {
+    return null;
+  }
 
   const tabs = [
     { name: "index", label: "Home", icon: "home", iconOutline: "home-outline" },

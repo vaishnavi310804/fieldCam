@@ -7,11 +7,41 @@ export interface VendorProjectStats {
   active?: number;
 }
 
+export interface AIValidationResult {
+  status: "PASSED" | "FAILED" | "PENDING";
+  clarity?: {
+    passed: boolean;
+    score?: number;
+  };
+  lighting?: {
+    passed: boolean;
+    score?: number;
+  };
+  subject?: {
+    passed: boolean;
+    confidence?: number;
+    expectedCategory?: string;
+    detectedDescription?: string;
+    reason?: string;
+  };
+  reason?: string;
+  validatedAt?: string;
+}
+
 export interface VendorProjectPhoto {
+  _id?: string;
   url: string;
   caption?: string;
   category?: string;
+  checklistItemId?: string;
+  capturedAt?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
   uploadedAt?: string;
+  aiValidation?: AIValidationResult;
 }
 
 export interface VendorChecklistItem {
@@ -243,12 +273,88 @@ export const getVendorDashboardData =
     };
   };
 
+export interface UploadPhotoData {
+  photoUri: string;
+  checklistItemId: string;
+  capturedAt: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  caption?: string;
+}
+
+export interface UploadPhotoResponse {
+  photo: VendorProjectPhoto;
+  project: VendorProjectItem;
+}
+
+export const uploadProjectPhoto = async (
+  projectId: string,
+  data: UploadPhotoData
+): Promise<UploadPhotoResponse> => {
+  const formData = new FormData();
+
+  const filename = data.photoUri.split("/").pop() || `photo-${Date.now()}.jpg`;
+  const match = /\.(\w+)$/.exec(filename);
+  const ext = match ? match[1].toLowerCase() : "jpg";
+  const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+
+  formData.append("photo", {
+    uri: data.photoUri,
+    name: filename,
+    type: mimeType,
+  } as any);
+
+  formData.append("checklistItemId", data.checklistItemId);
+  formData.append("capturedAt", data.capturedAt);
+  formData.append("latitude", String(data.latitude));
+  formData.append("longitude", String(data.longitude));
+  formData.append("accuracy", String(data.accuracy));
+  if (data.caption) {
+    formData.append("caption", data.caption);
+  }
+
+  const response = await platformClient.post<{
+    success: boolean;
+    message?: string;
+    data: UploadPhotoResponse;
+  }>(`/projects/${projectId}/photos`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to upload photo");
+  }
+
+  return response.data.data;
+};
+
+export const submitVendorProject = async (
+  projectId: string
+): Promise<VendorProjectItem> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/submit`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to submit project");
+  }
+
+  return response.data.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
   getVendorInvoices,
   getVendorSupportStats,
   getVendorDashboardData,
+  uploadProjectPhoto,
+  submitVendorProject,
 };
 
 export default dashboardApi;
