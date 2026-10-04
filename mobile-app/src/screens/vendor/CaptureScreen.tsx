@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,16 +16,32 @@ import { CameraView, CameraType, FlashMode, useCameraPermissions } from "expo-ca
 import * as Location from "expo-location";
 import Colors from "@/src/constants/color";
 import { PageHeader } from "@/src/components/navigation/PageHeader";
+import { PhotoGridCard } from "@/src/components/preview/PhotoGridCard";
+import {
+  UploadProgressRow,
+  UploadStatus,
+} from "@/src/components/preview/UploadProgressRow";
 import {
   getProjectById,
   uploadProjectPhoto,
   VendorProjectItem,
   VendorChecklistItem,
   VendorProjectPhoto,
-  AIValidationResult,
 } from "@/src/api/dashboard.api";
 
 export interface CapturedPhotoData {
+  uri: string;
+  capturedAt: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+  };
+}
+
+export interface LocalCapturedPhoto {
+  checklistItemId: string;
+  categoryLabel: string;
   uri: string;
   capturedAt: string;
   location: {
@@ -51,7 +66,6 @@ export function CaptureScreen() {
   const [facing, setFacing] = useState<CameraType>("back");
   const [flash, setFlash] = useState<FlashMode>("off");
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<CapturedPhotoData | null>(null);
 
   // Project & Categories state
   const [project, setProject] = useState<VendorProjectItem | null>(null);
@@ -65,22 +79,22 @@ export function CaptureScreen() {
     label: string;
   } | null>(null);
 
-  // Photo Upload & AI Validation State
-  const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "uploading" | "success" | "error"
-  >("idle");
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [aiValidationResult, setAiValidationResult] =
-    useState<AIValidationResult | null>(null);
-  const [uploadedPhotoId, setUploadedPhotoId] = useState<string | null>(null);
+  // Batch Session Photos State (Local photos taken in current session, pending upload)
+  const [sessionPhotos, setSessionPhotos] = useState<LocalCapturedPhoto[]>([]);
 
-  // Screen view mode: "category_select" or "camera"
-  const [viewMode, setViewMode] = useState<"category_select" | "camera">(
-    "category_select"
-  );
+  // Screen view mode: "category_select" | "camera" | "preview" | "uploading"
+  const [viewMode, setViewMode] = useState<
+    "category_select" | "camera" | "preview" | "uploading"
+  >("category_select");
+
+  // Batch Uploading Progress State
+  const [uploadProgressMap, setUploadProgressMap] = useState<
+    Record<string, { status: UploadStatus; error?: string }>
+  >({});
+  const [isBatchUploading, setIsBatchUploading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (viewMode === "camera") {
+    if (viewMode === "camera" || viewMode === "uploading") {
       navigation.setOptions({ tabBarStyle: { display: "none" } });
     } else {
       navigation.setOptions({ tabBarStyle: undefined });
@@ -127,18 +141,10 @@ export function CaptureScreen() {
 
   const handleCategorySelect = (item: VendorChecklistItem) => {
     setSelectedCategory({ id: item.id, label: item.label });
-    setCapturedPhoto(null);
-    setUploadStatus("idle");
-    setUploadError(null);
-    setAiValidationResult(null);
     setViewMode("camera");
   };
 
   const handleCloseCamera = () => {
-    setCapturedPhoto(null);
-    setUploadStatus("idle");
-    setUploadError(null);
-    setAiValidationResult(null);
     setViewMode("category_select");
   };
 
@@ -151,7 +157,7 @@ export function CaptureScreen() {
   };
 
   const handleTakePicture = async () => {
-    if (!cameraRef.current || isCapturing) return;
+    if (!cameraRef.current || isCapturing || !selectedCategory) return;
 
     try {
       setIsCapturing(true);
@@ -192,11 +198,11 @@ export function CaptureScreen() {
         throw new Error("Camera did not return a valid photo URI.");
       }
 
-      // Capture Timestamp
       const capturedAt = new Date().toISOString();
 
-      // Store Photo + Metadata
-      setCapturedPhoto({
+      const newSessionPhoto: LocalCapturedPhoto = {
+        checklistItemId: selectedCategory.id,
+        categoryLabel: selectedCategory.label,
         uri: photo.uri,
         capturedAt,
         location: {
@@ -204,11 +210,18 @@ export function CaptureScreen() {
           longitude,
           accuracy,
         },
+      };
+
+      // Add or replace photo for this category in local session photos
+      setSessionPhotos((prev) => {
+        const filtered = prev.filter(
+          (p) => String(p.checklistItemId) !== String(selectedCategory.id)
+        );
+        return [...filtered, newSessionPhoto];
       });
 
-      setUploadStatus("idle");
-      setUploadError(null);
-      setAiValidationResult(null);
+      // Automatically return to Category Selection view after taking photo
+      setViewMode("category_select");
     } catch (err: any) {
       console.error("Camera capture or GPS acquisition failed:", err);
       Alert.alert(
@@ -221,54 +234,122 @@ export function CaptureScreen() {
     }
   };
 
-  const handleRetakePhoto = () => {
-    setCapturedPhoto(null);
-    setUploadStatus("idle");
-    setUploadError(null);
-    setAiValidationResult(null);
+  const handleDeleteSessionPhoto = (checklistItemId: string) => {
+    setSessionPhotos((prev) =>
+      prev.filter((p) => String(p.checklistItemId) !== String(checklistItemId))
+    );
   };
 
-  const handleUploadPhoto = async () => {
-    if (
-      !capturedPhoto ||
-      !selectedCategory ||
-      !projectIdParam ||
-      uploadStatus === "uploading"
-    ) {
-      return;
+  const handleStartBatchUpload = async () => {
+    if (!projectIdParam || sessionPhotos.length === 0 || isBatchUploading) return;
+
+    setIsBatchUploading(true);
+    setViewMode("uploading");
+
+    // Initialize progress map
+    const initialMap: Record<string, { status: UploadStatus; error?: string }> = {};
+    sessionPhotos.forEach((p) => {
+      initialMap[p.checklistItemId] = { status: "pending" };
+    });
+    setUploadProgressMap(initialMap);
+
+    let hasFailure = false;
+
+    for (const item of sessionPhotos) {
+      setUploadProgressMap((prev) => ({
+        ...prev,
+        [item.checklistItemId]: { status: "uploading" },
+      }));
+
+      try {
+        await uploadProjectPhoto(projectIdParam, {
+          photoUri: item.uri,
+          checklistItemId: item.checklistItemId,
+          capturedAt: item.capturedAt,
+          latitude: item.location.latitude,
+          longitude: item.location.longitude,
+          accuracy: item.location.accuracy,
+        });
+
+        setUploadProgressMap((prev) => ({
+          ...prev,
+          [item.checklistItemId]: { status: "uploaded" },
+        }));
+      } catch (err: any) {
+        console.error(`Upload failed for category ${item.categoryLabel}:`, err);
+        hasFailure = true;
+        setUploadProgressMap((prev) => ({
+          ...prev,
+          [item.checklistItemId]: {
+            status: "failed",
+            error: err?.message || "Failed to upload photo.",
+          },
+        }));
+      }
     }
 
-    try {
-      setUploadStatus("uploading");
-      setUploadError(null);
+    setIsBatchUploading(false);
 
-      const response = await uploadProjectPhoto(projectIdParam, {
-        photoUri: capturedPhoto.uri,
-        checklistItemId: selectedCategory.id,
-        capturedAt: capturedPhoto.capturedAt,
-        latitude: capturedPhoto.location.latitude,
-        longitude: capturedPhoto.location.longitude,
-        accuracy: capturedPhoto.location.accuracy,
+    // If ALL uploads succeeded, clear session and navigate to AI verification
+    if (!hasFailure) {
+      setSessionPhotos([]);
+      await fetchProjectData(false);
+      router.push({
+        pathname: "/(app)/ai-verification",
+        params: { projectId: projectIdParam },
+      });
+    }
+  };
+
+  const handleRetrySingleUpload = async (photoItem: LocalCapturedPhoto) => {
+    if (!projectIdParam) return;
+
+    setUploadProgressMap((prev) => ({
+      ...prev,
+      [photoItem.checklistItemId]: { status: "uploading" },
+    }));
+
+    try {
+      await uploadProjectPhoto(projectIdParam, {
+        photoUri: photoItem.uri,
+        checklistItemId: photoItem.checklistItemId,
+        capturedAt: photoItem.capturedAt,
+        latitude: photoItem.location.latitude,
+        longitude: photoItem.location.longitude,
+        accuracy: photoItem.location.accuracy,
       });
 
-      setUploadStatus("success");
-      if (response.photo && response.photo._id) {
-        setUploadedPhotoId(response.photo._id);
-      }
-      if (response.photo && response.photo.aiValidation) {
-        setAiValidationResult(response.photo.aiValidation);
-      } else {
-        setAiValidationResult(null);
-      }
+      setUploadProgressMap((prev) => {
+        const nextMap = {
+          ...prev,
+          [photoItem.checklistItemId]: { status: "uploaded" as UploadStatus },
+        };
 
-      // Refresh project to update category checklist status
-      fetchProjectData(false);
+        // Check if all photos in session are now uploaded
+        const allDone = sessionPhotos.every(
+          (p) => nextMap[p.checklistItemId]?.status === "uploaded"
+        );
+
+        if (allDone) {
+          setSessionPhotos([]);
+          fetchProjectData(false).then(() => {
+            router.push({
+              pathname: "/(app)/ai-verification",
+              params: { projectId: projectIdParam },
+            });
+          });
+        }
+
+        return nextMap;
+      });
     } catch (err: any) {
-      console.error("Upload photo error:", err);
-      setUploadStatus("error");
-      setUploadError(
-        err?.message || "Failed to upload photo. Please check connection and try again."
-      );
+      setUploadProgressMap((prev) => ({
+        ...prev,
+        [photoItem.checklistItemId]: {
+          status: "failed",
+          error: err?.message || "Failed to upload photo.",
+        },
+      }));
     }
   };
 
@@ -285,11 +366,18 @@ export function CaptureScreen() {
     ? project!.photos
     : [];
 
-  const isCategoryCompleted = (item: VendorChecklistItem) => {
-    const hasUploadedPhoto = photos.some(
-      (p) => String(p.checklistItemId) === String(item.id)
+  const isCategoryUploaded = (item: VendorChecklistItem) => {
+    return Boolean(
+      item.checked || photos.some((p) => String(p.checklistItemId) === String(item.id))
     );
-    return Boolean(item.checked || hasUploadedPhoto);
+  };
+
+  const isCategoryCapturedInSession = (item: VendorChecklistItem) => {
+    return sessionPhotos.some((p) => String(p.checklistItemId) === String(item.id));
+  };
+
+  const isCategoryCompleted = (item: VendorChecklistItem) => {
+    return isCategoryUploaded(item) || isCategoryCapturedInSession(item);
   };
 
   const isAllCategoriesCompleted =
@@ -310,8 +398,10 @@ export function CaptureScreen() {
     });
   };
 
+  // --------------------------------------------------------------------------
+  // CAMERA VIEW MODE
+  // --------------------------------------------------------------------------
   if (viewMode === "camera") {
-    // Permission loading state
     if (!cameraPermission) {
       return (
         <View style={styles.cameraScreenContainer}>
@@ -325,7 +415,6 @@ export function CaptureScreen() {
       );
     }
 
-    // Permission denied state
     if (!cameraPermission.granted) {
       return (
         <View style={styles.cameraScreenContainer}>
@@ -360,23 +449,15 @@ export function CaptureScreen() {
 
     return (
       <View style={styles.cameraScreenContainer}>
-        {/* Background Layer: Real Camera or Captured Photo Preview */}
-        {capturedPhoto ? (
-          <Image
-            source={{ uri: capturedPhoto.uri }}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="cover"
-          />
-        ) : (
-          <CameraView
-            ref={cameraRef}
-            style={StyleSheet.absoluteFillObject}
-            facing={facing}
-            flash={flash}
-          />
-        )}
+        {/* Real Camera View */}
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFillObject}
+          facing={facing}
+          flash={flash}
+        />
 
-        {/* Top Dark Header Bar */}
+        {/* Top Header Bar */}
         <View
           style={[
             styles.cameraHeaderBar,
@@ -392,10 +473,10 @@ export function CaptureScreen() {
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </Pressable>
 
-          {/* Centered Category Pill Badge */}
+          {/* Centered Category Badge */}
           <View style={styles.categoryPillBadge}>
             <Text style={styles.categoryPillText} numberOfLines={1}>
-              {selectedCategory?.label || "Photo Requirement"}
+              {selectedCategory?.label || "Photo Category"}
             </Text>
           </View>
 
@@ -417,290 +498,314 @@ export function CaptureScreen() {
           </Pressable>
         </View>
 
-        {/* Camera View Area & Overlays */}
+        {/* Framing Area & Meta Overlay */}
         <View style={styles.cameraViewArea}>
-          {/* Metadata Overlay Card (top-left) */}
           <View style={styles.metaOverlayCard}>
             <View style={styles.metaOverlayRow}>
               <Ionicons name="location-sharp" size={13} color="#10B981" />
               <Text style={styles.metaOverlayText} numberOfLines={1}>
-                {capturedPhoto
-                  ? `${capturedPhoto.location.latitude.toFixed(4)}°, ${capturedPhoto.location.longitude.toFixed(4)}° (±${capturedPhoto.location.accuracy}m)`
-                  : project?.location || "Geotagged Location"}
+                {project?.location || "Geotagged Location"}
               </Text>
             </View>
 
             <View style={styles.metaOverlayRow}>
               <Ionicons name="time-outline" size={13} color="#3B82F6" />
               <Text style={styles.metaOverlayText}>
-                {formatTimestampDisplay(capturedPhoto?.capturedAt)}
-              </Text>
-            </View>
-
-            <View style={styles.metaOverlayRow}>
-              <Ionicons name="pricetag-outline" size={13} color="#9CA3AF" />
-              <Text style={styles.metaOverlaySubtext}>
-                {project?.projectId || "Project ID"}
+                {formatTimestampDisplay()}
               </Text>
             </View>
           </View>
 
-          {/* Center Framing Guide Box */}
           <View style={styles.framingGuideBox} />
 
-          {/* Bottom Controls Bar */}
+          {/* Bottom Shutter Controls */}
           <View
             style={[
               styles.shutterControlsContainer,
               { paddingBottom: Math.max(insets.bottom, 24) },
             ]}
           >
-            {capturedPhoto ? (
-              /* Captured Photo Preview & Upload Controls */
-              <View style={styles.previewControlsCol}>
-                {uploadStatus === "uploading" ? (
-                  <View style={styles.uploadingContainer}>
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                      style={{ marginBottom: 6 }}
-                    />
-                    <Text style={styles.uploadingText}>
-                      Uploading photo & analyzing with AI...
-                    </Text>
-                  </View>
-                ) : uploadStatus === "success" ? (
-                  <>
-                    {/* AI Validation Status Badge */}
-                    {aiValidationResult ? (
-                      <View
-                        style={[
-                          styles.aiBadgeContainer,
-                          aiValidationResult.status === "PASSED"
-                            ? styles.aiBadgePassed
-                            : aiValidationResult.status === "FAILED"
-                            ? styles.aiBadgeFailed
-                            : styles.aiBadgePending,
-                        ]}
-                      >
-                        <View style={styles.aiBadgeHeader}>
-                          <Ionicons
-                            name={
-                              aiValidationResult.status === "PASSED"
-                                ? "checkmark-circle"
-                                : aiValidationResult.status === "FAILED"
-                                ? "close-circle"
-                                : "time-sharp"
-                            }
-                            size={20}
-                            color="#FFFFFF"
-                          />
-                          <Text style={styles.aiBadgeTitle}>
-                            AI Validation: {aiValidationResult.status}
-                          </Text>
-                        </View>
-                        {aiValidationResult.reason ||
-                        aiValidationResult.subject?.reason ? (
-                          <Text style={styles.aiBadgeReason} numberOfLines={2}>
-                            {aiValidationResult.reason ||
-                              aiValidationResult.subject?.reason}
-                          </Text>
-                        ) : null}
-                      </View>
-                    ) : (
-                      <View
-                        style={[styles.aiBadgeContainer, styles.aiBadgePassed]}
-                      >
-                        <View style={styles.aiBadgeHeader}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={20}
-                            color="#FFFFFF"
-                          />
-                          <Text style={styles.aiBadgeTitle}>
-                            Photo Uploaded Successfully
-                          </Text>
-                        </View>
-                      </View>
-                    )}
+            <Text style={styles.shutterTimerText}>Position subject inside frame</Text>
 
-                    <View style={styles.buttonRow}>
-                      <Pressable
-                        style={styles.primaryUploadButton}
-                        onPress={() => {
-                          router.push({
-                            pathname: "/(app)/ai-verification",
-                            params: {
-                              projectId: projectIdParam,
-                              photoId: uploadedPhotoId || "",
-                              checklistItemId: selectedCategory?.id,
-                              photoUri: capturedPhoto?.uri,
-                            },
-                          });
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="View AI Verification"
-                      >
-                        <Ionicons
-                          name="sparkles"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.primaryUploadButtonText}>
-                          View AI Verification
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.retakeButton}
-                        onPress={handleCloseCamera}
-                        accessibilityRole="button"
-                        accessibilityLabel="Back to Categories"
-                      >
-                        <Ionicons
-                          name="checkmark-sharp"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.retakeButtonText}>
-                          Categories
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </>
-                ) : uploadStatus === "error" ? (
-                  <>
-                    <View style={styles.errorBox}>
-                      <Ionicons name="alert-circle" size={18} color="#FCA5A5" />
-                      <Text style={styles.errorBoxText} numberOfLines={2}>
-                        {uploadError || "Upload failed. Please try again."}
-                      </Text>
-                    </View>
-
-                    <View style={styles.buttonRow}>
-                      <Pressable
-                        style={styles.primaryUploadButton}
-                        onPress={handleUploadPhoto}
-                        accessibilityRole="button"
-                        accessibilityLabel="Retry Upload"
-                      >
-                        <Ionicons
-                          name="cloud-upload-outline"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.primaryUploadButtonText}>
-                          Retry Upload
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.retakeButton}
-                        onPress={handleRetakePhoto}
-                        accessibilityRole="button"
-                        accessibilityLabel="Retake Photo"
-                      >
-                        <Ionicons
-                          name="refresh-outline"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.retakeButtonText}>Retake</Text>
-                      </Pressable>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.shutterTimerText}>
-                      Photo Captured & Geotagged
-                    </Text>
-
-                    <View style={styles.buttonRow}>
-                      <Pressable
-                        style={styles.primaryUploadButton}
-                        onPress={handleUploadPhoto}
-                        accessibilityRole="button"
-                        accessibilityLabel="Upload Photo"
-                      >
-                        <Ionicons
-                          name="cloud-upload-outline"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.primaryUploadButtonText}>
-                          Upload Photo
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.retakeButton}
-                        onPress={handleRetakePhoto}
-                        accessibilityRole="button"
-                        accessibilityLabel="Retake Photo"
-                      >
-                        <Ionicons
-                          name="refresh-outline"
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.retakeButtonText}>Retake</Text>
-                      </Pressable>
-                    </View>
-                  </>
-                )}
+            <View style={styles.shutterRow}>
+              <View style={styles.cameraBottomIconButton}>
+                <Ionicons name="images-outline" size={22} color="#A39A94" />
               </View>
-            ) : (
-              /* Live Camera Capture Controls */
-              <>
-                <Text style={styles.shutterTimerText}>0 / 2 min</Text>
 
-                <View style={styles.shutterRow}>
-                  {/* Gallery Placeholder Icon */}
-                  <View style={styles.cameraBottomIconButton}>
-                    <Ionicons name="images-outline" size={22} color="#A39A94" />
-                  </View>
+              <Pressable
+                style={[
+                  styles.shutterOuterRing,
+                  isCapturing && styles.disabledShutter,
+                ]}
+                onPress={handleTakePicture}
+                disabled={isCapturing}
+                accessibilityRole="button"
+                accessibilityLabel="Capture Photo"
+              >
+                {isCapturing ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <View style={styles.shutterInnerCircle} />
+                )}
+              </Pressable>
 
-                  {/* Main Shutter Button */}
-                  <Pressable
-                    style={[
-                      styles.shutterOuterRing,
-                      isCapturing && styles.disabledShutter,
-                    ]}
-                    onPress={handleTakePicture}
-                    disabled={isCapturing}
-                    accessibilityRole="button"
-                    accessibilityLabel="Capture Photo"
-                  >
-                    {isCapturing ? (
-                      <ActivityIndicator size="small" color={Colors.primary} />
-                    ) : (
-                      <View style={styles.shutterInnerCircle} />
-                    )}
-                  </Pressable>
-
-                  {/* Camera Flip Button */}
-                  <Pressable
-                    style={styles.cameraBottomIconButton}
-                    onPress={toggleCameraFacing}
-                    accessibilityRole="button"
-                    accessibilityLabel="Flip Camera"
-                  >
-                    <Ionicons
-                      name="camera-reverse-outline"
-                      size={22}
-                      color="#FFFFFF"
-                    />
-                  </Pressable>
-                </View>
-              </>
-            )}
+              <Pressable
+                style={styles.cameraBottomIconButton}
+                onPress={toggleCameraFacing}
+                accessibilityRole="button"
+                accessibilityLabel="Flip Camera"
+              >
+                <Ionicons
+                  name="camera-reverse-outline"
+                  size={22}
+                  color="#FFFFFF"
+                />
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
     );
   }
 
-  // Category Selection View
+  // --------------------------------------------------------------------------
+  // UPLOAD PROGRESS VIEW MODE
+  // --------------------------------------------------------------------------
+  if (viewMode === "uploading") {
+    const totalCount = sessionPhotos.length;
+    const completedCount = sessionPhotos.filter(
+      (p) => uploadProgressMap[p.checklistItemId]?.status === "uploaded"
+    ).length;
+    const failedCount = sessionPhotos.filter(
+      (p) => uploadProgressMap[p.checklistItemId]?.status === "failed"
+    ).length;
+    const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+    return (
+      <View style={styles.screenContainer}>
+        <PageHeader
+          title="Uploading Photos"
+          showBackButton={!isBatchUploading}
+          onBackPress={() => setViewMode("preview")}
+        />
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Main Upload Banner Card */}
+          <View style={styles.uploadProgressCard}>
+            <Text style={styles.uploadProgressCardTitle}>
+              {failedCount > 0
+                ? "Upload Encountered Errors"
+                : isBatchUploading
+                ? "Uploading Photos..."
+                : "Upload Complete"}
+            </Text>
+
+            <Text style={styles.uploadProgressCardSubtext}>
+              {completedCount} of {totalCount} photos uploaded
+            </Text>
+
+            {/* Progress Bar Container */}
+            <View style={styles.progressBarTrack}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${Math.min(100, Math.max(0, progressPercent))}%`,
+                    backgroundColor: failedCount > 0 ? "#EF4444" : Colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* List of Photos with Individual Upload Status */}
+          <Text style={styles.sectionHeaderTitle}>Photo Upload Status</Text>
+
+          <View style={{ marginBottom: 20 }}>
+            {sessionPhotos.map((item) => {
+              const statusInfo = uploadProgressMap[item.checklistItemId] || {
+                status: "pending" as UploadStatus,
+              };
+
+              return (
+                <UploadProgressRow
+                  key={item.checklistItemId}
+                  categoryLabel={item.categoryLabel}
+                  imageUri={item.uri}
+                  status={statusInfo.status}
+                  errorMessage={statusInfo.error}
+                  onRetry={() => handleRetrySingleUpload(item)}
+                />
+              );
+            })}
+          </View>
+
+          {/* Failure Banner & Action Buttons */}
+          {failedCount > 0 && !isBatchUploading ? (
+            <View style={styles.failedActionsContainer}>
+              <View style={styles.errorNoticeBox}>
+                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Text style={styles.errorNoticeText}>
+                  Some photos failed to upload. Please check your connection and retry.
+                </Text>
+              </View>
+
+              <Pressable
+                style={styles.retryAllButton}
+                onPress={handleStartBatchUpload}
+                accessibilityRole="button"
+                accessibilityLabel="Retry Failed Uploads"
+              >
+                <Ionicons name="refresh" size={18} color="#FFFFFF" />
+                <Text style={styles.retryAllButtonText}>Retry Failed Uploads</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.backToPreviewButton}
+                onPress={() => setViewMode("preview")}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Photo Preview"
+              >
+                <Text style={styles.backToPreviewButtonText}>Back to Review</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // PHOTO PREVIEW VIEW MODE (2-Column Grid)
+  // --------------------------------------------------------------------------
+  if (viewMode === "preview") {
+    const uncapturedItems = checklistItems.filter(
+      (item) => !isCategoryCompleted(item)
+    );
+
+    return (
+      <View style={styles.screenContainer}>
+        <PageHeader
+          title="Review Photos"
+          showBackButton={true}
+          onBackPress={() => setViewMode("category_select")}
+        />
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header Banner info */}
+          <View style={styles.previewInfoCard}>
+            <View>
+              <Text style={styles.previewInfoTitle}>
+                {sessionPhotos.length + photos.length} Photos Captured
+              </Text>
+              <Text style={styles.previewInfoSubtext}>
+                Project: {project?.projectName || project?.projectId || "Inspection"}
+              </Text>
+            </View>
+            <View style={styles.previewCountBadge}>
+              <Text style={styles.previewCountBadgeText}>
+                {sessionPhotos.length} Pending Upload
+              </Text>
+            </View>
+          </View>
+
+          {/* 2-Column Photo Grid */}
+          <View style={styles.gridContainer}>
+            {checklistItems.map((item) => {
+              const sessionPhoto = sessionPhotos.find(
+                (p) => String(p.checklistItemId) === String(item.id)
+              );
+              const backendPhoto = photos.find(
+                (p) => String(p.checklistItemId) === String(item.id)
+              );
+
+              if (sessionPhoto) {
+                return (
+                  <PhotoGridCard
+                    key={item.id}
+                    type="photo"
+                    imageUri={sessionPhoto.uri}
+                    categoryLabel={item.label}
+                    isBackendUploaded={false}
+                    onRetake={() => {
+                      setSelectedCategory({ id: item.id, label: item.label });
+                      setViewMode("camera");
+                    }}
+                    onDelete={() => handleDeleteSessionPhoto(item.id)}
+                  />
+                );
+              }
+
+              if (backendPhoto) {
+                return (
+                  <PhotoGridCard
+                    key={item.id}
+                    type="photo"
+                    imageUri={backendPhoto.url}
+                    categoryLabel={item.label}
+                    isBackendUploaded={true}
+                    onRetake={() => {
+                      setSelectedCategory({ id: item.id, label: item.label });
+                      setViewMode("camera");
+                    }}
+                  />
+                );
+              }
+
+              return null;
+            })}
+
+            {/* Add More Card if there are remaining checklist categories */}
+            {uncapturedItems.length > 0 ? (
+              <PhotoGridCard
+                type="add_more"
+                onAddMore={() => setViewMode("category_select")}
+              />
+            ) : null}
+          </View>
+
+          {/* Bottom Action Bar */}
+          <View style={styles.previewActionsContainer}>
+            {sessionPhotos.length > 0 ? (
+              <Pressable
+                style={styles.continueButton}
+                onPress={handleStartBatchUpload}
+                accessibilityRole="button"
+                accessibilityLabel="Upload Photos"
+              >
+                <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.continueButtonText}>Upload Photos</Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              style={styles.secondaryActionButton}
+              onPress={() => setViewMode("category_select")}
+              accessibilityRole="button"
+              accessibilityLabel="Add More Photos"
+            >
+              <Ionicons name="camera-outline" size={18} color="#374151" />
+              <Text style={styles.secondaryActionButtonText}>Add More Photos</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // CATEGORY SELECTION VIEW MODE (Default)
+  // --------------------------------------------------------------------------
+  const capturedPhotosCount = checklistItems.filter((item) =>
+    isCategoryCompleted(item)
+  ).length;
+
   return (
     <View style={styles.screenContainer}>
       <PageHeader
@@ -756,7 +861,7 @@ export function CaptureScreen() {
           <View style={styles.instructionBanner}>
             <Ionicons name="camera-outline" size={18} color="#2563EB" />
             <Text style={styles.instructionBannerText}>
-              Tap a category to start capturing photos
+              Tap a category to capture photos. Review & upload when ready.
             </Text>
           </View>
 
@@ -771,15 +876,19 @@ export function CaptureScreen() {
           ) : (
             <View style={styles.categoryList}>
               {checklistItems.map((item) => {
-                const isCompleted = isCategoryCompleted(item);
+                const isUploaded = isCategoryUploaded(item);
+                const isSessionCaptured = isCategoryCapturedInSession(item);
+                const isCompleted = isUploaded || isSessionCaptured;
 
                 return (
                   <Pressable
                     key={item.id}
                     style={[
                       styles.categoryCard,
-                      isCompleted
-                        ? styles.categoryCardCompleted
+                      isUploaded
+                        ? styles.categoryCardUploaded
+                        : isSessionCaptured
+                        ? styles.categoryCardSession
                         : styles.categoryCardPending,
                     ]}
                     onPress={() => handleCategorySelect(item)}
@@ -790,8 +899,10 @@ export function CaptureScreen() {
                     <View
                       style={[
                         styles.iconCircleBase,
-                        isCompleted
-                          ? styles.iconCircleCompleted
+                        isUploaded
+                          ? styles.iconCircleUploaded
+                          : isSessionCaptured
+                          ? styles.iconCircleSession
                           : styles.iconCirclePending,
                       ]}
                     >
@@ -819,9 +930,11 @@ export function CaptureScreen() {
                         </View>
                       </View>
 
-                      {isCompleted ? (
-                        <Text style={styles.completedSubtext}>
-                          Photo captured
+                      {isUploaded ? (
+                        <Text style={styles.uploadedSubtext}>Photo uploaded</Text>
+                      ) : isSessionCaptured ? (
+                        <Text style={styles.sessionSubtext}>
+                          Photo captured (Pending upload)
                         </Text>
                       ) : null}
                     </View>
@@ -838,22 +951,17 @@ export function CaptureScreen() {
             </View>
           )}
 
-          {/* Continue to AI Verification CTA (renders when ALL required categories are complete) */}
-          {isAllCategoriesCompleted ? (
+          {/* Bottom Action Button (Review Photos / Continue) */}
+          {sessionPhotos.length > 0 || isAllCategoriesCompleted ? (
             <View style={styles.continueButtonContainer}>
               <Pressable
                 style={styles.continueButton}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(app)/ai-verification",
-                    params: { projectId: project._id },
-                  });
-                }}
+                onPress={() => setViewMode("preview")}
                 accessibilityRole="button"
-                accessibilityLabel="Continue to AI Verification"
+                accessibilityLabel="Review Photos"
               >
                 <Text style={styles.continueButtonText}>
-                  Continue to AI Verification
+                  Review Photos ({capturedPhotosCount}/{checklistItems.length})
                 </Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </Pressable>
@@ -957,6 +1065,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#1E40AF",
+    flex: 1,
   },
   emptyCard: {
     backgroundColor: "#FFFFFF",
@@ -988,9 +1097,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1.5,
   },
-  categoryCardCompleted: {
+  categoryCardUploaded: {
     backgroundColor: "#F0FDF4",
     borderColor: "#BBF7D0",
+  },
+  categoryCardSession: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
   },
   categoryCardPending: {
     backgroundColor: "#FFFFFF",
@@ -1004,8 +1117,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  iconCircleCompleted: {
+  iconCircleUploaded: {
     backgroundColor: "#10B981",
+  },
+  iconCircleSession: {
+    backgroundColor: "#2563EB",
   },
   iconCirclePending: {
     backgroundColor: "#F3F4F6",
@@ -1025,7 +1141,6 @@ const styles = StyleSheet.create({
   },
   categoryLabelCompleted: {
     fontWeight: "700",
-    color: "#15803D",
   },
   requiredTag: {
     backgroundColor: "#FEE2E2",
@@ -1038,10 +1153,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#EF4444",
   },
-  completedSubtext: {
+  uploadedSubtext: {
     fontSize: 12,
     fontWeight: "500",
     color: "#16A34A",
+    marginTop: 2,
+  },
+  sessionSubtext: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#2563EB",
     marginTop: 2,
   },
 
@@ -1134,11 +1255,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
-  metaOverlaySubtext: {
-    color: "#D1D5DB",
-    fontSize: 10,
-    fontWeight: "500",
-  },
   framingGuideBox: {
     width: 270,
     height: 270,
@@ -1194,110 +1310,160 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     backgroundColor: "#FFFFFF",
   },
-  previewControlsCol: {
+
+  /* Preview Grid View Styles */
+  previewInfoCard: {
+    flexDirection: "row",
     alignItems: "center",
-    width: "100%",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  uploadingContainer: {
+  previewInfoTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  previewInfoSubtext: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  previewCountBadge: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  previewCountBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1E40AF",
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 20,
+  },
+  previewActionsContainer: {
+    gap: 10,
+    marginTop: 10,
+  },
+  secondaryActionButton: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+  },
+  secondaryActionButtonText: {
+    color: "#374151",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  /* Uploading View Styles */
+  uploadProgressCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  uploadProgressCardTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  uploadProgressCardSubtext: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+  progressBarTrack: {
+    height: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  sectionHeaderTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#374151",
+    marginBottom: 12,
+  },
+  failedActionsContainer: {
+    gap: 10,
+    marginTop: 10,
+  },
+  errorNoticeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  errorNoticeText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#991B1B",
+    flex: 1,
+  },
+  retryAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#DC2626",
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  retryAllButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  backToPreviewButton: {
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
   },
-  uploadingText: {
-    color: "#FFFFFF",
-    fontSize: 13,
+  backToPreviewButtonText: {
+    color: "#4B5563",
+    fontSize: 14,
     fontWeight: "600",
   },
-  aiBadgeContainer: {
-    width: "100%",
-    padding: 12,
-    borderRadius: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-  },
-  aiBadgePassed: {
-    backgroundColor: "rgba(16, 185, 129, 0.25)",
-    borderColor: "#10B981",
-  },
-  aiBadgeFailed: {
-    backgroundColor: "rgba(239, 68, 68, 0.25)",
-    borderColor: "#EF4444",
-  },
-  aiBadgePending: {
-    backgroundColor: "rgba(245, 158, 11, 0.25)",
-    borderColor: "#F59E0B",
-  },
-  aiBadgeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  aiBadgeTitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  aiBadgeReason: {
-    color: "rgba(255, 255, 255, 0.9)",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(220, 38, 38, 0.3)",
-    borderColor: "#EF4444",
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 14,
-    width: "100%",
-  },
-  errorBoxText: {
-    color: "#FEE2E2",
-    fontSize: 12,
-    flex: 1,
-    fontWeight: "500",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    width: "100%",
-  },
-  primaryUploadButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  primaryUploadButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  retakeButton: {
-    backgroundColor: "#374151",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  retakeButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
+
+  /* Buttons */
   continueButtonContainer: {
     marginTop: 20,
     marginBottom: 8,
