@@ -20,7 +20,8 @@ export default function AppLayout() {
       <Tabs.Screen name="capture" options={{ title: "Capture" }} />
       <Tabs.Screen name="earnings" options={{ title: "Earnings" }} />
       <Tabs.Screen name="support" options={{ title: "Support" }} />
-      {/* <Tabs.Screen name="notifications" options={{ href: null }} /> */}
+      <Tabs.Screen name="team" options={{ href: null }} />
+      <Tabs.Screen name="add-staff" options={{ href: null }} />
     </Tabs>
   );
 }

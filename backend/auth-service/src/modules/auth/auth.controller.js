@@ -30,14 +30,15 @@ export const sendRegistrationOTPController = async (req, res) => {
 
 export const createUserByAdminController = async (req, res) => {
   try {
-    const result = await createUserByAdmin(req.body);
+    const result = await createUserByAdmin(req.body, req.user);
     return res.status(201).json({
       success: true,
       message: "User created successfully",
       data: result,
     });
   } catch (error) {
-    return res.status(400).json({
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
       success: false,
       message: error.message || "Something went wrong",
     });

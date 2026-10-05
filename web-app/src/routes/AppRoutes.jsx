@@ -20,6 +20,7 @@ import VendorInvoices from "../pages/vendor/Invoices";
 import VendorPerformance from "../pages/vendor/Performance";
 import VendorSupport from "../pages/vendor/Support";
 import VendorProfile from "../pages/vendor/Profile";
+import StaffDashboard from "../pages/staff/Dashboard";
 import ReviewSubmission from "../pages/admin/ReviewSubmission";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -29,6 +30,8 @@ const AppRoutes = () => {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/activate-account" element={<VerifyOtp />} />
+      <Route path="/complete-profile" element={<CompleteProfile />} />
       <Route path="/vendor/verify-otp" element={<VerifyOtp />} />
       <Route path="/vendor/complete-profile" element={<CompleteProfile />} />
 
@@ -64,6 +67,11 @@ const AppRoutes = () => {
         <Route path="/vendor/performance" element={<VendorPerformance />} />
         <Route path="/vendor/support" element={<VendorSupport />} />
         <Route path="/vendor/profile" element={<VendorProfile />} />
+      </Route>
+
+      {/* Staff Protected Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["STAFF"]} />}>
+        <Route path="/staff/dashboard" element={<StaffDashboard />} />
       </Route>
 
       {/* Catch-all fallback */}

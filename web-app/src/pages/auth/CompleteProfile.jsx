@@ -24,7 +24,7 @@ const CompleteProfile = () => {
           </div>
 
           <p className="text-white/75 text-sm xl:text-base leading-7 max-w-lg mb-6">
-            Set up your security credentials to access the FIELDcam Vendor portal and start managing assigned field projects.
+            Set up your security credentials to access the FIELDcam portal and start managing assigned field projects.
           </p>
 
           <div className="flex flex-wrap gap-3 mb-9">

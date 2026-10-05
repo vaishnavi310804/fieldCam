@@ -469,7 +469,7 @@ const VendorDashboardScreen = () => {
                 {/* Team */}
                 <Pressable
                   style={styles.actionCard}
-                  onPress={() => handleQuickAction("Team")}
+                  onPress={() => handleQuickAction("Team", "/(app)/team")}
                 >
                   <View style={[styles.actionIconBadge, { backgroundColor: "#FEF3C7" }]}>
                     <Ionicons name="people" size={20} color="#D97706" />

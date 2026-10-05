@@ -34,6 +34,9 @@ const LoginForm = () => {
       case "VENDOR":
         return <Navigate to="/vendor/dashboard" replace />;
 
+      case "STAFF":
+        return <Navigate to="/staff/dashboard" replace />;
+
       default:
         break;
     }
@@ -77,6 +80,10 @@ const LoginForm = () => {
 
         case "VENDOR":
           navigate("/vendor/dashboard", { replace: true });
+          break;
+
+        case "STAFF":
+          navigate("/staff/dashboard", { replace: true });
           break;
 
         default:
@@ -227,14 +234,14 @@ const LoginForm = () => {
           {loading ? "Signing In..." : "Sign In"}
         </button>
 
-        {/* Vendor Onboarding Link */}
+        {/* Account Activation Link */}
         <div className="text-center pt-1">
           <button
             type="button"
-            onClick={() => navigate("/vendor/verify-otp")}
+            onClick={() => navigate("/activate-account")}
             className="text-[10px] text-[#5141F5] font-medium hover:underline"
           >
-            Invited as a Vendor? Activate Account
+            Invited as a Vendor / Staff? Activate Account
           </button>
         </div>
 

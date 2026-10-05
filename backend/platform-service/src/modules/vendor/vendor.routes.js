@@ -14,6 +14,7 @@ import {
   updateVendorController,
   updateVendorStatusController,
   getVendorStatsController,
+  getVendorStaffController,
 } from "./vendor.controller.js";
 
 const router = Router();
@@ -32,6 +33,14 @@ router.get(
   protect,
   authorize("VENDOR", "SUPER_ADMIN", "ADMIN"),
   getMyVendorProfileController
+);
+
+// GET /api/vendors/me/staff - Read staff belonging to the authenticated vendor (VENDOR, SUPER_ADMIN, ADMIN)
+router.get(
+  "/me/staff",
+  protect,
+  authorize("VENDOR", "SUPER_ADMIN", "ADMIN"),
+  getVendorStaffController
 );
 
 // GET /api/vendors/stats - Vendor summary metrics (SUPER_ADMIN, ADMIN)

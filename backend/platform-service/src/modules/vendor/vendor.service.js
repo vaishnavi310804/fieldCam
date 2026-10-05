@@ -377,3 +377,36 @@ export const getVendorStats = async () => {
     inactiveVendors,
   };
 };
+
+/**
+ * Retrieves STAFF-role users belonging strictly to the authenticated VENDOR.
+ * @param {Object} currentUser - req.user from protect middleware { id, email, role }
+ * @returns {Promise<Array>}
+ */
+export const getVendorStaff = async (currentUser) => {
+  const vendorUserId = currentUser.id;
+
+  const vendorUser = await User.findById(vendorUserId);
+  if (!vendorUser) {
+    throw new Error("Vendor user account not found");
+  }
+
+  const vendorProfile = await Vendor.findOne({ userId: vendorUserId });
+
+  const companyIds = [new mongoose.Types.ObjectId(vendorUserId)];
+  if (vendorUser.companyId) {
+    companyIds.push(new mongoose.Types.ObjectId(vendorUser.companyId.toString()));
+  }
+  if (vendorProfile) {
+    companyIds.push(new mongoose.Types.ObjectId(vendorProfile._id.toString()));
+  }
+
+  const staffMembers = await User.find({
+    role: "STAFF",
+    companyId: { $in: companyIds },
+  })
+    .select("-password -registrationOtpHash -registrationOtpExpires -resetOtpHash -resetOtpExpires")
+    .sort({ createdAt: -1 });
+
+  return staffMembers.map((member) => member.toObject());
+};

@@ -50,6 +50,7 @@ router.post(
 
 router.post(
   "/users",
+  protect,
   createUserByAdminValidation,
   validate,
   createUserByAdminController

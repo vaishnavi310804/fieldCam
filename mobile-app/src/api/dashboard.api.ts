@@ -107,6 +107,44 @@ export interface VendorProfileData {
   projects?: VendorProjectItem[];
 }
 
+export interface VendorStaffItem {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  companyId?: string;
+  status: "ACTIVE" | "INACTIVE" | "Active" | "Inactive" | string;
+  isVerified?: boolean;
+  profileImage?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface VendorTeamMemberItem {
+  _id: string;
+  companyName?: string;
+  contactName?: string;
+  initials?: string;
+  avatarBg?: string;
+  location?: string;
+  services?: string[];
+  rating?: number;
+  status?: string;
+  activeProjects?: number;
+  completed?: number;
+  approval?: number;
+  userId?: {
+    _id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    status?: string;
+  };
+  projectStats?: VendorProjectStats;
+}
+
 export interface VendorInvoiceItem {
   _id: string;
   invoiceId: string;
@@ -347,6 +385,21 @@ export const submitVendorProject = async (
   return response.data.data;
 };
 
+export const getVendorStaffList = async (): Promise<VendorStaffItem[]> => {
+  const response = await platformClient.get<{
+    success: boolean;
+    count?: number;
+    data: VendorStaffItem[];
+    message?: string;
+  }>("/vendors/me/staff");
+
+  if (!response.data.success || !Array.isArray(response.data.data)) {
+    throw new Error(response.data.message || "Failed to fetch vendor staff");
+  }
+
+  return response.data.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
@@ -355,6 +408,7 @@ export const dashboardApi = {
   getVendorDashboardData,
   uploadProjectPhoto,
   submitVendorProject,
+  getVendorStaffList,
 };
 
 export default dashboardApi;

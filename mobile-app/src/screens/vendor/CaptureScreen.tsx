@@ -384,6 +384,16 @@ export function CaptureScreen() {
     checklistItems.length > 0 &&
     checklistItems.every((item) => isCategoryCompleted(item));
 
+  const isAllRequiredPhotosUploaded =
+    checklistItems.length > 0 &&
+    checklistItems.every((item) => isCategoryUploaded(item));
+
+  const isProjectSubmitted =
+    statusUpper === "SUBMITTED" || statusUpper === "COMPLETED";
+
+  const canViewAIVerification =
+    isAllRequiredPhotosUploaded && !isProjectSubmitted;
+
   const formatTimestampDisplay = (dateString?: string) => {
     const d = dateString ? new Date(dateString) : new Date();
     if (isNaN(d.getTime())) return dateString || "";
@@ -951,7 +961,7 @@ export function CaptureScreen() {
             </View>
           )}
 
-          {/* Bottom Action Button (Review Photos / Continue) */}
+          {/* Bottom Action Buttons (Review Photos / View AI Verification) */}
           {sessionPhotos.length > 0 || isAllCategoriesCompleted ? (
             <View style={styles.continueButtonContainer}>
               <Pressable
@@ -967,6 +977,28 @@ export function CaptureScreen() {
               </Pressable>
             </View>
           ) : null}
+
+          {/* View AI Verification Action (shown when all required photos are uploaded on backend) */}
+          {canViewAIVerification ? (
+            <View style={styles.viewAIVerificationContainer}>
+              <Pressable
+                style={styles.viewAIVerificationButton}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(app)/ai-verification",
+                    params: { projectId: project._id },
+                  });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="View AI Verification"
+              >
+                <Text style={styles.viewAIVerificationButtonText}>
+                  View AI Verification
+                </Text>
+                <Ionicons name="arrow-forward" size={18} color="#2563EB" />
+              </Pressable>
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -979,6 +1011,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#F6F6F6",
+    paddingBottom:100,
   },
   centerContainer: {
     flex: 1,
@@ -1128,6 +1161,7 @@ const styles = StyleSheet.create({
   },
   categoryTextCol: {
     flex: 1,
+    marginRight: 8,
   },
   labelRow: {
     flexDirection: "row",
@@ -1138,6 +1172,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#18181B",
+    flexShrink: 1,
   },
   categoryLabelCompleted: {
     fontWeight: "700",
@@ -1486,6 +1521,27 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
+    fontWeight: "700",
+  },
+  viewAIVerificationContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  viewAIVerificationButton: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+    borderWidth: 1.5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+  },
+  viewAIVerificationButtonText: {
+    color: "#2563EB",
+    fontSize: 15,
     fontWeight: "700",
   },
 });

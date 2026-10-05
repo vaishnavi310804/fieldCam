@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import { completeProfile } from "../../services/authService";
 import {
   FiLock,
@@ -16,7 +15,6 @@ const CompleteProfileForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
 
   const [setupToken, setSetupToken] = useState("");
   const [vendorName, setVendorName] = useState("");
@@ -74,15 +72,13 @@ const CompleteProfileForm = () => {
         password,
       });
 
-      const { user: userData, accessToken } = response.data;
+      const { user: userData } = response.data;
 
-      setSuccessMsg("Account activated! Logging you in...");
-
-      login(userData, accessToken);
+      setSuccessMsg("Account activated successfully! Redirecting to login...");
 
       setTimeout(() => {
-        navigate("/vendor/dashboard", { replace: true });
-      }, 800);
+        navigate("/login", { replace: true });
+      }, 1200);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -111,7 +107,7 @@ const CompleteProfileForm = () => {
 
         <button
           type="button"
-          onClick={() => navigate("/vendor/verify-otp")}
+          onClick={() => navigate("/activate-account")}
           className="w-full h-[35px] rounded-[9px] bg-[#5141F5] hover:bg-[#4535E8] text-white text-[11px] font-semibold transition flex items-center justify-center gap-1.5"
         >
           Go to Verification
@@ -139,7 +135,7 @@ const CompleteProfileForm = () => {
         </div>
 
         <p className="text-[11px] text-[#8A8A8A] mt-2 leading-relaxed">
-          Create a secure password to activate your Vendor account
+          Create a secure password to activate your account
           {vendorEmail ? ` for ${vendorEmail}` : ""}.
         </p>
       </div>

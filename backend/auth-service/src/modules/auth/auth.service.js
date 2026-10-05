@@ -15,8 +15,32 @@ import {
   sendForgotPasswordOTP,
 } from "../../services/email.service.js";
 
-export const createUserByAdmin = async (userData) => {
-  const { name, email, phone, role, companyId } = userData;
+export const createUserByAdmin = async (userData, currentUser = null) => {
+  let { name, email, phone, role, companyId } = userData;
+
+  if (currentUser) {
+    if (currentUser.role === "STAFF") {
+      const err = new Error("Staff members are not authorized to create users.");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (currentUser.role === "VENDOR") {
+      if (role && role !== "STAFF") {
+        const err = new Error("Vendors can only create STAFF users.");
+        err.statusCode = 403;
+        throw err;
+      }
+      role = "STAFF";
+
+      const vendorCompanyId = currentUser.companyId || currentUser._id;
+      companyId = vendorCompanyId;
+
+      if (!currentUser.companyId) {
+        await User.findByIdAndUpdate(currentUser._id, { companyId: vendorCompanyId });
+      }
+    }
+  }
 
   // Check if email already exists
   const existingEmail = await User.findOne({ email: email.toLowerCase() });
@@ -43,7 +67,7 @@ export const createUserByAdmin = async (userData) => {
       name,
       email: email.toLowerCase(),
       phone: phone ? phone.trim() : undefined,
-      role,
+      role: role || "STAFF",
       companyId: companyId || null,
       isVerified: false,
       status: "INACTIVE",
@@ -52,7 +76,11 @@ export const createUserByAdmin = async (userData) => {
     });
 
     // Send registration OTP via Brevo email
-    await sendRegistrationOTP(user.email, otp);
+    try {
+      await sendRegistrationOTP(user.email, otp);
+    } catch (emailErr) {
+      console.warn("Registration OTP email notice:", emailErr.message || emailErr);
+    }
   } catch (err) {
     if (user) {
       await User.findByIdAndDelete(user._id);

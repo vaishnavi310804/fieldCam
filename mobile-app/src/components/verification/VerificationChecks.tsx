@@ -96,10 +96,9 @@ export const VerificationChecks: React.FC<VerificationChecksProps> = ({
   const getGpsCheck = (): VerificationCheckRowProps => {
     const loc = photo?.location;
     if (loc && typeof loc.latitude === "number" && typeof loc.longitude === "number") {
-      const accText = loc.accuracy ? ` (±${loc.accuracy}m)` : "";
       return {
         title: "GPS Verification",
-        detail: `Geotagged (${loc.latitude.toFixed(4)}°, ${loc.longitude.toFixed(4)}°)${accText}`,
+        detail: `Geotagged (${loc.latitude.toFixed(4)}°, ${loc.longitude.toFixed(4)}°)`,
         status: "passed",
       };
     }

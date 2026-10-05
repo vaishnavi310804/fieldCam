@@ -63,7 +63,7 @@ const VerifyOtpForm = () => {
       setSuccessMsg("Email verified successfully! Redirecting to password setup...");
 
       setTimeout(() => {
-        navigate("/vendor/complete-profile", {
+        navigate("/complete-profile", {
           state: {
             setupToken,
             email: verifiedUser?.email,
@@ -101,7 +101,7 @@ const VerifyOtpForm = () => {
         </div>
 
         <p className="text-[11px] text-[#8A8A8A] mt-2 leading-relaxed">
-          Enter the 6-digit OTP sent to your email address to complete vendor verification.
+          Enter the 6-digit OTP sent to your email address to complete verification.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ const VerifyOtpForm = () => {
                 setEmail(e.target.value);
                 setError("");
               }}
-              placeholder="vendor@company.com"
+              placeholder="user@example.com"
               autoComplete="email"
               className="w-full h-[35px] rounded-[9px] border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-[11px] text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
             />

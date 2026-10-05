@@ -17,14 +17,14 @@ const VerifyOtp = () => {
         <div className="relative z-10 flex flex-col justify-end w-full px-14 pb-14 text-white">
           <div className="mb-5">
             <h1 className="text-4xl xl:text-5xl font-bold leading-tight">
-              Vendor Onboarding
+              Account Onboarding
               <br />
               <span className="text-[#8B7CFF]">Account Verification</span>
             </h1>
           </div>
 
           <p className="text-white/75 text-sm xl:text-base leading-7 max-w-lg mb-6">
-            Verify your email address using the One-Time Password sent to your inbox to complete your vendor registration.
+            Verify your email address using the One-Time Password sent to your inbox to complete your account registration.
           </p>
 
           <div className="flex flex-wrap gap-3 mb-9">
@@ -40,7 +40,7 @@ const VerifyOtp = () => {
 
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-xs xl:text-sm">
               <span>♙</span>
-              Vendor Platform Access
+              Platform Access
             </div>
           </div>
 

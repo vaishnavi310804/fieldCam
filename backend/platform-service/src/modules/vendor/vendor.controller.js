@@ -6,6 +6,7 @@ import {
   updateVendor,
   updateVendorStatus,
   getVendorStats,
+  getVendorStaff,
 } from "./vendor.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
@@ -180,6 +181,25 @@ export const getVendorStatsController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Failed to fetch vendor statistics",
+    });
+  }
+};
+
+/**
+ * Controller to handle fetching authenticated vendor's STAFF members.
+ */
+export const getVendorStaffController = async (req, res) => {
+  try {
+    const result = await getVendorStaff(req.user);
+    return res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch vendor staff members",
     });
   }
 };

@@ -73,10 +73,41 @@ export const logout = async (): Promise<void> => {
   setAuthToken(null);
 };
 
+export interface CreateStaffPayload {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface CreateStaffResponse {
+  user: FieldCamUser;
+}
+
+export const createStaffUser = async (
+  payload: CreateStaffPayload
+): Promise<FieldCamUser> => {
+  const response = await authClient.post<ApiResponse<CreateStaffResponse>>(
+    "/auth/users",
+    {
+      name: payload.name.trim(),
+      email: payload.email.trim(),
+      phone: payload.phone.trim(),
+      role: "STAFF",
+    }
+  );
+
+  if (!response.data.success || !response.data.data?.user) {
+    throw new Error(response.data.message || "Failed to create staff user");
+  }
+
+  return response.data.data.user;
+};
+
 export const authApi = {
   login,
   getCurrentUser,
   logout,
+  createStaffUser,
 };
 
 export default authApi;
