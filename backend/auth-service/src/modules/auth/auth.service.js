@@ -223,7 +223,7 @@ export const webLoginUser = async (credentials) => {
     throw new Error("Invalid email or password");
   }
 
-  const allowedWebRoles = ["SUPER_ADMIN", "ADMIN", "VENDOR"];
+  const allowedWebRoles = ["SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"];
   if (!allowedWebRoles.includes(user.role)) {
     throw new Error("Access denied. Invalid credentials for web login");
   }
