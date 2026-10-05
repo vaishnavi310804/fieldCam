@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#F6F6F6",
+    paddingBottom: 80,
   },
   scrollContent: {
     paddingHorizontal: 16,

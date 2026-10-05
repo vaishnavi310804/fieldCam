@@ -1,6 +1,7 @@
 import Project from "./project.model.js";
 import Service from "../service/service.model.js";
 import Vendor from "../vendor/vendor.model.js";
+import User from "../users/user.model.js";
 import mongoose from "mongoose";
 import { uploadToS3, deleteFromS3, getPresignedMediaUrl } from "../../services/s3Service.js";
 import { validatePhotoWithAI } from "../../services/aiService.js";
@@ -1146,4 +1147,124 @@ export const submitVendorProject = async (projectIdOrId, user) => {
   }
 
   return await getProjectById(project._id.toString(), user);
+};
+
+/**
+ * Assigns a project owned by the authenticated VENDOR to a specific STAFF member.
+ * @param {string} projectId 
+ * @param {string} staffId 
+ * @param {Object} currentUser 
+ * @returns {Promise<Object>}
+ */
+export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
+  if (!currentUser || currentUser.role !== "VENDOR") {
+    const err = new Error("Only authenticated vendors can assign projects to staff");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const vendorUser = await User.findById(currentUser.id);
+  if (!vendorUser) {
+    const err = new Error("Vendor user account not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const vendorProfile = await Vendor.findOne({ userId: currentUser.id });
+  if (!vendorProfile) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(projectId)) {
+    project = await Project.findById(projectId);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId });
+  }
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Validate Project Vendor Ownership
+  const projectVendorIdStr = project.vendorId ? project.vendorId.toString() : null;
+  if (!projectVendorIdStr || projectVendorIdStr !== vendorProfile._id.toString()) {
+    const err = new Error("Project does not belong to the authenticated vendor");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Validate Project Eligibility (not completed/approved)
+  const projStatus = (project.status || "").toUpperCase();
+  if (projStatus === "APPROVED" || projStatus === "COMPLETED") {
+    const err = new Error("Completed or approved projects cannot be assigned");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Validate Staff Member
+  if (!mongoose.Types.ObjectId.isValid(staffId)) {
+    const err = new Error("Invalid staff ID");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const staffUser = await User.findById(staffId);
+  if (!staffUser) {
+    const err = new Error("Staff member not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (staffUser.role !== "STAFF") {
+    const err = new Error("Selected user does not have the STAFF role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check Staff Company / Vendor Ownership
+  const companyIds = [currentUser.id.toString(), vendorProfile._id.toString()];
+  if (vendorUser.companyId) {
+    companyIds.push(vendorUser.companyId.toString());
+  }
+
+  const staffCompanyIdStr = staffUser.companyId ? staffUser.companyId.toString() : null;
+  if (!staffCompanyIdStr || !companyIds.includes(staffCompanyIdStr)) {
+    const err = new Error("Selected staff member does not belong to your team");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Assign Staff
+  project.assignedStaffId = staffUser._id;
+  project.assignedStaffName = staffUser.name;
+  if (project.status === "New") {
+    project.status = "ASSIGNED";
+  }
+
+  await project.save();
+
+  try {
+    await logAuditEvent({
+      actor: currentUser,
+      action: "PROJECT_STAFF_ASSIGNED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Assigned project "${project.projectName}" to staff member "${staffUser.name}"`,
+      metadata: {
+        projectId: project.projectId,
+        staffId: staffUser._id.toString(),
+        staffName: staffUser.name,
+      },
+    });
+  } catch (auditErr) {
+    console.error("Failed to log PROJECT_STAFF_ASSIGNED audit event:", auditErr.message);
+  }
+
+  return await getProjectById(project._id.toString(), currentUser);
 };

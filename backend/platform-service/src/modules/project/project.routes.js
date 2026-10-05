@@ -8,6 +8,7 @@ import {
   uploadVendorPhotoValidation,
   deleteVendorPhotoValidation,
   submitVendorProjectValidation,
+  assignStaffValidation,
 } from "./project.validation.js";
 import {
   createProjectController,
@@ -21,6 +22,7 @@ import {
   uploadVendorPhotoController,
   deleteVendorPhotoController,
   submitVendorProjectController,
+  assignStaffController,
 } from "./project.controller.js";
 import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
@@ -115,6 +117,16 @@ router.delete(
   deleteVendorPhotoValidation,
   validate,
   deleteVendorPhotoController
+);
+
+// POST /api/projects/:id/assign-staff - Vendor assigns project to a staff member (VENDOR)
+router.post(
+  "/:id/assign-staff",
+  protect,
+  authorize("VENDOR"),
+  assignStaffValidation,
+  validate,
+  assignStaffController
 );
 
 export default router;

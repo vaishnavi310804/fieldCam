@@ -147,6 +147,7 @@ export const TeamManagementScreen = () => {
             onToggleExpand={() =>
               setExpandedId(expandedId === item._id ? null : item._id)
             }
+            onRefreshNeeded={() => fetchStaffMembers(false)}
           />
         )}
         ListEmptyComponent={
@@ -206,10 +207,11 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#F6F6F6",
+    paddingBottom: 100,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 110,
+    paddingBottom: 100,
   },
   listHeader: {
     paddingTop: 16,

@@ -206,6 +206,18 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
 
+    assignedStaffId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    assignedStaffName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     location: {
       type: String,
       required: [true, "Location is required"],

@@ -325,3 +325,15 @@ export const submitVendorProjectValidation = [
     .notEmpty()
     .withMessage("Project ID is required"),
 ];
+
+export const assignStaffValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Project ID is required"),
+
+  body("staffId")
+    .notEmpty()
+    .withMessage("Staff ID is required")
+    .isMongoId()
+    .withMessage("Staff ID must be a valid MongoDB ObjectId"),
+];

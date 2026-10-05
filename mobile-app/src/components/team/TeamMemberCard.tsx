@@ -3,17 +3,20 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/src/constants/color";
 import { VendorStaffItem, VendorTeamMemberItem } from "@/src/api/dashboard.api";
+import { StaffCardActions } from "./StaffCardActions";
 
 export interface TeamMemberCardProps {
   member: VendorStaffItem | VendorTeamMemberItem;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  onRefreshNeeded?: () => void;
 }
 
 export const TeamMemberCard = ({
   member,
   isExpanded,
   onToggleExpand,
+  onRefreshNeeded,
 }: TeamMemberCardProps) => {
   const name =
     (member as VendorStaffItem).name ||
@@ -175,6 +178,12 @@ export const TeamMemberCard = ({
               </Text>
             </View>
           </View>
+
+          {/* THREE ACTION CARDS */}
+          <StaffCardActions
+            member={member}
+            onRefreshNeeded={onRefreshNeeded}
+          />
         </View>
       ) : null}
     </View>

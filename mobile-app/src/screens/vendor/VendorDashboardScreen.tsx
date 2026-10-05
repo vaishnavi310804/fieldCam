@@ -456,7 +456,7 @@ const VendorDashboardScreen = () => {
                 {/* Performance */}
                 <Pressable
                   style={styles.actionCard}
-                  onPress={() => handleQuickAction("Performance Dashboard")}
+                  onPress={() => router.push("/(app)/performance-dashboard" as any)}
                 >
                   <View style={[styles.actionIconBadge, { backgroundColor: "#CFFAFE" }]}>
                     <Ionicons name="flash" size={20} color="#0891B2" />

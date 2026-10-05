@@ -10,6 +10,7 @@ import {
   uploadVendorPhoto,
   deleteVendorPhoto,
   submitVendorProject,
+  assignProjectToStaff,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -342,5 +343,30 @@ export const submitVendorProjectController = async (req, res) => {
       responsePayload.errors = error.errors;
     }
     return res.status(statusCode).json(responsePayload);
+  }
+};
+
+/**
+ * Controller to handle Vendor assigning project to a staff member.
+ * POST /api/projects/:id/assign-staff
+ */
+export const assignStaffController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { staffId } = req.body;
+
+    const result = await assignProjectToStaff(id, staffId, req.user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Project assigned to staff member successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to assign project to staff member",
+    });
   }
 };

@@ -400,6 +400,25 @@ export const getVendorStaffList = async (): Promise<VendorStaffItem[]> => {
   return response.data.data;
 };
 
+export const assignProjectToStaff = async (
+  projectId: string,
+  staffId: string
+): Promise<VendorProjectItem> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/assign-staff`, { staffId });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(
+      response.data.message || "Failed to assign project to staff member"
+    );
+  }
+
+  return response.data.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
@@ -409,6 +428,7 @@ export const dashboardApi = {
   uploadProjectPhoto,
   submitVendorProject,
   getVendorStaffList,
+  assignProjectToStaff,
 };
 
 export default dashboardApi;
