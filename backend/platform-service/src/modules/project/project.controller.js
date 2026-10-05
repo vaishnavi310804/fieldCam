@@ -11,6 +11,7 @@ import {
   deleteVendorPhoto,
   submitVendorProject,
   assignProjectToStaff,
+  getStaffAssignedProjects,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -367,6 +368,26 @@ export const assignStaffController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to assign project to staff member",
+    });
+  }
+};
+
+/**
+ * Controller to handle fetching projects assigned to the authenticated staff user.
+ * GET /api/projects/staff/me
+ */
+export const getStaffProjectsController = async (req, res) => {
+  try {
+    const result = await getStaffAssignedProjects(req.user.id);
+    return res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch staff projects",
     });
   }
 };

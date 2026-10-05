@@ -39,3 +39,8 @@ export const getProjectHistory = async (projectId) => {
   );
   return response.data;
 };
+
+export const getStaffProjects = async () => {
+  const response = await platformApi.get("/projects/staff/me");
+  return response.data;
+};

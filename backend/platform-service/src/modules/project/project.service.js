@@ -327,7 +327,36 @@ export const getProjectById = async (id, user) => {
     }
   }
 
+  // Authorization check for STAFF role
+  if (user && user.role === "STAFF") {
+    const staffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
+    const currentUserIdStr = (user.id || user._id)?.toString();
+    if (!staffIdStr || staffIdStr !== currentUserIdStr) {
+      const err = new Error("You are not authorized to access this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
   return await transformProjectMedia(project);
+};
+
+/**
+ * Retrieves projects assigned to the authenticated STAFF user.
+ * @param {string} staffUserId 
+ * @returns {Promise<Array>}
+ */
+export const getStaffAssignedProjects = async (staffUserId) => {
+  if (!staffUserId || !mongoose.Types.ObjectId.isValid(staffUserId)) {
+    throw new Error("Invalid staff user ID");
+  }
+
+  const projects = await Project.find({ assignedStaffId: staffUserId })
+    .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
+    .populate("vendorId", "companyName contactName location rating status")
+    .sort({ createdAt: -1 });
+
+  return await Promise.all(projects.map((proj) => transformProjectMedia(proj)));
 };
 
 /**

@@ -21,6 +21,8 @@ import VendorPerformance from "../pages/vendor/Performance";
 import VendorSupport from "../pages/vendor/Support";
 import VendorProfile from "../pages/vendor/Profile";
 import StaffDashboard from "../pages/staff/Dashboard";
+import StaffProjects from "../pages/staff/Projects";
+import StaffProfile from "../pages/staff/Profile";
 import ReviewSubmission from "../pages/admin/ReviewSubmission";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -72,6 +74,8 @@ const AppRoutes = () => {
       {/* Staff Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["STAFF"]} />}>
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
+        <Route path="/staff/projects" element={<StaffProjects />} />
+        <Route path="/staff/profile" element={<StaffProfile />} />
       </Route>
 
       {/* Catch-all fallback */}

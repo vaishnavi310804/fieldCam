@@ -23,6 +23,7 @@ import {
   deleteVendorPhotoController,
   submitVendorProjectController,
   assignStaffController,
+  getStaffProjectsController,
 } from "./project.controller.js";
 import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
@@ -35,6 +36,14 @@ router.get(
   getProjectsController
 );
 
+// GET /api/projects/staff/me - Get projects assigned to the authenticated staff member (STAFF)
+router.get(
+  "/staff/me",
+  protect,
+  authorize("STAFF"),
+  getStaffProjectsController
+);
+
 // PATCH /api/projects/:id/accept - Vendor accepts an assigned project (VENDOR)
 router.patch(
   "/:id/accept",
@@ -43,11 +52,11 @@ router.patch(
   acceptProjectController
 );
 
-// GET /api/projects/:id - Read single project details (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/projects/:id - Read single project details (SUPER_ADMIN, ADMIN, VENDOR, STAFF)
 router.get(
   "/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"),
   getProjectByIdController
 );
 
