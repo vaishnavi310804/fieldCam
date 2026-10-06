@@ -42,4 +42,28 @@ export const completeProfile = async ({ setupToken, password, profileImage }) =>
   return response.data;
 };
 
+export const forgotPassword = async ({ email }) => {
+  const response = await authApi.post("/auth/forgot-password", {
+    email,
+  });
+  return response.data;
+};
+
+export const verifyResetOTP = async ({ email, otp }) => {
+  const response = await authApi.post("/auth/verify-reset-otp", {
+    email,
+    otp,
+  });
+  return response.data;
+};
+
+export const resetPassword = async ({ resetToken, newPassword }) => {
+  const response = await authApi.post("/auth/reset-password", {
+    resetToken,
+    newPassword,
+  });
+  return response.data;
+};
+
+
 

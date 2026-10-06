@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import StaffSidebar from "../../components/staff/StaffSidebar";
 import StaffHeader from "../../components/staff/StaffHeader";
+import StaffProjectCard from "../../components/staff/StaffProjectCard";
 import { getStaffProjects } from "../../services/projectService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -8,8 +9,6 @@ import {
   FiLoader,
   FiAlertCircle,
   FiRefreshCw,
-  FiMapPin,
-  FiCalendar,
 } from "react-icons/fi";
 
 const StaffProjects = () => {
@@ -29,7 +28,7 @@ const StaffProjects = () => {
       setProjects(projData);
     } catch (err) {
       setError(
-        err.response?.data?.message || err.message || "Failed to load staff projects"
+        err.response?.data?.message || err.message || "Unable to load your projects. Please try again."
       );
     } finally {
       setLoading(false);
@@ -44,7 +43,8 @@ const StaffProjects = () => {
     (p) =>
       !searchTerm.trim() ||
       (p.projectName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.location || "").toLowerCase().includes(searchTerm.toLowerCase())
+      (p.location || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.projectId || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -63,19 +63,39 @@ const StaffProjects = () => {
         />
 
         <main className="flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto">
+          {/* Error Banner */}
+          {error && (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={fetchStaffProjects}
+                className="flex items-center gap-1.5 bg-[#C62828] text-white px-3 py-1.5 rounded-lg font-bold hover:bg-[#B71C1C] transition-colors cursor-pointer"
+              >
+                <FiRefreshCw className="text-xs" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
 
+          {/* Loading Indicator */}
           {loading && (
-            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77] space-y-2">
+            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77] space-y-2 shadow-xs">
               <FiLoader className="animate-spin text-2xl mx-auto text-[#8A817C]" />
               <p className="font-semibold">Loading assigned projects...</p>
             </div>
           )}
 
-          {!loading && (
-            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+          {/* Projects Content Grid */}
+          {!loading && !error && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-[#3E3734]">Your Projects</h2>
+                  <h2 className="text-sm font-bold text-[#3E3734]">
+                    Your Projects ({filteredProjects.length})
+                  </h2>
                   <p className="text-xs text-[#817B77] mt-0.5">
                     Field assignments allocated to your staff account
                   </p>
@@ -83,46 +103,24 @@ const StaffProjects = () => {
               </div>
 
               {filteredProjects.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProjects.map((proj) => (
-                    <div
+                    <StaffProjectCard
                       key={proj._id || proj.projectId}
-                      className="bg-[#FAF7F5] border border-[#E8E2DE] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-[#817B77] bg-white border border-[#E8E2DE] px-2 py-0.5 rounded">
-                            {proj.projectId || "Project"}
-                          </span>
-                          <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded">
-                            {proj.status || "Assigned"}
-                          </span>
-                        </div>
-                        <h3 className="text-xs font-bold text-[#3E3734]">
-                          {proj.projectName}
-                        </h3>
-                        <div className="flex items-center gap-3 text-[11px] text-[#817B77]">
-                          <span className="flex items-center gap-1">
-                            <FiMapPin className="text-xs" />
-                            <span>{proj.location || "N/A"}</span>
-                          </span>
-                          {proj.deadline && (
-                            <span className="flex items-center gap-1">
-                              <FiCalendar className="text-xs" />
-                              <span>{new Date(proj.deadline).toLocaleDateString()}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      project={proj}
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="bg-[#FAF7F5] border border-dashed border-[#E8E2DE] rounded-xl p-12 text-center text-xs text-[#817B77] space-y-2">
-                  <FiBriefcase className="text-3xl mx-auto text-[#A39A94]" />
-                  <p className="font-bold text-[#3E3734] text-sm">No Projects Assigned Yet</p>
-                  <p className="max-w-md mx-auto">
-                    When your vendor partner assigns field projects to your staff account, they will appear here automatically.
+                <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77] space-y-2 shadow-xs">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FAF7F5] border border-[#E8E2DE] flex items-center justify-center mx-auto text-[#A39A94]">
+                    <FiBriefcase className="text-2xl" />
+                  </div>
+                  <p className="font-bold text-[#3E3734] text-sm pt-2">
+                    No assigned projects yet
+                  </p>
+                  <p className="max-w-md mx-auto text-[#817B77]">
+                    When your vendor partner assigns field projects to your staff account, they will appear here automatically as project cards.
                   </p>
                 </div>
               )}

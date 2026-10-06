@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import StaffSidebar from "../../components/staff/StaffSidebar";
 import StaffHeader from "../../components/staff/StaffHeader";
+import StaffRecentActivity from "../../components/staff/StaffRecentActivity";
 import { getStaffProjects } from "../../services/projectService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -165,64 +166,74 @@ const StaffDashboard = () => {
                 </div>
               </div>
 
-              {/* 2. Assigned Projects Section */}
-              <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
-                <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+              {/* 2. Main Dashboard Content Grid: Assigned Projects (50%) & Recent Activity (50%) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                {/* Left Column (50%): Assigned Projects */}
+                <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 flex flex-col justify-between h-full">
                   <div>
-                    <h2 className="text-sm font-bold text-[#3E3734]">Assigned Projects</h2>
-                    <p className="text-xs text-[#817B77] mt-0.5">
-                      Your current field work assignments
-                    </p>
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3 mb-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-[#3E3734]">Assigned Projects</h2>
+                        <p className="text-xs text-[#817B77] mt-0.5">
+                          Your current field work assignments
+                        </p>
+                      </div>
+                    </div>
+
+                    {filteredProjects.length > 0 ? (
+                      <div className="space-y-3">
+                        {filteredProjects.map((proj) => (
+                          <div
+                            key={proj._id || proj.projectId}
+                            className="bg-[#FAF7F5] border border-[#E8E2DE] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+                          >
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-[#817B77] bg-white border border-[#E8E2DE] px-2 py-0.5 rounded">
+                                  {proj.projectId || "PRJ"}
+                                </span>
+                                <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded">
+                                  {proj.status || "Assigned"}
+                                </span>
+                              </div>
+
+                              <h3 className="text-xs font-bold text-[#3E3734] truncate">
+                                {proj.projectName}
+                              </h3>
+
+                              <div className="flex items-center gap-3 text-[11px] text-[#817B77]">
+                                <span className="flex items-center gap-1">
+                                  <FiMapPin className="text-xs shrink-0" />
+                                  <span className="truncate">{proj.location || "N/A"}</span>
+                                </span>
+                                {proj.deadline && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1">
+                                      <FiCalendar className="text-xs shrink-0" />
+                                      <span>{new Date(proj.deadline).toLocaleDateString()}</span>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-[#FAF7F5] border border-dashed border-[#E8E2DE] rounded-xl p-10 text-center text-xs text-[#817B77] space-y-1 my-2">
+                        <FiBriefcase className="text-3xl mx-auto text-[#A39A94]" />
+                        <p className="font-bold text-[#3E3734]">No Assigned Projects Yet</p>
+                        <p>Projects assigned to you by your vendor will appear here.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {filteredProjects.length > 0 ? (
-                  <div className="space-y-3">
-                    {filteredProjects.map((proj) => (
-                      <div
-                        key={proj._id || proj.projectId}
-                        className="bg-[#FAF7F5] border border-[#E8E2DE] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
-                      >
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-[#817B77] bg-white border border-[#E8E2DE] px-2 py-0.5 rounded">
-                              {proj.projectId || "PRJ"}
-                            </span>
-                            <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded">
-                              {proj.status || "Assigned"}
-                            </span>
-                          </div>
-
-                          <h3 className="text-xs font-bold text-[#3E3734] truncate">
-                            {proj.projectName}
-                          </h3>
-
-                          <div className="flex items-center gap-3 text-[11px] text-[#817B77]">
-                            <span className="flex items-center gap-1">
-                              <FiMapPin className="text-xs shrink-0" />
-                              <span className="truncate">{proj.location || "N/A"}</span>
-                            </span>
-                            {proj.deadline && (
-                              <>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <FiCalendar className="text-xs shrink-0" />
-                                  <span>{new Date(proj.deadline).toLocaleDateString()}</span>
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-[#FAF7F5] border border-dashed border-[#E8E2DE] rounded-xl p-10 text-center text-xs text-[#817B77] space-y-1">
-                    <FiBriefcase className="text-3xl mx-auto text-[#A39A94]" />
-                    <p className="font-bold text-[#3E3734]">No Assigned Projects Yet</p>
-                    <p>Projects assigned to you by your vendor will appear here.</p>
-                  </div>
-                )}
+                {/* Right Column (50%): Staff Recent Activity */}
+                <div className="flex flex-col h-full">
+                  <StaffRecentActivity />
+                </div>
               </div>
             </>
           )}

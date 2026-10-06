@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
+import StaffSidebar from "../../components/staff/StaffSidebar";
+import StaffHeader from "../../components/staff/StaffHeader";
 import ProjectStatusBadge from "../../components/admin/projects/ProjectStatusBadge";
 import { getProjectById, updateProjectStatus, getProjectHistory } from "../../services/projectService";
 import { useAuth } from "../../context/AuthContext";
@@ -31,6 +33,7 @@ const ReviewSubmission = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isStaff = user?.role === "STAFF";
 
   const [collapsed, setCollapsed] = useState(false);
   const [project, setProject] = useState(null);
@@ -186,7 +189,11 @@ const ReviewSubmission = () => {
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
       {/* Fixed Sidebar */}
-      <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      {isStaff ? (
+        <StaffSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      ) : (
+        <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      )}
 
       {/* Main Container Area */}
       <div
@@ -195,25 +202,32 @@ const ReviewSubmission = () => {
         } ml-0`}
       >
         {/* Header */}
-        <AdminHeader
-          title="Review Submission"
-          subtitle="Audit field evidence and approve or request retakes."
-          showSearch={false}
-        />
+        {isStaff ? (
+          <StaffHeader
+            title="Project Details"
+            showSearch={false}
+          />
+        ) : (
+          <AdminHeader
+            title="Review Submission"
+            subtitle="Audit field evidence and approve or request retakes."
+            showSearch={false}
+          />
+        )}
 
         <main className="flex-1 p-6 space-y-5 max-w-7xl w-full mx-auto">
           {/* Top Breadcrumbs & Actions Navigation Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#E8E2DE] p-4 rounded-2xl shadow-xs">
             <div className="flex items-center gap-2 text-xs font-semibold text-[#817B77]">
               <Link
-                to="/admin/projects"
+                to={isStaff ? "/staff/projects" : "/admin/projects"}
                 className="hover:text-[#3E3734] flex items-center gap-1 transition-colors"
               >
                 <FiArrowLeft className="text-sm" />
                 <span>Projects</span>
               </Link>
               <span className="text-[#C8B5AC]">•</span>
-              <span>Review Submission</span>
+              <span>{isStaff ? "Project Details" : "Review Submission"}</span>
               {project?.projectId && (
                 <>
                   <span className="text-[#C8B5AC]">•</span>
@@ -486,98 +500,100 @@ const ReviewSubmission = () => {
 
               {/* Right Column (1/3): Action Panel & Quality / Metadata Summary */}
               <div className="space-y-5">
-                {/* 1. Review Action Panel */}
-                <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
-                  <h2 className="text-sm font-bold text-[#3E3734] border-b border-[#F2EBE5] pb-3">
-                    Review Action Panel
-                  </h2>
+                {/* 1. Review Action Panel (Admin / Vendor only) */}
+                {!isStaff && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <h2 className="text-sm font-bold text-[#3E3734] border-b border-[#F2EBE5] pb-3">
+                      Review Action Panel
+                    </h2>
 
-                  {/* Feedback Notification Box */}
-                  {actionMessage && (
-                    <div
-                      className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                        actionMessage.type === "success"
-                          ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
-                          : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
-                      }`}
-                    >
-                      {actionMessage.type === "success" ? (
-                        <FiCheckCircle className="text-base shrink-0" />
-                      ) : (
-                        <FiAlertCircle className="text-base shrink-0" />
-                      )}
-                      <span>{actionMessage.text}</span>
-                    </div>
-                  )}
+                    {/* Feedback Notification Box */}
+                    {actionMessage && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                          actionMessage.type === "success"
+                            ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+                        }`}
+                      >
+                        {actionMessage.type === "success" ? (
+                          <FiCheckCircle className="text-base shrink-0" />
+                        ) : (
+                          <FiAlertCircle className="text-base shrink-0" />
+                        )}
+                        <span>{actionMessage.text}</span>
+                      </div>
+                    )}
 
-                  {/* Admin Comments */}
-                  <div>
-                    <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
-                      Admin Comments / Review Notes
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={adminComments}
-                      onChange={(e) => setAdminComments(e.target.value)}
-                      placeholder="Add detailed evaluation notes, quality feedback, or specific retake instructions..."
-                      className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors resize-none placeholder-[#A39A94]"
-                    />
-                  </div>
-
-                  {/* Vendor Notification Checkbox (Disabled / Honest State) */}
-                  <div className="bg-[#FAF7F5] border border-[#F2EBE5] p-3 rounded-xl opacity-75">
-                    <label className="flex items-center gap-2 cursor-not-allowed">
-                      <input
-                        type="checkbox"
-                        disabled
-                        checked={false}
-                        className="rounded text-[#8A817C] cursor-not-allowed"
+                    {/* Admin Comments */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
+                        Admin Comments / Review Notes
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={adminComments}
+                        onChange={(e) => setAdminComments(e.target.value)}
+                        placeholder="Add detailed evaluation notes, quality feedback, or specific retake instructions..."
+                        className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors resize-none placeholder-[#A39A94]"
                       />
-                      <span className="text-xs font-bold text-[#817B77]">
-                        Notify Vendor via Email
-                      </span>
-                    </label>
-                    <p className="text-[10px] text-[#A39A94] mt-1 pl-5">
-                      (Vendor notification system not configured in platform backend)
-                    </p>
+                    </div>
+
+                    {/* Vendor Notification Checkbox (Disabled / Honest State) */}
+                    <div className="bg-[#FAF7F5] border border-[#F2EBE5] p-3 rounded-xl opacity-75">
+                      <label className="flex items-center gap-2 cursor-not-allowed">
+                        <input
+                          type="checkbox"
+                          disabled
+                          checked={false}
+                          className="rounded text-[#8A817C] cursor-not-allowed"
+                        />
+                        <span className="text-xs font-bold text-[#817B77]">
+                          Notify Vendor via Email
+                        </span>
+                      </label>
+                      <p className="text-[10px] text-[#A39A94] mt-1 pl-5">
+                        (Vendor notification system not configured in platform backend)
+                      </p>
+                    </div>
+
+                    {/* Review Action Buttons */}
+                    <div className="space-y-2.5 pt-2 border-t border-[#F2EBE5]">
+                      {/* Approve Submission Button */}
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleReviewAction("Approved")}
+                        className="w-full bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <FiCheckCircle className="text-sm" />
+                        <span>{actionLoading ? "Processing..." : "Approve Submission"}</span>
+                      </button>
+
+                      {/* Request Retake Button */}
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleReviewAction("In Progress")}
+                        className="w-full bg-[#E65100] hover:bg-[#BF360C] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <FiRefreshCw className="text-sm" />
+                        <span>{actionLoading ? "Processing..." : "Request Retake"}</span>
+                      </button>
+
+                      {/* Reject Submission Button */}
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleReviewAction("Rejected")}
+                        className="w-full bg-[#C62828] hover:bg-[#B71C1C] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <FiXCircle className="text-sm" />
+                        <span>{actionLoading ? "Processing..." : "Reject Submission"}</span>
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Review Action Buttons */}
-                  <div className="space-y-2.5 pt-2 border-t border-[#F2EBE5]">
-                    {/* Approve Submission Button */}
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => handleReviewAction("Approved")}
-                      className="w-full bg-[#2E7D32] hover:bg-[#1B5E20] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <FiCheckCircle className="text-sm" />
-                      <span>{actionLoading ? "Processing..." : "Approve Submission"}</span>
-                    </button>
-
-                    {/* Request Retake Button */}
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => handleReviewAction("In Progress")}
-                      className="w-full bg-[#E65100] hover:bg-[#BF360C] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <FiRefreshCw className="text-sm" />
-                      <span>{actionLoading ? "Processing..." : "Request Retake"}</span>
-                    </button>
-
-                    {/* Reject Submission Button */}
-                    <button
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => handleReviewAction("Rejected")}
-                      className="w-full bg-[#C62828] hover:bg-[#B71C1C] text-white py-2.5 px-4 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <FiXCircle className="text-sm" />
-                      <span>{actionLoading ? "Processing..." : "Reject Submission"}</span>
-                    </button>
-                  </div>
-                </div>
+                )}
 
                 {/* 2. Real Backend Quality Metrics & AI Score Summary */}
                 <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">

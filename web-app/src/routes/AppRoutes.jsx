@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import ForgotPassword from "../pages/auth/ForgotPassword";
+import VerifyResetOtp from "../pages/auth/VerifyResetOtp";
+import ResetPassword from "../pages/auth/ResetPassword";
 import VerifyOtp from "../pages/auth/VerifyOtp";
 import CompleteProfile from "../pages/auth/CompleteProfile";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
@@ -32,6 +34,8 @@ const AppRoutes = () => {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/verify-reset-otp" element={<VerifyResetOtp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/activate-account" element={<VerifyOtp />} />
       <Route path="/complete-profile" element={<CompleteProfile />} />
       <Route path="/vendor/verify-otp" element={<VerifyOtp />} />
@@ -44,7 +48,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Admin & Shared Operational Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "VENDOR"]} />}>
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"]} />}>
         <Route path="/admin/projects" element={<AdminProjects />} />
         <Route path="/admin/projects/:id/review" element={<ReviewSubmission />} />
         <Route path="/admin/invoices" element={<AdminInvoices />} />
@@ -75,6 +79,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute allowedRoles={["STAFF"]} />}>
         <Route path="/staff/dashboard" element={<StaffDashboard />} />
         <Route path="/staff/projects" element={<StaffProjects />} />
+        <Route path="/staff/projects/:id" element={<ReviewSubmission />} />
         <Route path="/staff/profile" element={<StaffProfile />} />
       </Route>
 
