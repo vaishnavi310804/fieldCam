@@ -11,6 +11,7 @@ import supportRoutes from "./src/modules/support/support.routes.js";
 import auditRoutes from "./src/modules/audit/audit.routes.js";
 import notificationRoutes from "./src/modules/notification/notification.routes.js";
 import dashboardRoutes from "./src/modules/dashboard/dashboard.routes.js";
+import subscriptionRoutes from "./src/modules/subscription/subscription.routes.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

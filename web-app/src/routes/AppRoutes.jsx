@@ -6,6 +6,10 @@ import ResetPassword from "../pages/auth/ResetPassword";
 import VerifyOtp from "../pages/auth/VerifyOtp";
 import CompleteProfile from "../pages/auth/CompleteProfile";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
+import SuperAdminCompanies from "../pages/super-admin/Companies";
+import SuperAdminSubscriptions from "../pages/super-admin/Subscriptions";
+import SuperAdminSettings from "../pages/super-admin/SystemSettings";
+import EditEmailTemplate from "../pages/super-admin/EditEmailTemplate";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminProjects from "../pages/admin/Projects";
 import CreateProject from "../pages/admin/CreateProject";
@@ -45,6 +49,10 @@ const AppRoutes = () => {
       {/* Super Admin Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN"]} />}>
         <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+        <Route path="/super-admin/companies" element={<SuperAdminCompanies />} />
+        <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
+        <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+        <Route path="/super-admin/settings/email-templates/:templateId" element={<EditEmailTemplate />} />
       </Route>
 
       {/* Admin & Shared Operational Routes */}

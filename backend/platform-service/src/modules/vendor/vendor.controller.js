@@ -63,6 +63,17 @@ export const createVendorController = async (req, res) => {
 export const getVendorsController = async (req, res) => {
   try {
     const result = await getVendors(req.query);
+    if (result && typeof result === "object" && Array.isArray(result.vendors)) {
+      return res.status(200).json({
+        success: true,
+        count: result.vendors.length,
+        totalRecords: result.totalRecords,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        pageSize: result.pageSize,
+        data: result.vendors,
+      });
+    }
     return res.status(200).json({
       success: true,
       count: result.length,

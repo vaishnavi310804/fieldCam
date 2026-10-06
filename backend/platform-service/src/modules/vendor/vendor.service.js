@@ -132,8 +132,11 @@ export const createVendor = async (vendorData) => {
 export const getVendors = async (query = {}) => {
   const filter = {};
 
-  if (query.status && query.status !== "All") {
-    filter.status = query.status;
+  if (query.status && query.status !== "All" && query.status !== "All Statuses") {
+    // Normalize status string (e.g. Active, Suspended, Inactive)
+    const formattedStatus =
+      query.status.charAt(0).toUpperCase() + query.status.slice(1).toLowerCase();
+    filter.status = formattedStatus;
   }
 
   if (query.search && query.search.trim()) {
@@ -145,9 +148,19 @@ export const getVendors = async (query = {}) => {
     ];
   }
 
-  const vendors = await Vendor.find(filter)
+  const totalRecords = await Vendor.countDocuments(filter);
+  const page = parseInt(query.page, 10) || 1;
+  const limit = parseInt(query.limit, 10) || (query.page ? 10 : 0);
+
+  let queryBuilder = Vendor.find(filter)
     .populate("userId", "name email phone role status")
     .sort({ createdAt: -1 });
+
+  if (limit > 0) {
+    queryBuilder = queryBuilder.skip((page - 1) * limit).limit(limit);
+  }
+
+  const vendors = await queryBuilder;
 
   // Aggregate live project stats for all assigned vendors
   const statsAggregate = await Project.aggregate([
@@ -197,7 +210,24 @@ export const getVendors = async (query = {}) => {
     }
   });
 
-  return vendors.map((vendor) => {
+  // Aggregate live user counts for each vendor (owner + associated staff)
+  const userCountAggregate = await User.aggregate([
+    {
+      $group: {
+        _id: "$companyId",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const userCountMap = new Map();
+  userCountAggregate.forEach((u) => {
+    if (u._id) {
+      userCountMap.set(u._id.toString(), u.count);
+    }
+  });
+
+  const formattedVendors = vendors.map((vendor) => {
     const vendorObj = vendor.toObject();
     const stats = statsMap.get(vendorObj._id.toString()) || {
       assigned: 0,
@@ -206,13 +236,32 @@ export const getVendors = async (query = {}) => {
       waitingForApproval: 0,
     };
 
+    // Calculate total users (1 for owner + staff count if mapped)
+    const staffCount =
+      userCountMap.get(vendorObj._id.toString()) ||
+      (vendorObj.userId ? userCountMap.get(vendorObj.userId._id?.toString() || vendorObj.userId.toString()) || 0 : 0);
+    const userCount = (vendorObj.userId ? 1 : 0) + staffCount;
+
     vendorObj.projectStats = stats;
     vendorObj.activeProjects = stats.active;
     vendorObj.completed = stats.completed;
     vendorObj.approval = stats.waitingForApproval;
+    vendorObj.userCount = userCount;
 
     return vendorObj;
   });
+
+  if (query.page) {
+    return {
+      vendors: formattedVendors,
+      totalRecords,
+      totalPages: limit > 0 ? Math.ceil(totalRecords / limit) : 1,
+      currentPage: page,
+      pageSize: limit,
+    };
+  }
+
+  return formattedVendors;
 };
 
 /**

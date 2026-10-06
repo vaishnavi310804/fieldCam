@@ -1,4 +1,7 @@
-import { getAdminDashboardData } from "./dashboard.service.js";
+import {
+  getAdminDashboardData,
+  getSuperAdminDashboardData,
+} from "./dashboard.service.js";
 
 /**
  * Controller to handle fetching real Admin Dashboard metrics and datasets.
@@ -16,6 +19,26 @@ export const getAdminDashboardStatsController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Failed to fetch Admin Dashboard stats",
+    });
+  }
+};
+
+/**
+ * Controller to handle fetching real Super Admin Dashboard telemetry.
+ * GET /api/dashboard/super-admin/stats
+ */
+export const getSuperAdminDashboardStatsController = async (req, res) => {
+  try {
+    const result = await getSuperAdminDashboardData();
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching Super Admin Dashboard stats:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch Super Admin Dashboard stats",
     });
   }
 };
