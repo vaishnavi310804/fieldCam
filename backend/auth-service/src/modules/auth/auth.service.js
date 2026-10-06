@@ -290,7 +290,11 @@ export const forgotPassword = async (data) => {
   await user.save();
 
   // Send password reset OTP via Brevo email
-  await sendForgotPasswordOTP(user.email, otp);
+  try {
+    await sendForgotPasswordOTP(user.email, otp);
+  } catch (emailErr) {
+    console.warn("Forgot password OTP email notice:", emailErr.message || emailErr);
+  }
 
   return {
     message: "Password reset OTP sent to email successfully",

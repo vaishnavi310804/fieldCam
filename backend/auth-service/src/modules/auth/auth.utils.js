@@ -38,21 +38,32 @@ export const hashOTP = (otp) => {
     .digest("hex");
 };
 
+const getPasswordResetSecret = () => {
+  const secret = process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT secret key is not defined in environment variables");
+  }
+  return secret;
+};
+
 export const generatePasswordResetToken = (user) => {
+  const secret = getPasswordResetSecret();
+  const expiresIn = process.env.PASSWORD_RESET_EXPIRES || "15m";
   return jwt.sign(
     {
       id: user._id,
       purpose: "password-reset",
     },
-    process.env.PASSWORD_RESET_SECRET,
+    secret,
     {
-      expiresIn: process.env.PASSWORD_RESET_EXPIRES,
+      expiresIn,
     }
   );
 };
 
 export const verifyPasswordResetToken = (token) => {
-  return jwt.verify(token, process.env.PASSWORD_RESET_SECRET);
+  const secret = getPasswordResetSecret();
+  return jwt.verify(token, secret);
 };
 
 export const generateOnboardingSetupToken = (user) => {
