@@ -103,11 +103,76 @@ export const createStaffUser = async (
   return response.data.data.user;
 };
 
+export interface VerifyResetOTPResponseData {
+  resetToken: string;
+}
+
+export const forgotPassword = async (
+  email: string
+): Promise<{ message: string }> => {
+  const response = await authClient.post<ApiResponse<{ message?: string }>>(
+    "/auth/forgot-password",
+    { email: email.trim().toLowerCase() }
+  );
+
+  if (!response.data.success) {
+    throw new Error(
+      response.data.message || "Failed to send verification code"
+    );
+  }
+
+  return {
+    message: response.data.message || "Verification code sent to email",
+  };
+};
+
+export const verifyResetOTP = async (
+  email: string,
+  otp: string
+): Promise<{ resetToken: string }> => {
+  const response = await authClient.post<
+    ApiResponse<VerifyResetOTPResponseData>
+  >("/auth/verify-reset-otp", {
+    email: email.trim().toLowerCase(),
+    otp: otp.trim(),
+  });
+
+  if (!response.data.success || !response.data.data?.resetToken) {
+    throw new Error(response.data.message || "Invalid verification code");
+  }
+
+  return response.data.data;
+};
+
+export const resetPassword = async (
+  resetToken: string,
+  newPassword: string
+): Promise<{ message: string }> => {
+  const response = await authClient.post<ApiResponse<{ message?: string }>>(
+    "/auth/reset-password",
+    {
+      resetToken,
+      newPassword: newPassword.trim(),
+    }
+  );
+
+  if (!response.data.success) {
+    throw new Error(response.data.message || "Failed to reset password");
+  }
+
+  return {
+    message: response.data.message || "Password reset successfully",
+  };
+};
+
 export const authApi = {
   login,
   getCurrentUser,
   logout,
   createStaffUser,
+  forgotPassword,
+  verifyResetOTP,
+  resetPassword,
 };
 
 export default authApi;

@@ -26,6 +26,7 @@ import {
   MonthlyEarningsPoint,
 } from "@/src/components/charts/MonthlyEarningsChart";
 import { VendorDashboardHeader } from "@/src/components/dashboard/VendorDashboardHeader";
+import { getProjectProgress } from "@/src/utils/projectProgress";
 
 const { width } = Dimensions.get("window");
 
@@ -83,14 +84,24 @@ const VendorDashboardScreen = () => {
   const projectStats = vendor?.projectStats || { assigned: 0, completed: 0, waitingForApproval: 0 };
   const projects = vendor?.projects || [];
 
-  // Calculate monthly earnings from paid invoices
+  // Calculate monthly earnings from paid invoices in the current calendar month
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
   const monthlyEarnings = invoices
-    .filter((inv) => inv.status === "Paid")
+    .filter((inv) => {
+      if (inv.status !== "Paid") return false;
+      const dateStr = inv.paymentDate || inv.createdAt;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    })
     .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
 
-  // Calculate monthly chart data from real paid/approved invoices
+  // Calculate monthly chart data from real paid invoices
   const monthlyChartSeries = invoices
-    .filter((inv: VendorInvoiceItem) => inv.status === "Paid" || inv.status === "Approved")
+    .filter((inv: VendorInvoiceItem) => inv.status === "Paid")
     .reduce<MonthlyEarningsPoint[]>((acc, inv) => {
       const dateStr = inv.paymentDate || inv.createdAt;
       if (!dateStr) return acc;
@@ -106,10 +117,13 @@ const VendorDashboardScreen = () => {
       return acc;
     }, []);
 
-  // Calculate Approval Rate
+  // Calculate Approval Rate based on approved vs rejected outcomes
+  const completedCount = projectStats.completed || 0;
+  const rejectedCount = projectStats.rejected || 0;
+  const totalEvaluated = completedCount + rejectedCount;
   const approvalRate =
-    projectStats.assigned > 0
-      ? Math.round((projectStats.completed / projectStats.assigned) * 100)
+    totalEvaluated > 0
+      ? Math.round((completedCount / totalEvaluated) * 100)
       : null;
 
   // Calculate total photos count across projects
@@ -120,7 +134,30 @@ const VendorDashboardScreen = () => {
 
   // Active projects list
   const activeProjects = projects.filter((p) => p.status !== "Completed" && p.status !== "Approved");
-  const upcomingDeadlines = activeProjects.slice(0, 3);
+
+  // Calculate projects genuinely due today based on backend deadline date
+  const dueTodayCount = activeProjects.filter((p) => {
+    if (!p.deadline) return false;
+    const d = new Date(p.deadline);
+    return (
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth &&
+      d.getDate() === now.getDate()
+    );
+  }).length;
+
+  // Calculate actionable alerts: open support tickets + overdue active projects
+  const overdueProjectsCount = activeProjects.filter((p) => {
+    if (!p.deadline) return false;
+    return new Date(p.deadline).getTime() < Date.now();
+  }).length;
+  const totalAlertsCount = (supportStats.open || 0) + overdueProjectsCount;
+
+  // Upcoming deadlines sorted by deadline proximity
+  const upcomingDeadlines = activeProjects
+    .filter((p) => Boolean(p.deadline))
+    .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+    .slice(0, 3);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -214,7 +251,9 @@ const VendorDashboardScreen = () => {
                   <View style={[styles.summaryIconBadge, { backgroundColor: "#EBF5FF" }]}>
                     <Ionicons name="folder-open-outline" size={18} color="#2563EB" />
                   </View>
-                  <Text style={styles.summaryValue}>{projectStats.assigned}</Text>
+                  <Text style={styles.summaryValue}>
+                    {projectStats.active ?? activeProjects.length}
+                  </Text>
                   <Text style={styles.summaryLabel}>Active</Text>
                 </Pressable>
 
@@ -226,9 +265,7 @@ const VendorDashboardScreen = () => {
                   <View style={[styles.summaryIconBadge, { backgroundColor: "#FEF3C7" }]}>
                     <Ionicons name="time-outline" size={18} color="#D97706" />
                   </View>
-                  <Text style={styles.summaryValue}>
-                    {activeProjects.filter((p) => p.status === "In Progress").length}
-                  </Text>
+                  <Text style={styles.summaryValue}>{dueTodayCount}</Text>
                   <Text style={styles.summaryLabel}>Due Today</Text>
                 </Pressable>
 
@@ -240,7 +277,7 @@ const VendorDashboardScreen = () => {
                   <View style={[styles.summaryIconBadge, { backgroundColor: "#FEE2E2" }]}>
                     <Ionicons name="warning-outline" size={18} color="#DC2626" />
                   </View>
-                  <Text style={styles.summaryValue}>{supportStats.open}</Text>
+                  <Text style={styles.summaryValue}>{totalAlertsCount}</Text>
                   <Text style={styles.summaryLabel}>Alerts</Text>
                 </Pressable>
               </View>
@@ -306,17 +343,11 @@ const VendorDashboardScreen = () => {
                 </View>
               ) : (
                 projects.slice(0, 3).map((item) => {
-                  let calcProgress: number | undefined = undefined;
-                  const statusUpper = (item.status || "").toUpperCase();
-                  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
-                  if (!isPendingAcceptance) {
-                    if (typeof item.progress === "number" && !isNaN(item.progress)) {
-                      calcProgress = item.progress;
-                    } else if (Array.isArray(item.checklistItems) && item.checklistItems.length > 0) {
-                      const checked = item.checklistItems.filter((c) => c.checked).length;
-                      calcProgress = Math.round((checked / item.checklistItems.length) * 100);
-                    }
-                  }
+                  const calcProgress = getProjectProgress(
+                    item.status,
+                    item.checklistItems,
+                    item.progress
+                  );
 
                   const hasPhoto = item.photos && item.photos.length > 0 && item.photos[0].url;
 
@@ -395,6 +426,10 @@ const VendorDashboardScreen = () => {
                         })
                       : "Deadline pending";
 
+                    const isUrgent = item.deadline
+                      ? new Date(item.deadline).getTime() <= Date.now() + 24 * 60 * 60 * 1000
+                      : false;
+
                     return (
                       <View
                         key={item._id}
@@ -406,7 +441,7 @@ const VendorDashboardScreen = () => {
                         <View
                           style={[
                             styles.urgencyDot,
-                            idx === 0 ? styles.dotRed : styles.dotYellow,
+                            isUrgent ? styles.dotRed : styles.dotYellow,
                           ]}
                         />
                         <View style={styles.deadlineInfo}>
@@ -445,7 +480,7 @@ const VendorDashboardScreen = () => {
                 {/* Reports */}
                 <Pressable
                   style={styles.actionCard}
-                  onPress={() => handleQuickAction("Reports")}
+                  onPress={() => handleQuickAction("Reports", "/(app)/reports")}
                 >
                   <View style={[styles.actionIconBadge, { backgroundColor: "#EDE9FE" }]}>
                     <Ionicons name="document-text" size={20} color="#7C3AED" />

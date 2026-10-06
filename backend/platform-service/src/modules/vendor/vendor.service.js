@@ -300,7 +300,7 @@ export const getVendorById = async (id) => {
   const vendorObjectId = new mongoose.Types.ObjectId(id);
 
   // Calculate live project metrics for this vendor from Project collection
-  const [assignedCount, activeCount, completedCount, waitingForApprovalCount, assignedProjectsList] =
+  const [assignedCount, activeCount, completedCount, waitingForApprovalCount, rejectedCount, assignedProjectsList] =
     await Promise.all([
       Project.countDocuments({
         vendorId: vendorObjectId,
@@ -315,8 +315,9 @@ export const getVendorById = async (id) => {
         vendorId: vendorObjectId,
         status: { $in: ["Submitted", "Under Review"] },
       }),
+      Project.countDocuments({ vendorId: vendorObjectId, status: "Rejected" }),
       Project.find({ vendorId: vendorObjectId })
-        .select("projectId projectName serviceTypeName location status createdAt")
+        .select("projectId projectName serviceTypeName location status deadline photos checklistItems createdAt")
         .sort({ createdAt: -1 }),
     ]);
 
@@ -325,6 +326,7 @@ export const getVendorById = async (id) => {
     active: activeCount,
     completed: completedCount,
     waitingForApproval: waitingForApprovalCount,
+    rejected: rejectedCount,
   };
   vendorObj.activeProjects = activeCount;
   vendorObj.completed = completedCount;

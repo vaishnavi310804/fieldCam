@@ -5,6 +5,7 @@ export interface VendorProjectStats {
   completed: number;
   waitingForApproval: number;
   active?: number;
+  rejected?: number;
 }
 
 export interface AIValidationResult {
@@ -419,6 +420,19 @@ export const assignProjectToStaff = async (
   return response.data.data;
 };
 
+export const downloadProjectReportPdf = async (
+  projectId: string
+): Promise<ArrayBuffer> => {
+  const response = await platformClient.get<ArrayBuffer>(
+    `/projects/${projectId}/report/pdf`,
+    {
+      responseType: "arraybuffer",
+    }
+  );
+
+  return response.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
@@ -429,6 +443,7 @@ export const dashboardApi = {
   submitVendorProject,
   getVendorStaffList,
   assignProjectToStaff,
+  downloadProjectReportPdf,
 };
 
 export default dashboardApi;

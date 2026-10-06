@@ -1,4 +1,5 @@
 import Project from "./project.model.js";
+import PDFDocument from "pdfkit";
 import Service from "../service/service.model.js";
 import Vendor from "../vendor/vendor.model.js";
 import User from "../users/user.model.js";
@@ -1296,4 +1297,179 @@ export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
   }
 
   return await getProjectById(project._id.toString(), currentUser);
+};
+
+/**
+ * Generates an authoritative PDF report document for a given project ID.
+ * @param {string} projectIdOrId - MongoDB _id or string projectId
+ * @param {Object} currentUser - Authenticated user object (role: SUPER_ADMIN, ADMIN, VENDOR, STAFF)
+ * @returns {Promise<{ pdfBuffer: Buffer, project: Object }>}
+ */
+export const generateProjectReportPdf = async (projectIdOrId, currentUser) => {
+  // 1. Authoritative project fetch + strict server-side vendor authorization check
+  const project = await getProjectById(projectIdOrId, currentUser);
+
+  // 2. Workflow progress calculation based on established rules
+  const statusUpper = (project.status || "").toUpperCase();
+  let progress = 0;
+  if (statusUpper === "APPROVED" || statusUpper === "COMPLETED") {
+    progress = 100;
+  } else if (statusUpper === "SUBMITTED" || statusUpper === "UNDER REVIEW") {
+    progress = 95;
+  } else if (statusUpper === "REJECTED") {
+    progress = 95;
+  } else if (statusUpper === "IN PROGRESS") {
+    const checklist = Array.isArray(project.checklistItems) ? project.checklistItems : [];
+    if (checklist.length > 0) {
+      const checked = checklist.filter((c) => c.checked).length;
+      progress = Math.min(90, Math.round((checked / checklist.length) * 100));
+    } else {
+      progress = 0;
+    }
+  } else {
+    progress = 0;
+  }
+
+  // 3. Generate PDF in-memory buffer using pdfkit
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 40, size: "A4" });
+      const buffers = [];
+
+      doc.on("data", (chunk) => buffers.push(chunk));
+      doc.on("end", async () => {
+        const pdfBuffer = Buffer.concat(buffers);
+
+        // Audit log event
+        try {
+          await logAuditEvent({
+            actor: currentUser,
+            action: "PROJECT_REPORT_DOWNLOADED",
+            entityType: "Project",
+            entityId: project.projectId || project._id.toString(),
+            description: `Downloaded PDF report for project "${project.projectName}" (${project.projectId})`,
+            metadata: {
+              projectId: project.projectId,
+              status: project.status,
+              progress,
+            },
+          });
+        } catch (auditErr) {
+          console.error("Failed to log PROJECT_REPORT_DOWNLOADED audit event:", auditErr.message);
+        }
+
+        resolve({ pdfBuffer, project });
+      });
+
+      doc.on("error", (err) => reject(err));
+
+      // Header Branding
+      doc.fillColor("#4F46E5").fontSize(22).font("Helvetica-Bold").text("FieldCam", { align: "left" });
+      doc.fillColor("#6B7280").fontSize(10).font("Helvetica").text("Field Operations & Inspection Report", { align: "left" });
+      doc.moveDown(0.5);
+
+      // Divider Line
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(1);
+
+      // Section: Status Banner
+      doc.fillColor("#111827").fontSize(14).font("Helvetica-Bold").text(`Project Status: ${project.status || "N/A"}`);
+      doc.fillColor("#4B5563").fontSize(10).font("Helvetica").text(`Workflow Progress: ${progress}%`);
+      doc.moveDown(1);
+
+      // Section: Project Summary
+      doc.fillColor("#1F2937").fontSize(14).font("Helvetica-Bold").text("Project Summary");
+      doc.moveDown(0.5);
+      doc.fontSize(10).font("Helvetica").fillColor("#374151");
+      doc.text(`Project Name: ${project.projectName || "N/A"}`);
+      doc.text(`Work Order ID: ${project.projectId || "N/A"}`);
+      doc.text(`Property Address: ${project.location || "N/A"}`);
+      doc.text(`Client Name: ${project.client || "N/A"}`);
+      doc.text(`Vendor Name: ${project.vendorName || "N/A"}`);
+      doc.text(`Service Type: ${project.serviceTypeName || "N/A"}`);
+      doc.text(`Creation Date: ${project.createdAt ? new Date(project.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}`);
+      doc.text(`Last Updated: ${project.updatedAt ? new Date(project.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}`);
+      doc.moveDown(1);
+
+      // Section: Work Summary Metrics
+      doc.fillColor("#1F2937").fontSize(14).font("Helvetica-Bold").text("Work Summary");
+      doc.moveDown(0.5);
+
+      const photos = Array.isArray(project.photos) ? project.photos : [];
+      let totalVerified = 0;
+      let passedCount = 0;
+      let hasGps = false;
+
+      photos.forEach((p) => {
+        if (p.aiValidation) {
+          totalVerified++;
+          if (p.aiValidation.status === "PASSED") passedCount++;
+        }
+        if (p.location && typeof p.location.latitude === "number" && typeof p.location.longitude === "number") {
+          hasGps = true;
+        }
+      });
+
+      const aiScoreText = totalVerified > 0 ? `${Math.round((passedCount / totalVerified) * 100)}%` : "N/A";
+      const locationVerifiedText = hasGps ? "Confirmed" : "N/A";
+
+      doc.fontSize(10).font("Helvetica").fillColor("#374151");
+      doc.text(`Photos Uploaded: ${photos.length}`);
+      doc.text(`AI Quality Score: ${aiScoreText}`);
+      doc.text(`Location Verified: ${locationVerifiedText}`);
+      doc.moveDown(1);
+
+      // Section: Photo Evidence List
+      doc.fillColor("#1F2937").fontSize(14).font("Helvetica-Bold").text("Photo Evidence");
+      doc.moveDown(0.5);
+
+      if (photos.length === 0) {
+        doc.fontSize(10).font("Helvetica-Oblique").fillColor("#6B7280").text("No photo evidence available.");
+      } else {
+        photos.forEach((photo, idx) => {
+          const category = photo.category || "General";
+          const time = photo.capturedAt
+            ? new Date(photo.capturedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+            : "N/A";
+          const gps = photo.location?.latitude
+            ? `${photo.location.latitude.toFixed(4)}°, ${photo.location.longitude.toFixed(4)}°`
+            : "N/A";
+
+          doc.fontSize(10).font("Helvetica-Bold").fillColor("#111827").text(`Photo #${idx + 1} - Category: ${category}`);
+          doc.font("Helvetica").fillColor("#4B5563").text(`Captured At: ${time} | GPS Coordinates: ${gps}`);
+          if (photo.caption) {
+            doc.text(`Caption: ${photo.caption}`);
+          }
+          doc.moveDown(0.3);
+        });
+      }
+      doc.moveDown(1);
+
+      // Section: Notes & Observations
+      doc.fillColor("#1F2937").fontSize(14).font("Helvetica-Bold").text("Notes & Observations");
+      doc.moveDown(0.5);
+
+      const notes = Array.isArray(project.notes) ? project.notes : [];
+      if (notes.length === 0) {
+        doc.fontSize(10).font("Helvetica-Oblique").fillColor("#6B7280").text("No notes available.");
+      } else {
+        notes.forEach((note, idx) => {
+          const author = note.authorName || "Vendor";
+          const time = note.createdAt ? new Date(note.createdAt).toLocaleDateString("en-US") : "N/A";
+
+          doc.fontSize(10).font("Helvetica-Bold").fillColor("#111827").text(`Note #${idx + 1} by ${author} (${time})`);
+          doc.font("Helvetica").fillColor("#374151").text(note.text);
+          doc.moveDown(0.3);
+        });
+      }
+
+      // Footer
+      doc.moveDown(2);
+      doc.fontSize(8).font("Helvetica-Oblique").fillColor("#9CA3AF").text(`Report generated automatically by FieldCam Platform for Project ID: ${project.projectId}`, { align: "center" });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
 };

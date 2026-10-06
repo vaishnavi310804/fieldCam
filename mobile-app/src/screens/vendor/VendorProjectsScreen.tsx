@@ -27,6 +27,8 @@ import {
   ProjectCardData,
 } from "@/src/components/projects/ProjectCard";
 
+import { getProjectProgress } from "@/src/utils/projectProgress";
+
 export const VendorProjectsScreen = () => {
   const { user } = useAuth();
 
@@ -43,24 +45,11 @@ export const VendorProjectsScreen = () => {
   const mapProjectItemToCardData = (
     item: VendorProjectItem,
   ): ProjectCardData => {
-    let calculatedProgress: number | undefined = undefined;
-
-    const statusUpper = (item.status || "").toUpperCase();
-    const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
-
-    if (!isPendingAcceptance) {
-      if (typeof item.progress === "number" && !isNaN(item.progress)) {
-        calculatedProgress = item.progress;
-      } else if (
-        Array.isArray(item.checklistItems) &&
-        item.checklistItems.length > 0
-      ) {
-        const checked = item.checklistItems.filter((c) => c.checked).length;
-        calculatedProgress = Math.round(
-          (checked / item.checklistItems.length) * 100,
-        );
-      }
-    }
+    const calculatedProgress = getProjectProgress(
+      item.status,
+      item.checklistItems,
+      item.progress
+    );
 
     const firstPhotoUrl =
       Array.isArray(item.photos) && item.photos.length > 0 && item.photos[0].url

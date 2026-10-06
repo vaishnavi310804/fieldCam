@@ -26,6 +26,8 @@ export default function AppLayout() {
       <Tabs.Screen name="assign-project" options={{ href: null }} />
       <Tabs.Screen name="project-assigned" options={{ href: null }} />
       <Tabs.Screen name="performance-dashboard" options={{ href: null }} />
+      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="project-report" options={{ href: null }} />
     </Tabs>
   );
 }

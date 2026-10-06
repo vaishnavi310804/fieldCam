@@ -24,6 +24,7 @@ import {
   submitVendorProjectController,
   assignStaffController,
   getStaffProjectsController,
+  downloadProjectReportPdfController,
 } from "./project.controller.js";
 import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
@@ -50,6 +51,14 @@ router.patch(
   protect,
   authorize("VENDOR"),
   acceptProjectController
+);
+
+// GET /api/projects/:id/report/pdf - Download project report PDF (SUPER_ADMIN, ADMIN, VENDOR, STAFF)
+router.get(
+  "/:id/report/pdf",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"),
+  downloadProjectReportPdfController
 );
 
 // GET /api/projects/:id - Read single project details (SUPER_ADMIN, ADMIN, VENDOR, STAFF)

@@ -145,7 +145,7 @@ const LoginScreen = () => {
 
           <Pressable
             style={styles.forgotPasswordContainer}
-            onPress={() => {}}
+            onPress={() => router.push("/(auth)/forgot-password" as any)}
           >
             <Text style={styles.forgotPassword}>Forgot Password?</Text>
           </Pressable>

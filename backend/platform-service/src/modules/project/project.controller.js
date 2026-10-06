@@ -12,6 +12,7 @@ import {
   submitVendorProject,
   assignProjectToStaff,
   getStaffAssignedProjects,
+  generateProjectReportPdf,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -388,6 +389,33 @@ export const getStaffProjectsController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Failed to fetch staff projects",
+    });
+  }
+};
+
+/**
+ * Controller to handle generating and downloading Project PDF Report.
+ * GET /api/projects/:id/report/pdf
+ */
+export const downloadProjectReportPdfController = async (req, res) => {
+  try {
+    const { pdfBuffer, project } = await generateProjectReportPdf(
+      req.params.id,
+      req.user
+    );
+
+    const filename = `FieldCam_Project_${project.projectId || req.params.id}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+
+    return res.status(200).send(pdfBuffer);
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to generate project PDF report",
     });
   }
 };
