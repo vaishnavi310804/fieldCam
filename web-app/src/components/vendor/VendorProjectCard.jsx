@@ -5,6 +5,7 @@ import {
   FiCamera,
   FiEye,
   FiUserPlus,
+  FiFileText,
 } from "react-icons/fi";
 import { getProjectProgress } from "../../utils/projectProgress";
 
@@ -246,14 +247,25 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
           <span>View Details</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/vendor/projects/${project._id || project.id}`))}
-          className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-        >
-          <FiUserPlus size={12} />
-          <span>Assign Staff</span>
-        </button>
+        {project.status === "Approved" ? (
+          <button
+            type="button"
+            onClick={() => navigate(`/vendor/invoices?projectId=${project._id || project.id}`)}
+            className="w-full h-8 rounded-xl bg-[#00B894] hover:bg-[#00A383] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <FiFileText size={12} />
+            <span>Raise Invoice</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/vendor/projects/${project._id || project.id}`))}
+            className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <FiUserPlus size={12} />
+            <span>Assign Staff</span>
+          </button>
+        )}
       </div>
     </div>
   );

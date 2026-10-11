@@ -1,21 +1,21 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import InvoiceStats from "../../components/admin/invoices/InvoiceStats";
 import PaymentOverview from "../../components/admin/invoices/PaymentOverview";
 import InvoiceToolbar from "../../components/admin/invoices/InvoiceToolbar";
 import InvoiceTable from "../../components/admin/invoices/InvoiceTable";
-import CreateInvoiceModal from "../../components/admin/invoices/CreateInvoiceModal";
 import {
   getInvoices,
   getInvoiceStats,
   getInvoiceOverview,
-  createInvoice,
-  updateInvoice,
-  updateInvoiceStatus,
+  reviewInvoice,
+  sendInvoice,
+  recordInvoicePayment,
+  downloadInvoicePdf,
 } from "../../services/invoiceService";
 import { useAuth } from "../../context/AuthContext";
-import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
+import { FiAlertCircle, FiCheckCircle, FiRefreshCw, FiX } from "react-icons/fi";
 
 const Invoices = () => {
   const { user } = useAuth();
@@ -28,12 +28,11 @@ const Invoices = () => {
   const [overviewData, setOverviewData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
   const isReadOnly = user?.role === "VENDOR";
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -54,32 +53,107 @@ const Invoices = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadData();
   }, []);
 
-  const handleCreateInvoice = async (payload) => {
-    await createInvoice(payload);
-    await loadData();
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      try {
+        const [invoicesRes, statsRes, overviewRes] = await Promise.all([
+          getInvoices(),
+          getInvoiceStats(),
+          getInvoiceOverview(),
+        ]);
+
+        if (isMounted) {
+          setAllInvoices(invoicesRes?.data || []);
+          setStatsData(statsRes?.data || statsRes || {});
+          setOverviewData(overviewRes?.data || overviewRes || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(
+            err.response?.data?.message || err.message || "Failed to load invoices data from platform service"
+          );
+          setAllInvoices([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleReviewInvoice = async (id, payload) => {
+    try {
+      const res = await reviewInvoice(id, payload);
+      setActionFeedback({
+        type: "success",
+        message: res.message || `Invoice ${payload.action === "APPROVE" ? "approved" : "rejected"} successfully.`,
+      });
+      await loadData();
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to review invoice.";
+      setActionFeedback({ type: "error", message: errMsg });
+      throw err;
+    }
   };
 
-  const handleUpdateStatus = async (id, status) => {
-    await updateInvoiceStatus(id, status);
-    await loadData();
+  const handleSendInvoice = async (id, payload) => {
+    try {
+      const res = await sendInvoice(id, payload);
+      setActionFeedback({
+        type: "success",
+        message: res.message || `Invoice sent to client (${payload.recipientEmail}) successfully.`,
+      });
+      await loadData();
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to send invoice.";
+      setActionFeedback({ type: "error", message: errMsg });
+      throw err;
+    }
   };
 
-  const handleEditInvoice = async (id, updateData) => {
-    await updateInvoice(id, updateData);
-    await loadData();
+  const handleRecordPayment = async (id, payload) => {
+    try {
+      const res = await recordInvoicePayment(id, payload);
+      setActionFeedback({
+        type: "success",
+        message: res.message || "Payment recorded successfully.",
+      });
+      await loadData();
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to record payment.";
+      setActionFeedback({ type: "error", message: errMsg });
+      throw err;
+    }
+  };
+
+  const handleDownloadPdf = async (invoice) => {
+    try {
+      await downloadInvoicePdf(invoice._id, invoice.invoiceId);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || "Failed to download invoice PDF.";
+      setActionFeedback({ type: "error", message: errMsg });
+    }
   };
 
   const filteredInvoices = useMemo(() => {
     return allInvoices.filter((invoice) => {
       // Filter by status tab
-      if (activeFilter !== "All" && invoice.status !== activeFilter) {
-        return false;
+      if (activeFilter !== "All") {
+        if (activeFilter === "Submitted") {
+          // Submitted tab covers both Submitted and legacy Pending
+          if (invoice.status !== "Submitted" && invoice.status !== "Pending") {
+            return false;
+          }
+        } else if (invoice.status !== activeFilter) {
+          return false;
+        }
       }
 
       // Filter by search query (Invoice ID, Vendor Name, Project Title)
@@ -115,6 +189,41 @@ const Invoices = () => {
     });
   }, [allInvoices, searchTerm, activeFilter]);
 
+  const handleExportCsv = useCallback(() => {
+    if (filteredInvoices.length === 0) return;
+    const headers = [
+      "Invoice ID",
+      "Vendor",
+      "Project",
+      "Invoice Date",
+      "Due Date",
+      "Total Amount",
+      "Status",
+      "Payment Date",
+    ];
+    const rows = filteredInvoices.map((inv) => [
+      `"${inv.invoiceId || ""}"`,
+      `"${inv.vendorName || inv.vendorId?.companyName || ""}"`,
+      `"${inv.projectTitle || inv.projectId?.projectName || ""}"`,
+      `"${inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString() : ""}"`,
+      `"${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : ""}"`,
+      `"${inv.totalAmount || inv.amount || 0}"`,
+      `"${inv.status || ""}"`,
+      `"${inv.paymentDate ? new Date(inv.paymentDate).toLocaleDateString() : ""}"`,
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const exportTimestamp = Math.floor(new Date().getTime() / 1000);
+    link.setAttribute("download", `FieldCam_Invoices_${exportTimestamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [filteredInvoices]);
+
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
       {/* Fixed Sidebar */}
@@ -135,6 +244,32 @@ const Invoices = () => {
 
         {/* Invoices Page Body */}
         <main className="flex-1 p-6 space-y-5">
+          {/* Action Feedback Banner */}
+          {actionFeedback && (
+            <div
+              className={`p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs ${
+                actionFeedback.type === "success"
+                  ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                  : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {actionFeedback.type === "success" ? (
+                  <FiCheckCircle className="text-base shrink-0" />
+                ) : (
+                  <FiAlertCircle className="text-base shrink-0" />
+                )}
+                <span>{actionFeedback.message}</span>
+              </div>
+              <button
+                onClick={() => setActionFeedback(null)}
+                className="p-1 rounded-lg hover:bg-black/5"
+              >
+                <FiX className="text-sm" />
+              </button>
+            </div>
+          )}
+
           {/* Error Banner */}
           {error && (
             <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
@@ -158,14 +293,13 @@ const Invoices = () => {
           {/* 2. Payment Overview Recharts BarChart */}
           <PaymentOverview overviewData={overviewData} />
 
-          {/* 3. Toolbar (Search, Filter Tabs, Export, New Invoice Buttons) */}
+          {/* 3. Toolbar (Search, Filter Tabs, Export) */}
           <InvoiceToolbar
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
-            onOpenCreateModal={() => setCreateModalOpen(true)}
-            isReadOnly={isReadOnly}
+            onExport={handleExportCsv}
           />
 
           {/* 4. Invoice Table Card */}
@@ -176,20 +310,15 @@ const Invoices = () => {
           ) : (
             <InvoiceTable
               invoices={filteredInvoices}
-              onUpdateStatus={handleUpdateStatus}
-              onEditInvoice={handleEditInvoice}
+              onReviewInvoice={handleReviewInvoice}
+              onSendInvoice={handleSendInvoice}
+              onRecordPayment={handleRecordPayment}
+              onDownloadPdf={handleDownloadPdf}
               isReadOnly={isReadOnly}
             />
           )}
         </main>
       </div>
-
-      {/* Create Invoice Modal */}
-      <CreateInvoiceModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onCreateInvoice={handleCreateInvoice}
-      />
     </div>
   );
 };

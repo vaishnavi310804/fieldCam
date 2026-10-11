@@ -3,102 +3,69 @@ import InvoiceStatusBadge from "./InvoiceStatusBadge";
 import {
   FiMoreHorizontal,
   FiEye,
-  FiEdit2,
   FiCheckCircle,
+  FiXCircle,
+  FiSend,
+  FiDollarSign,
+  FiDownload,
   FiX,
   FiAlertCircle,
+  FiCheck,
+  FiClock,
+  FiFileText,
+  FiUser,
+  FiBriefcase,
+  FiCalendar,
+  FiMail,
 } from "react-icons/fi";
 
 const InvoiceTable = ({
   invoices = [],
-  onUpdateStatus,
-  onEditInvoice,
+  onReviewInvoice,
+  onSendInvoice,
+  onRecordPayment,
+  onDownloadPdf,
   isReadOnly = false,
 }) => {
   // Action Menu State per row
   const [activeMenuId, setActiveMenuId] = useState(null);
 
-  // View Modal State
+  // View Details Modal State
   const [viewInvoice, setViewInvoice] = useState(null);
 
-  // Status Modal State
-  const [statusInvoice, setStatusInvoice] = useState(null);
-  const [newStatus, setNewStatus] = useState("Pending");
-  const [statusError, setStatusError] = useState("");
-  const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
+  // Review Modal State (Approve / Reject)
+  const [reviewModalInvoice, setReviewModalInvoice] = useState(null);
+  const [reviewAction, setReviewAction] = useState("APPROVE"); // "APPROVE" | "REJECT"
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [reviewError, setReviewError] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Edit Modal State
-  const [editInvoice, setEditInvoice] = useState(null);
-  const [editAmount, setEditAmount] = useState("");
-  const [editTax, setEditTax] = useState("");
-  const [editError, setEditError] = useState("");
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  // Send Invoice Modal State
+  const [sendModalInvoice, setSendModalInvoice] = useState(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [sendError, setSendError] = useState("");
+  const [isSubmittingSend, setIsSubmittingSend] = useState(false);
+
+  // Record Payment Modal State
+  const [paymentModalInvoice, setPaymentModalInvoice] = useState(null);
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
+  // PDF Downloading indicator
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const toggleMenu = (id) => {
     setActiveMenuId(activeMenuId === id ? null : id);
   };
 
-  const handleOpenView = (invoice) => {
+  const closeAllMenus = () => {
     setActiveMenuId(null);
-    setViewInvoice(invoice);
   };
 
-  const handleOpenStatus = (invoice) => {
-    setActiveMenuId(null);
-    setStatusInvoice(invoice);
-    setNewStatus(invoice.status || "Pending");
-    setStatusError("");
-  };
-
-  const handleOpenEdit = (invoice) => {
-    setActiveMenuId(null);
-    setEditInvoice(invoice);
-    setEditAmount(invoice.amount !== undefined ? String(invoice.amount) : "");
-    setEditTax(invoice.tax !== undefined ? String(invoice.tax) : "0");
-    setEditError("");
-  };
-
-  const handleSaveStatus = async (e) => {
-    e.preventDefault();
-    setStatusError("");
-    try {
-      setIsSubmittingStatus(true);
-      await onUpdateStatus(statusInvoice._id, newStatus);
-      setStatusInvoice(null);
-    } catch (err) {
-      setStatusError(
-        err.response?.data?.message || err.message || "Failed to update status."
-      );
-    } finally {
-      setIsSubmittingStatus(false);
-    }
-  };
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    setEditError("");
-
-    if (!editAmount || isNaN(Number(editAmount)) || Number(editAmount) < 0) {
-      setEditError("Please enter a valid amount.");
-      return;
-    }
-
-    try {
-      setIsSubmittingEdit(true);
-      await onEditInvoice(editInvoice._id, {
-        amount: Number(editAmount),
-        tax: Number(editTax || 0),
-      });
-      setEditInvoice(null);
-    } catch (err) {
-      setEditError(
-        err.response?.data?.message || err.message || "Failed to update invoice."
-      );
-    } finally {
-      setIsSubmittingEdit(false);
-    }
-  };
-
+  // Helper date formatter
   const formatDate = (dateStr) => {
     if (!dateStr || dateStr === "—") return "—";
     try {
@@ -114,6 +81,177 @@ const InvoiceTable = ({
     }
   };
 
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return "—";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Handler: Open View Details
+  const handleOpenView = (invoice) => {
+    closeAllMenus();
+    setViewInvoice(invoice);
+  };
+
+  // Handler: Open Review Modal
+  const handleOpenReview = (invoice, defaultAction = "APPROVE") => {
+    closeAllMenus();
+    setReviewModalInvoice(invoice);
+    setReviewAction(defaultAction);
+    setRejectionReason("");
+    setReviewError("");
+  };
+
+  // Handler: Submit Review (Approve or Reject)
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewModalInvoice || !onReviewInvoice) return;
+    setReviewError("");
+
+    if (reviewAction === "REJECT" && !rejectionReason.trim()) {
+      setReviewError("Please provide a reason for rejecting this invoice.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      await onReviewInvoice(reviewModalInvoice._id, {
+        action: reviewAction,
+        rejectionReason: reviewAction === "REJECT" ? rejectionReason.trim() : undefined,
+      });
+
+      // Close modal and detail view if open
+      setReviewModalInvoice(null);
+      if (viewInvoice && viewInvoice._id === reviewModalInvoice._id) {
+        setViewInvoice(null);
+      }
+    } catch (err) {
+      setReviewError(
+        err.response?.data?.message || err.message || "Failed to submit review action."
+      );
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // Handler: Open Send Modal
+  const handleOpenSend = (invoice) => {
+    closeAllMenus();
+    setSendModalInvoice(invoice);
+
+    // Resolve client email from project data or previously sent address
+    const clientCandidate =
+      invoice.projectId?.clientEmail ||
+      (invoice.projectId?.client && invoice.projectId.client.includes("@")
+        ? invoice.projectId.client
+        : "") ||
+      invoice.sentTo ||
+      "";
+
+    setRecipientEmail(clientCandidate);
+    setSendError("");
+  };
+
+  // Handler: Submit Send
+  const handleSubmitSend = async (e) => {
+    e.preventDefault();
+    if (!sendModalInvoice || !onSendInvoice) return;
+    setSendError("");
+
+    const emailTrimmed = recipientEmail.trim();
+    if (!emailTrimmed) {
+      setSendError("Recipient email address is required.");
+      return;
+    }
+    if (!emailTrimmed.includes("@") || !emailTrimmed.includes(".")) {
+      setSendError("Please enter a valid email address (e.g., client@example.com).");
+      return;
+    }
+
+    try {
+      setIsSubmittingSend(true);
+      await onSendInvoice(sendModalInvoice._id, {
+        recipientEmail: emailTrimmed,
+      });
+
+      setSendModalInvoice(null);
+      if (viewInvoice && viewInvoice._id === sendModalInvoice._id) {
+        setViewInvoice(null);
+      }
+    } catch (err) {
+      setSendError(
+        err.response?.data?.message || err.message || "Failed to send invoice to client."
+      );
+    } finally {
+      setIsSubmittingSend(false);
+    }
+  };
+
+  // Handler: Open Payment Modal
+  const handleOpenPayment = (invoice) => {
+    closeAllMenus();
+    setPaymentModalInvoice(invoice);
+
+    // Default to today's date in YYYY-MM-DD
+    const todayStr = new Date().toISOString().split("T")[0];
+    setPaymentDate(todayStr);
+    setPaymentMethod("Bank Transfer");
+    setPaymentNotes("");
+    setPaymentError("");
+  };
+
+  // Handler: Submit Payment
+  const handleSubmitPayment = async (e) => {
+    e.preventDefault();
+    if (!paymentModalInvoice || !onRecordPayment) return;
+    setPaymentError("");
+
+    try {
+      setIsSubmittingPayment(true);
+      await onRecordPayment(paymentModalInvoice._id, {
+        paymentDate: paymentDate || new Date().toISOString(),
+        paymentMethod: paymentMethod.trim() || "Bank Transfer",
+        paymentNotes: paymentNotes.trim(),
+      });
+
+      setPaymentModalInvoice(null);
+      if (viewInvoice && viewInvoice._id === paymentModalInvoice._id) {
+        setViewInvoice(null);
+      }
+    } catch (err) {
+      setPaymentError(
+        err.response?.data?.message || err.message || "Failed to record payment."
+      );
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
+
+  // Handler: Download PDF
+  const handleDownloadPdfClick = async (invoice) => {
+    if (!onDownloadPdf) return;
+    closeAllMenus();
+    setDownloadingId(invoice._id);
+    try {
+      await onDownloadPdf(invoice);
+    } catch (err) {
+      console.error("PDF download error:", err);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] overflow-hidden">
       <div className="overflow-x-auto">
@@ -123,10 +261,10 @@ const InvoiceTable = ({
               <th className="py-3.5 px-6 font-semibold">INVOICE ID</th>
               <th className="py-3.5 px-6 font-semibold">VENDOR</th>
               <th className="py-3.5 px-6 font-semibold">PROJECT</th>
-              <th className="py-3.5 px-6 font-semibold">AMOUNT</th>
-              <th className="py-3.5 px-6 font-semibold">TAX</th>
+              <th className="py-3.5 px-6 font-semibold">INVOICE DATE</th>
+              <th className="py-3.5 px-6 font-semibold">DUE DATE</th>
+              <th className="py-3.5 px-6 font-semibold">TOTAL AMOUNT</th>
               <th className="py-3.5 px-6 font-semibold">STATUS</th>
-              <th className="py-3.5 px-6 font-semibold">PAYMENT DATE</th>
               <th className="py-3.5 px-6 w-12 text-right"></th>
             </tr>
           </thead>
@@ -147,14 +285,18 @@ const InvoiceTable = ({
                 const pCode =
                   row.projectId?.projectId ||
                   (typeof row.projectId === "string" ? row.projectId : "—");
-                const formattedAmount =
-                  typeof row.amount === "number"
-                    ? `$${row.amount.toLocaleString()}`
-                    : row.amount || "$0";
-                const formattedTax =
-                  typeof row.tax === "number"
-                    ? `$${row.tax.toLocaleString()}`
-                    : row.tax || "$0";
+
+                const totalVal =
+                  typeof row.totalAmount === "number"
+                    ? row.totalAmount
+                    : typeof row.amount === "number"
+                    ? row.amount
+                    : Number(row.totalAmount || row.amount || 0);
+
+                const isReviewable = ["Submitted", "Pending"].includes(row.status);
+                const isSendable = row.status === "Approved";
+                const isPayable = ["Approved", "Sent", "Pending"].includes(row.status);
+                const isPdfEligible = ["Approved", "Sent", "Paid", "Submitted"].includes(row.status);
 
                 return (
                   <tr
@@ -171,9 +313,9 @@ const InvoiceTable = ({
                       {vName}
                     </td>
 
-                    {/* Project & Project ID Stacked */}
+                    {/* Project & Code */}
                     <td className="py-3.5 px-6">
-                      <div className="font-semibold text-[#3E3734]">
+                      <div className="font-semibold text-[#3E3734] line-clamp-1">
                         {pTitle}
                       </div>
                       {pCode && pCode !== "—" && (
@@ -183,14 +325,19 @@ const InvoiceTable = ({
                       )}
                     </td>
 
-                    {/* Amount */}
-                    <td className="py-3.5 px-6 font-bold text-[#3E3734]">
-                      {formattedAmount}
+                    {/* Invoice Date */}
+                    <td className="py-3.5 px-6 text-[#6E6763] font-medium">
+                      {formatDate(row.invoiceDate || row.createdAt)}
                     </td>
 
-                    {/* Tax */}
+                    {/* Due Date */}
                     <td className="py-3.5 px-6 text-[#6E6763] font-medium">
-                      {formattedTax}
+                      {formatDate(row.dueDate)}
+                    </td>
+
+                    {/* Total Amount */}
+                    <td className="py-3.5 px-6 font-bold text-[#3E3734]">
+                      ${totalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
 
                     {/* Status Badge */}
@@ -198,47 +345,86 @@ const InvoiceTable = ({
                       <InvoiceStatusBadge status={row.status} />
                     </td>
 
-                    {/* Payment Date */}
-                    <td className="py-3.5 px-6 text-[#6E6763] font-medium">
-                      {formatDate(row.paymentDate)}
-                    </td>
-
                     {/* Actions Menu */}
                     <td className="py-3.5 px-6 text-right relative">
                       <button
                         onClick={() => toggleMenu(row._id || invId)}
                         className="text-[#A39A94] hover:text-[#3E3734] p-1.5 rounded-lg hover:bg-[#EAE4DF]/60 transition-colors"
+                        title="Actions"
                       >
                         <FiMoreHorizontal className="text-base" />
                       </button>
 
                       {/* Dropdown Menu */}
                       {activeMenuId === (row._id || invId) && (
-                        <div className="absolute right-6 top-10 z-30 bg-white border border-[#E8E2DE] rounded-xl shadow-lg py-1 w-36 text-left text-xs font-semibold animate-fade-in">
-                          <button
-                            onClick={() => handleOpenView(row)}
-                            className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
-                          >
-                            <FiEye className="text-xs text-[#817B77]" />
-                            <span>View Details</span>
-                          </button>
+                        <div className="absolute right-6 top-10 z-30 bg-white border border-[#E8E2DE] rounded-xl shadow-lg py-1 w-44 text-left text-xs font-semibold animate-fade-in divide-y divide-[#F2EBE5]">
+                          <div className="py-1">
+                            <button
+                              onClick={() => handleOpenView(row)}
+                              className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
+                            >
+                              <FiEye className="text-xs text-[#817B77]" />
+                              <span>View Details</span>
+                            </button>
+
+                            {isPdfEligible && (
+                              <button
+                                onClick={() => handleDownloadPdfClick(row)}
+                                disabled={downloadingId === row._id}
+                                className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
+                              >
+                                <FiDownload className="text-xs text-[#817B77]" />
+                                <span>
+                                  {downloadingId === row._id ? "Downloading..." : "Download PDF"}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
                           {!isReadOnly && (
-                            <>
-                              <button
-                                onClick={() => handleOpenStatus(row)}
-                                className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2 border-t border-[#F2EBE5]"
-                              >
-                                <FiCheckCircle className="text-xs text-[#817B77]" />
-                                <span>Change Status</span>
-                              </button>
-                              <button
-                                onClick={() => handleOpenEdit(row)}
-                                className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2 border-t border-[#F2EBE5]"
-                              >
-                                <FiEdit2 className="text-xs text-[#817B77]" />
-                                <span>Edit Amount</span>
-                              </button>
-                            </>
+                            <div className="py-1">
+                              {/* If awaiting review: Review action */}
+                              {isReviewable && (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenReview(row, "APPROVE")}
+                                    className="w-full px-3.5 py-2 text-[#2E7D32] hover:bg-[#E8F5E9]/50 flex items-center gap-2"
+                                  >
+                                    <FiCheckCircle className="text-xs text-[#2E7D32]" />
+                                    <span>Approve Invoice</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenReview(row, "REJECT")}
+                                    className="w-full px-3.5 py-2 text-[#C62828] hover:bg-[#FFEBEE]/50 flex items-center gap-2"
+                                  >
+                                    <FiXCircle className="text-xs text-[#C62828]" />
+                                    <span>Reject Invoice</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {/* If Approved: Send to client */}
+                              {isSendable && (
+                                <button
+                                  onClick={() => handleOpenSend(row)}
+                                  className="w-full px-3.5 py-2 text-[#1565C0] hover:bg-[#E3F2FD]/50 flex items-center gap-2"
+                                >
+                                  <FiSend className="text-xs text-[#1565C0]" />
+                                  <span>Send to Client</span>
+                                </button>
+                              )}
+
+                              {/* If Approved or Sent: Record payment */}
+                              {isPayable && (
+                                <button
+                                  onClick={() => handleOpenPayment(row)}
+                                  className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
+                                >
+                                  <FiDollarSign className="text-xs text-[#2E7D32]" />
+                                  <span>Record Payment</span>
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -248,11 +434,8 @@ const InvoiceTable = ({
               })
             ) : (
               <tr>
-                <td
-                  colSpan={8}
-                  className="py-12 px-6 text-center text-[#817B77]"
-                >
-                  <p className="text-sm font-semibold">No invoices found</p>
+                <td colSpan={8} className="py-12 px-6 text-center text-[#817B77]">
+                  <p className="text-sm font-semibold text-[#3E3734]">No invoices found</p>
                   <p className="text-xs mt-1">
                     Try adjusting your search query or filter settings.
                   </p>
@@ -263,227 +446,638 @@ const InvoiceTable = ({
         </table>
       </div>
 
-      {/* View Invoice Modal */}
+      {/* 1. VIEW INVOICE DETAILS MODAL */}
       {viewInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#E8E2DE] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-[#E8E2DE] space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-[#F2EBE5] pb-4">
               <div>
-                <h3 className="text-sm font-bold text-[#3E3734]">
-                  Invoice {viewInvoice.invoiceId}
-                </h3>
-                <p className="text-xs text-[#817B77]">
-                  Created {formatDate(viewInvoice.createdAt)}
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-bold text-[#3E3734]">
+                    Invoice {viewInvoice.invoiceId}
+                  </h3>
+                  <InvoiceStatusBadge status={viewInvoice.status} />
+                </div>
+                <p className="text-xs text-[#817B77] mt-1">
+                  Issued: {formatDate(viewInvoice.invoiceDate || viewInvoice.createdAt)} • Due: {formatDate(viewInvoice.dueDate)}
                 </p>
               </div>
               <button
                 onClick={() => setViewInvoice(null)}
-                className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
+                className="text-[#817B77] hover:text-[#3E3734] p-1.5 rounded-xl hover:bg-[#FAF7F5] transition-colors"
+                aria-label="Close"
               >
-                <FiX className="text-base" />
+                <FiX className="text-lg" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="font-semibold text-[#817B77]">Vendor:</span>{" "}
-                <p className="text-[#3E3734] font-medium mt-0.5">
-                  {viewInvoice.vendorName || viewInvoice.vendorId?.companyName || "—"}
+            {/* Rejection Alert if rejected */}
+            {viewInvoice.status === "Rejected" && viewInvoice.rejectionReason && (
+              <div className="bg-[#FFEBEE] border border-[#C62828]/20 rounded-2xl p-4 text-xs text-[#C62828] space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <FiAlertCircle className="text-sm" />
+                  <span>Invoice Rejection Reason</span>
+                </div>
+                <p className="text-[#3E3734] font-medium pl-5">
+                  {viewInvoice.rejectionReason}
                 </p>
               </div>
-              <div>
-                <span className="font-semibold text-[#817B77]">Project:</span>{" "}
-                <p className="text-[#3E3734] font-medium mt-0.5">
-                  {viewInvoice.projectTitle || viewInvoice.projectId?.projectName || "—"}
-                </p>
+            )}
+
+            {/* Vendor & Project Info Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Vendor Box */}
+              <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-2xl p-4 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#817B77] uppercase text-[10px] tracking-wider">
+                  <FiUser className="text-xs" />
+                  <span>Vendor Information</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-[#3E3734] text-sm">
+                    {viewInvoice.vendorName || viewInvoice.vendorId?.companyName || "—"}
+                  </h4>
+                  {viewInvoice.vendorId?.contactName && (
+                    <p className="text-[#6E6763] font-medium mt-0.5">
+                      Contact: {viewInvoice.vendorId.contactName}
+                    </p>
+                  )}
+                  {viewInvoice.vendorId?.location && (
+                    <p className="text-[#817B77] text-[11px] mt-0.5">
+                      {viewInvoice.vendorId.location}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <span className="font-semibold text-[#817B77]">Amount:</span>{" "}
-                <p className="text-[#3E3734] font-bold mt-0.5">
-                  ${Number(viewInvoice.amount || 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="font-semibold text-[#817B77]">Tax:</span>{" "}
-                <p className="text-[#3E3734] font-medium mt-0.5">
-                  ${Number(viewInvoice.tax || 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="font-semibold text-[#817B77]">Total Amount:</span>{" "}
-                <p className="text-[#2E7D32] font-bold mt-0.5">
-                  ${Number(viewInvoice.totalAmount || (Number(viewInvoice.amount || 0) + Number(viewInvoice.tax || 0))).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="font-semibold text-[#817B77]">Payment Date:</span>{" "}
-                <p className="text-[#3E3734] font-medium mt-0.5">
-                  {formatDate(viewInvoice.paymentDate)}
-                </p>
-              </div>
-              <div className="col-span-2 flex items-center gap-2 pt-2 border-t border-[#F2EBE5]">
-                <span className="font-semibold text-[#817B77]">Status:</span>
-                <InvoiceStatusBadge status={viewInvoice.status} />
+
+              {/* Project Box */}
+              <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-2xl p-4 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#817B77] uppercase text-[10px] tracking-wider">
+                  <FiBriefcase className="text-xs" />
+                  <span>Project Details</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-[#3E3734] text-sm">
+                    {viewInvoice.projectTitle || viewInvoice.projectId?.projectName || "—"}
+                  </h4>
+                  <p className="text-[#6E6763] font-medium mt-0.5">
+                    Code: {viewInvoice.projectId?.projectId || "—"}
+                  </p>
+                  <p className="text-[#817B77] text-[11px] mt-0.5">
+                    Client: {viewInvoice.projectId?.client || "—"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#F2EBE5] flex justify-end">
-              <button
-                onClick={() => setViewInvoice(null)}
-                className="bg-[#F2EBE5] text-[#3E3734] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#EAE4DF] transition-colors"
-              >
-                Close
-              </button>
+            {/* Itemized Line Items Table */}
+            <div>
+              <h4 className="text-xs font-bold text-[#3E3734] mb-2 flex items-center gap-1.5">
+                <FiFileText className="text-xs text-[#817B77]" />
+                <span>Line Items</span>
+              </h4>
+              <div className="border border-[#E8E2DE] rounded-xl overflow-hidden text-xs">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#FAF7F5] border-b border-[#F2EBE5] text-[10px] font-bold text-[#817B77] uppercase">
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3 text-right w-16">Qty</th>
+                      <th className="py-2.5 px-3 text-right w-24">Rate</th>
+                      <th className="py-2.5 px-3 text-right w-24">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F7F4F2]">
+                    {Array.isArray(viewInvoice.items) && viewInvoice.items.length > 0 ? (
+                      viewInvoice.items.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td className="py-2.5 px-3 font-medium text-[#3E3734]">
+                            {item.description}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-[#6E6763]">
+                            {item.quantity}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-[#6E6763]">
+                            ${Number(item.rate || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-[#3E3734]">
+                            ${Number(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="py-2.5 px-3 font-medium text-[#3E3734]">
+                          {viewInvoice.projectTitle || "Field Services"}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-[#6E6763]">1</td>
+                        <td className="py-2.5 px-3 text-right text-[#6E6763]">
+                          ${Number(viewInvoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold text-[#3E3734]">
+                          ${Number(viewInvoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Financial Summary */}
+              <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-4 space-y-2 mt-3">
+                <div className="flex items-center justify-between text-xs text-[#817B77]">
+                  <span>Subtotal</span>
+                  <span className="font-semibold text-[#3E3734]">
+                    ${Number(viewInvoice.subtotal ?? viewInvoice.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-[#817B77]">
+                  <span>Tax (Fixed 0%)</span>
+                  <span className="font-semibold text-[#3E3734]">$0.00</span>
+                </div>
+                <div className="pt-2 border-t border-[#E8E2DE] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#3E3734]">Total Amount</span>
+                  <span className="text-base font-bold text-[#2E7D32]">
+                    ${Number(viewInvoice.totalAmount ?? viewInvoice.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes if present */}
+            {viewInvoice.notes && (
+              <div className="text-xs">
+                <span className="font-bold text-[#817B77]">Notes:</span>
+                <p className="text-[#3E3734] bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 mt-1 font-medium whitespace-pre-wrap">
+                  {viewInvoice.notes}
+                </p>
+              </div>
+            )}
+
+            {/* Sent or Payment Details if applicable */}
+            {(viewInvoice.sentTo || viewInvoice.paymentDate) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#F2EBE5] text-xs">
+                {viewInvoice.sentTo && (
+                  <div className="bg-[#F3E8FF]/40 border border-[#7E22CE]/10 rounded-xl p-3">
+                    <span className="font-bold text-[#7E22CE] flex items-center gap-1">
+                      <FiMail className="text-xs" /> Sent to Client
+                    </span>
+                    <p className="text-[#3E3734] font-medium mt-1 truncate">
+                      {viewInvoice.sentTo}
+                    </p>
+                    <p className="text-[10px] text-[#817B77] mt-0.5">
+                      {formatDateTime(viewInvoice.sentAt)}
+                    </p>
+                  </div>
+                )}
+
+                {viewInvoice.paymentDate && (
+                  <div className="bg-[#E8F5E9]/50 border border-[#2E7D32]/10 rounded-xl p-3">
+                    <span className="font-bold text-[#2E7D32] flex items-center gap-1">
+                      <FiCheckCircle className="text-xs" /> Payment Recorded
+                    </span>
+                    <p className="text-[#3E3734] font-medium mt-1">
+                      Method: {viewInvoice.paymentMethod || "Bank Transfer"}
+                    </p>
+                    <p className="text-[10px] text-[#817B77] mt-0.5">
+                      Paid: {formatDate(viewInvoice.paymentDate)}
+                    </p>
+                    {viewInvoice.paymentNotes && (
+                      <p className="text-[10px] text-[#6E6763] mt-1 italic">
+                        {viewInvoice.paymentNotes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Review History Timeline */}
+            {Array.isArray(viewInvoice.reviewHistory) && viewInvoice.reviewHistory.length > 0 && (
+              <div className="pt-2 border-t border-[#F2EBE5]">
+                <h4 className="text-xs font-bold text-[#3E3734] mb-2 flex items-center gap-1.5">
+                  <FiClock className="text-xs text-[#817B77]" />
+                  <span>Activity & Review History</span>
+                </h4>
+                <div className="space-y-2">
+                  {viewInvoice.reviewHistory.map((hist, idx) => (
+                    <div
+                      key={hist._id || idx}
+                      className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-2.5 text-xs flex items-start justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#3E3734] text-[11px]">
+                            {hist.action}
+                          </span>
+                          <span className="text-[10px] text-[#817B77]">
+                            by {hist.actorEmail || hist.actorRole || "User"}
+                          </span>
+                        </div>
+                        {hist.reason && (
+                          <p className="text-[#6E6763] text-[11px] mt-1 font-medium">
+                            {hist.reason}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[#A39A94] shrink-0 font-medium">
+                        {formatDateTime(hist.timestamp)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer with Actions */}
+            <div className="pt-4 border-t border-[#F2EBE5] flex flex-wrap items-center justify-between gap-2">
+              <div>
+                {["Approved", "Sent", "Paid", "Submitted"].includes(viewInvoice.status) && (
+                  <button
+                    onClick={() => handleDownloadPdfClick(viewInvoice)}
+                    disabled={downloadingId === viewInvoice._id}
+                    className="bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+                  >
+                    <FiDownload className="text-xs text-[#817B77]" />
+                    <span>
+                      {downloadingId === viewInvoice._id ? "Downloading..." : "Download PDF"}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!isReadOnly && ["Submitted", "Pending"].includes(viewInvoice.status) && (
+                  <>
+                    <button
+                      onClick={() => handleOpenReview(viewInvoice, "REJECT")}
+                      className="bg-[#FFEBEE] hover:bg-[#FFCDD2] text-[#C62828] text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
+                    >
+                      <FiXCircle className="text-xs" />
+                      <span>Reject</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenReview(viewInvoice, "APPROVE")}
+                      className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+                    >
+                      <FiCheck className="text-xs" />
+                      <span>Approve</span>
+                    </button>
+                  </>
+                )}
+
+                {!isReadOnly && viewInvoice.status === "Approved" && (
+                  <button
+                    onClick={() => handleOpenSend(viewInvoice)}
+                    className="bg-[#1565C0] hover:bg-[#0D47A1] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+                  >
+                    <FiSend className="text-xs" />
+                    <span>Send to Client</span>
+                  </button>
+                )}
+
+                {!isReadOnly && ["Approved", "Sent", "Pending"].includes(viewInvoice.status) && (
+                  <button
+                    onClick={() => handleOpenPayment(viewInvoice)}
+                    className="bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+                  >
+                    <FiDollarSign className="text-xs" />
+                    <span>Record Payment</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setViewInvoice(null)}
+                  className="bg-[#F2EBE5] text-[#3E3734] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#EAE4DF] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Change Status Modal */}
-      {statusInvoice && (
+      {/* 2. REVIEW INVOICE MODAL (APPROVE / REJECT) */}
+      {reviewModalInvoice && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <form
-            onSubmit={handleSaveStatus}
-            className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-[#E8E2DE] space-y-4"
+            onSubmit={handleSubmitReview}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E8E2DE] space-y-4"
           >
             <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
               <h3 className="text-sm font-bold text-[#3E3734]">
-                Change Invoice Status
+                Review Invoice {reviewModalInvoice.invoiceId}
               </h3>
               <button
                 type="button"
-                onClick={() => setStatusInvoice(null)}
+                onClick={() => setReviewModalInvoice(null)}
                 className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
               >
                 <FiX className="text-base" />
               </button>
             </div>
 
-            <p className="text-xs text-[#817B77]">
-              Invoice: <span className="font-semibold text-[#3E3734]">{statusInvoice.invoiceId}</span>
-            </p>
-
-            {statusError && (
+            {reviewError && (
               <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
                 <FiAlertCircle className="text-base shrink-0" />
-                <span>{statusError}</span>
+                <span>{reviewError}</span>
               </div>
             )}
 
-            <div>
-              <label className="block text-xs font-bold text-[#3E3734] mb-1">
-                Select Status
-              </label>
-              <select
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC]"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Paid">Paid</option>
-              </select>
+            <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold text-[#817B77]">Vendor:</span>{" "}
+                <span className="text-[#3E3734] font-bold">
+                  {reviewModalInvoice.vendorName || reviewModalInvoice.vendorId?.companyName || "—"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-[#817B77]">Project:</span>{" "}
+                <span className="text-[#3E3734]">
+                  {reviewModalInvoice.projectTitle || reviewModalInvoice.projectId?.projectName || "—"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-[#817B77]">Total Amount:</span>{" "}
+                <span className="text-[#2E7D32] font-bold">
+                  ${Number(reviewModalInvoice.totalAmount || reviewModalInvoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </p>
             </div>
+
+            {/* Action Selector */}
+            <div>
+              <label className="block text-xs font-bold text-[#3E3734] mb-2">
+                Decision
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReviewAction("APPROVE")}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                    reviewAction === "APPROVE"
+                      ? "bg-[#E8F5E9] border-[#2E7D32] text-[#2E7D32] shadow-xs"
+                      : "bg-white border-[#E8E2DE] text-[#817B77] hover:bg-[#FAF7F5]"
+                  }`}
+                >
+                  <FiCheck className="text-xs" />
+                  <span>Approve</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReviewAction("REJECT")}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                    reviewAction === "REJECT"
+                      ? "bg-[#FFEBEE] border-[#C62828] text-[#C62828] shadow-xs"
+                      : "bg-white border-[#E8E2DE] text-[#817B77] hover:bg-[#FAF7F5]"
+                  }`}
+                >
+                  <FiXCircle className="text-xs" />
+                  <span>Reject</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Rejection Reason Textarea (Conditional) */}
+            {reviewAction === "REJECT" && (
+              <div>
+                <label className="block text-xs font-bold text-[#3E3734] mb-1">
+                  Rejection Reason <span className="text-[#C62828]">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Explain why this invoice is being rejected so the vendor can rectify and resubmit..."
+                  className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors leading-relaxed"
+                  required
+                />
+              </div>
+            )}
 
             <div className="pt-3 border-t border-[#F2EBE5] flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setStatusInvoice(null)}
-                disabled={isSubmittingStatus}
+                onClick={() => setReviewModalInvoice(null)}
+                disabled={isSubmittingReview}
                 className="bg-white border border-[#E8E2DE] text-[#6E6763] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmittingStatus}
-                className="bg-[#8A817C] text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#6E6763] transition-colors disabled:opacity-50"
+                disabled={isSubmittingReview}
+                className={`text-white font-semibold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 ${
+                  reviewAction === "APPROVE"
+                    ? "bg-[#2E7D32] hover:bg-[#1B5E20]"
+                    : "bg-[#C62828] hover:bg-[#B71C1C]"
+                }`}
               >
-                {isSubmittingStatus ? "Updating..." : "Save Status"}
+                {isSubmittingReview
+                  ? "Processing..."
+                  : reviewAction === "APPROVE"
+                  ? "Confirm Approval"
+                  : "Reject Invoice"}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Edit Invoice Modal */}
-      {editInvoice && (
+      {/* 3. SEND INVOICE MODAL */}
+      {sendModalInvoice && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <form
-            onSubmit={handleSaveEdit}
-            className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-[#E8E2DE] space-y-4"
+            onSubmit={handleSubmitSend}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E8E2DE] space-y-4"
           >
             <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
               <h3 className="text-sm font-bold text-[#3E3734]">
-                Edit Invoice Amounts
+                Send Invoice {sendModalInvoice.invoiceId}
               </h3>
               <button
                 type="button"
-                onClick={() => setEditInvoice(null)}
+                onClick={() => setSendModalInvoice(null)}
                 className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
               >
                 <FiX className="text-base" />
               </button>
             </div>
 
-            <p className="text-xs text-[#817B77]">
-              Invoice: <span className="font-semibold text-[#3E3734]">{editInvoice.invoiceId}</span>
-            </p>
-
-            {editError && (
+            {sendError && (
               <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
                 <FiAlertCircle className="text-base shrink-0" />
-                <span>{editError}</span>
+                <span>{sendError}</span>
               </div>
             )}
 
-            <div>
-              <label className="block text-xs font-bold text-[#3E3734] mb-1">
-                Amount ($) <span className="text-[#C62828]">*</span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC]"
-              />
+            <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold text-[#817B77]">Project:</span>{" "}
+                <span className="text-[#3E3734] font-medium">
+                  {sendModalInvoice.projectTitle || sendModalInvoice.projectId?.projectName || "—"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-[#817B77]">Total Amount:</span>{" "}
+                <span className="text-[#2E7D32] font-bold">
+                  ${Number(sendModalInvoice.totalAmount || sendModalInvoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-[#3E3734] mb-1">
-                Tax ($)
+                Recipient Email Address <span className="text-[#C62828]">*</span>
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={editTax}
-                onChange={(e) => setEditTax(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC]"
-              />
+              <div className="relative">
+                <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs" />
+                <input
+                  type="email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder="e.g., client@example.com"
+                  className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC] transition-colors"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-[#817B77] mt-1.5 leading-relaxed">
+                The approved invoice PDF will be dispatched to this client address. If delivery fails, the invoice remains Approved and retryable.
+              </p>
             </div>
-
-            <p className="text-[11px] text-[#817B77] italic">
-              Total Amount will automatically be computed by backend as Amount + Tax.
-            </p>
 
             <div className="pt-3 border-t border-[#F2EBE5] flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setEditInvoice(null)}
-                disabled={isSubmittingEdit}
+                onClick={() => setSendModalInvoice(null)}
+                disabled={isSubmittingSend}
                 className="bg-white border border-[#E8E2DE] text-[#6E6763] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmittingEdit}
-                className="bg-[#8A817C] text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#6E6763] transition-colors disabled:opacity-50"
+                disabled={isSubmittingSend}
+                className="bg-[#1565C0] hover:bg-[#0D47A1] text-white font-semibold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5"
               >
-                {isSubmittingEdit ? "Saving..." : "Save Changes"}
+                <FiSend className="text-xs" />
+                <span>{isSubmittingSend ? "Sending..." : "Send Invoice"}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 4. RECORD PAYMENT MODAL */}
+      {paymentModalInvoice && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSubmitPayment}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E8E2DE] space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+              <h3 className="text-sm font-bold text-[#3E3734]">
+                Record Payment
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPaymentModalInvoice(null)}
+                className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
+              >
+                <FiX className="text-base" />
+              </button>
+            </div>
+
+            {paymentError && (
+              <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold text-[#817B77]">Invoice:</span>{" "}
+                <span className="text-[#3E3734] font-bold">
+                  {paymentModalInvoice.invoiceId}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-[#817B77]">Amount Due:</span>{" "}
+                <span className="text-[#2E7D32] font-bold">
+                  ${Number(paymentModalInvoice.totalAmount || paymentModalInvoice.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </p>
+            </div>
+
+            {/* Payment Date */}
+            <div>
+              <label className="block text-xs font-bold text-[#3E3734] mb-1">
+                Payment Date <span className="text-[#C62828]">*</span>
+              </label>
+              <div className="relative">
+                <FiCalendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs" />
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC] transition-colors cursor-pointer"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div>
+              <label className="block text-xs font-bold text-[#3E3734] mb-1">
+                Payment Method <span className="text-[#C62828]">*</span>
+              </label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] cursor-pointer"
+              >
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Check">Check</option>
+                <option value="ACH">ACH</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Wire Transfer">Wire Transfer</option>
+                <option value="Cash">Cash</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-bold text-[#3E3734] mb-1">
+                Reference / Notes
+              </label>
+              <textarea
+                rows={2}
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                placeholder="Transaction ID, check #, or bank reference..."
+                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors leading-relaxed"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-[#F2EBE5] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentModalInvoice(null)}
+                disabled={isSubmittingPayment}
+                className="bg-white border border-[#E8E2DE] text-[#6E6763] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingPayment}
+                className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-semibold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <FiCheck className="text-xs" />
+                <span>{isSubmittingPayment ? "Recording..." : "Record Payment"}</span>
               </button>
             </div>
           </form>

@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { VendorProjectItem } from "@/src/api/dashboard.api";
+import Colors from "@/src/constants/color";
 
 export interface ProjectReportSummaryProps {
   project: VendorProjectItem;
@@ -52,15 +53,15 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
   return (
     <View style={styles.cardContainer}>
       <View style={styles.headerRow}>
-        <Ionicons name="document-text-outline" size={18} color="#374151" />
+        <Ionicons name="document-text-outline" size={18} color="#797979" />
         <Text style={styles.cardTitle}>Project Summary</Text>
       </View>
 
       <View style={styles.rowsList}>
         {/* Project Name */}
         <View style={styles.summaryRow}>
-          <View style={[styles.iconCircle, { backgroundColor: "#FEE2E2" }]}>
-            <Ionicons name="briefcase-outline" size={16} color="#DC2626" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="briefcase-outline" size={16} color="#797979" />
           </View>
           <View style={styles.summaryTextContainer}>
             <Text style={styles.label}>Project Name</Text>
@@ -72,8 +73,8 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
 
         {/* Work Order ID */}
         <View style={styles.summaryRow}>
-          <View style={[styles.iconCircle, { backgroundColor: "#FFEDD5" }]}>
-            <Ionicons name="pricetag-outline" size={16} color="#EA580C" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="pricetag-outline" size={16} color="#797979" />
           </View>
           <View style={styles.summaryTextContainer}>
             <Text style={styles.label}>Work Order ID</Text>
@@ -83,8 +84,8 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
 
         {/* Property Address */}
         <View style={styles.summaryRow}>
-          <View style={[styles.iconCircle, { backgroundColor: "#FEF3C7" }]}>
-            <Ionicons name="location-outline" size={16} color="#D97706" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="location-outline" size={16} color="#797979" />
           </View>
           <View style={styles.summaryTextContainer}>
             <Text style={styles.label}>Property Address</Text>
@@ -97,8 +98,8 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
         {/* Client Name */}
         {project.client ? (
           <View style={styles.summaryRow}>
-            <View style={[styles.iconCircle, { backgroundColor: "#E0E7FF" }]}>
-              <Ionicons name="person-outline" size={16} color="#4F46E5" />
+            <View style={styles.iconCircle}>
+              <Ionicons name="person-outline" size={16} color="#797979" />
             </View>
             <View style={styles.summaryTextContainer}>
               <Text style={styles.label}>Client Name</Text>
@@ -110,8 +111,8 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
         {/* Vendor Name */}
         {project.vendorName ? (
           <View style={styles.summaryRow}>
-            <View style={[styles.iconCircle, { backgroundColor: "#F3E8FF" }]}>
-              <Ionicons name="business-outline" size={16} color="#9333EA" />
+            <View style={styles.iconCircle}>
+              <Ionicons name="business-outline" size={16} color="#797979" />
             </View>
             <View style={styles.summaryTextContainer}>
               <Text style={styles.label}>Vendor Name</Text>
@@ -122,8 +123,8 @@ export const ProjectReportSummary = ({ project }: ProjectReportSummaryProps) => 
 
         {/* Completion / Update Date */}
         <View style={styles.summaryRow}>
-          <View style={[styles.iconCircle, { backgroundColor: "#DCFCE7" }]}>
-            <Ionicons name="calendar-outline" size={16} color="#16A34A" />
+          <View style={styles.iconCircle}>
+            <Ionicons name="calendar-outline" size={16} color="#797979" />
           </View>
           <View style={styles.summaryTextContainer}>
             <Text style={styles.label}>Completion Date</Text>
@@ -192,6 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: Colors.peach,
   },
   summaryTextContainer: {
     flex: 1,

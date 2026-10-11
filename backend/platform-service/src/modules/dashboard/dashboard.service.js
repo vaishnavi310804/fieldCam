@@ -110,8 +110,8 @@ export const getAdminDashboardData = async () => {
     },
   };
 
-  // 2. Revenue Aggregation from Paid/Approved Invoices
-  const allInvoices = await Invoice.find({ status: { $in: ["Paid", "Approved"] } }).lean();
+  // 2. Revenue Aggregation from Paid Invoices (Real paid earnings)
+  const allPaidInvoices = await Invoice.find({ status: "Paid" }).lean();
   const monthsList = [
     "Jan",
     "Feb",
@@ -129,7 +129,7 @@ export const getAdminDashboardData = async () => {
   const revenueMap = {};
   monthsList.forEach((m) => (revenueMap[m] = 0));
 
-  allInvoices.forEach((inv) => {
+  allPaidInvoices.forEach((inv) => {
     const d = inv.paymentDate ? new Date(inv.paymentDate) : new Date(inv.createdAt);
     if (!isNaN(d.getTime())) {
       const mName = d.toLocaleDateString("en-US", { month: "short" });
@@ -144,7 +144,7 @@ export const getAdminDashboardData = async () => {
     revenue: Number((revenueMap[m] / 1000).toFixed(1)),
   }));
 
-  const hasInvoiceData = allInvoices.length > 0;
+  const hasInvoiceData = allPaidInvoices.length > 0;
 
   // 3. Real Vendor Performance Scores
   const allVendors = await Vendor.find({}).lean();

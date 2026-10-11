@@ -1,8 +1,11 @@
 import Invoice from "./invoice.model.js";
 import Project from "../project/project.model.js";
 import Vendor from "../vendor/vendor.model.js";
+import User from "../users/user.model.js";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
+import { sendInvoiceEmail } from "./invoice.email.js";
+import { generateInvoicePdf } from "./invoice.pdf.js";
 
 const getVendorUserId = async (vendorId) => {
   if (!vendorId) return null;
@@ -10,67 +13,315 @@ const getVendorUserId = async (vendorId) => {
   return vendor ? vendor.userId : null;
 };
 
-export const createInvoice = async (invoiceData) => {
-  const { projectId, vendorId, amount, tax = 0, invoiceId } = invoiceData;
-
-  // 1. Verify Project exists
-  if (!mongoose.Types.ObjectId.isValid(projectId)) {
-    throw new Error("Invalid project ID format");
+/**
+ * Calculates line item amounts, subtotal, and ensures tax is fixed at 0.
+ * Server strictly calculates all figures; client values are not trusted.
+ */
+export const calculateLineItems = (rawItems = []) => {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    return {
+      processedItems: [],
+      subtotal: 0,
+      tax: 0,
+      totalAmount: 0,
+      amount: 0,
+    };
   }
+
+  const processedItems = rawItems.map((item, idx) => {
+    const description = (item.description || "").trim();
+    if (!description) {
+      const err = new Error(`Line item #${idx + 1} requires a valid description`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const qty = Number(item.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      const err = new Error(
+        `Line item "${description}" must have quantity greater than 0`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const rate = Number(item.rate);
+    if (isNaN(rate) || rate < 0) {
+      const err = new Error(
+        `Line item "${description}" must have rate greater than or equal to 0`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const lineAmount = Math.round(qty * rate * 100) / 100;
+
+    return {
+      description,
+      quantity: qty,
+      rate,
+      amount: lineAmount,
+    };
+  });
+
+  const subtotal = Math.round(
+    processedItems.reduce((sum, item) => sum + item.amount, 0) * 100
+  ) / 100;
+
+  // Phase 1 rule: Tax is strictly 0, Total must equal server subtotal
+  const tax = 0;
+  const totalAmount = subtotal;
+
+  return {
+    processedItems,
+    subtotal,
+    tax,
+    totalAmount,
+    amount: subtotal,
+  };
+};
+
+/**
+ * Generates an invoice number based on the project's code.
+ */
+export const generateInvoiceNumber = async (project, clientProvidedId = null) => {
+  if (clientProvidedId && typeof clientProvidedId === "string" && clientProvidedId.trim()) {
+    const candidate = clientProvidedId.trim();
+    const existing = await Invoice.findOne({ invoiceId: candidate });
+    if (!existing) return candidate;
+  }
+
+  const baseCode = project.projectId || `PRJ-${project._id.toString().slice(-6).toUpperCase()}`;
+  const candidate = `INV-${baseCode}`;
+
+  const existing = await Invoice.findOne({ invoiceId: candidate });
+  if (!existing) {
+    return candidate;
+  }
+
+  // If collision with legacy, append suffix
+  const uniqueCandidate = `${candidate}-${Date.now().toString().slice(-4)}`;
+  return uniqueCandidate;
+};
+
+/**
+ * Creates a new invoice (Vendor Draft / Submission, or Admin Creation).
+ */
+export const createInvoice = async (invoiceData, user = {}) => {
+  const { projectId, items = [], invoiceDate, dueDate, notes, status: requestedStatus } = invoiceData;
+
+  // 1. Verify Project ID format
+  if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+    const err = new Error("Invalid project ID format");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 2. Fetch Project with populated details
   const project = await Project.findById(projectId);
   if (!project) {
-    throw new Error("Project not found");
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
   }
 
-  // 2. Verify Vendor exists
-  if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-    throw new Error("Invalid vendor ID format");
+  // 3. Resolve Vendor Profile
+  let vendor = null;
+  if (user.role === "VENDOR") {
+    vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor) {
+      const err = new Error("Vendor profile not found for authenticated user");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Verify vendor ownership of project
+    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("Access denied: You are not assigned to this project");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Verify project approval eligibility
+    if (project.status !== "Approved") {
+      const err = new Error(
+        `Project is not eligible for invoicing. Project status must be "Approved", currently "${project.status}"`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    // Admin / Super Admin creation
+    const targetVendorId = invoiceData.vendorId || project.vendorId;
+    if (!targetVendorId || !mongoose.Types.ObjectId.isValid(targetVendorId)) {
+      const err = new Error("Vendor ID is required for invoice creation");
+      err.statusCode = 400;
+      throw err;
+    }
+    vendor = await Vendor.findById(targetVendorId);
+    if (!vendor) {
+      const err = new Error("Vendor not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (project.vendorId && project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("Vendor ID does not match project assigned vendor");
+      err.statusCode = 400;
+      throw err;
+    }
   }
-  const vendor = await Vendor.findById(vendorId);
-  if (!vendor) {
-    throw new Error("Vendor not found");
+
+  // 4. Verify Company Boundary (if present)
+  if (user.role === "VENDOR") {
+    const vendorUser = await User.findById(user.id);
+    if (vendorUser?.companyId && project.companyId) {
+      if (vendorUser.companyId.toString() !== project.companyId.toString()) {
+        const err = new Error("Access denied: Project does not belong to your company");
+        err.statusCode = 403;
+        throw err;
+      }
+    }
   }
 
-  // 3. Verify Project/Vendor assignment match if Project already has a vendorId
-  if (project.vendorId && project.vendorId.toString() !== vendorId.toString()) {
-    throw new Error("Vendor ID does not match project assigned vendor");
+  // 5. Allow ONLY ONE invoice per project
+  const existingProjectInvoice = await Invoice.findOne({ projectId: project._id });
+  if (existingProjectInvoice) {
+    const err = new Error(
+      `An invoice (${existingProjectInvoice.invoiceId}) already exists for project "${project.projectName}"`
+    );
+    err.statusCode = 409;
+    throw err;
   }
 
-  // 4. Derive projectTitle from Project.projectName when omitted
-  if (!invoiceData.projectTitle || !invoiceData.projectTitle.trim()) {
-    invoiceData.projectTitle = project.projectName;
+  // 6. Calculate Line Items & Server Totals
+  let calculation;
+  if (Array.isArray(items) && items.length > 0) {
+    calculation = calculateLineItems(items);
+  } else if (invoiceData.amount !== undefined && !isNaN(Number(invoiceData.amount))) {
+    // Backward compatibility for legacy admin creation
+    const legacyAmount = Number(invoiceData.amount);
+    calculation = calculateLineItems([
+      {
+        description: invoiceData.projectTitle || project.projectName || "Project Services",
+        quantity: 1,
+        rate: legacyAmount,
+      },
+    ]);
+  } else {
+    calculation = {
+      processedItems: [],
+      subtotal: 0,
+      tax: 0,
+      totalAmount: 0,
+      amount: 0,
+    };
   }
 
-  // 5. Derive vendorName from Vendor.companyName when omitted
-  if (!invoiceData.vendorName || !invoiceData.vendorName.trim()) {
-    invoiceData.vendorName = vendor.companyName;
+  // 7. Validate Status & Lifecycle Transitions
+  let initialStatus = requestedStatus || (user.role === "VENDOR" ? "Draft" : "Pending");
+  if (user.role === "VENDOR") {
+    if (!["Draft", "Submitted"].includes(initialStatus)) {
+      initialStatus = "Draft";
+    }
   }
 
-  // 6. Prevent duplicate invoiceId
-  const existingInvoice = await Invoice.findOne({ invoiceId: invoiceId.trim() });
-  if (existingInvoice) {
-    throw new Error("Invoice ID already exists");
+  // If submitting immediately, validate requirements
+  if (initialStatus === "Submitted") {
+    if (calculation.processedItems.length === 0) {
+      const err = new Error("Cannot submit invoice without at least one line item");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (calculation.totalAmount <= 0) {
+      const err = new Error("Cannot submit invoice with total amount of zero");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!dueDate) {
+      const err = new Error("Due date is required when submitting an invoice");
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
-  // 7. Calculate totalAmount = amount + tax (do not trust client totalAmount)
-  const numAmount = Number(amount);
-  const numTax = Number(tax || 0);
-  invoiceData.amount = numAmount;
-  invoiceData.tax = numTax;
-  invoiceData.totalAmount = numAmount + numTax;
-
-  // 8. If status is Paid and paymentDate not supplied, set paymentDate
-  if (invoiceData.status === "Paid" && !invoiceData.paymentDate) {
-    invoiceData.paymentDate = new Date();
+  // 8. Validate Dates
+  const parsedInvoiceDate = invoiceDate ? new Date(invoiceDate) : new Date();
+  if (isNaN(parsedInvoiceDate.getTime())) {
+    const err = new Error("Invalid invoice date format");
+    err.statusCode = 400;
+    throw err;
   }
 
-  const invoice = await Invoice.create(invoiceData);
+  let parsedDueDate = null;
+  if (dueDate) {
+    parsedDueDate = new Date(dueDate);
+    if (isNaN(parsedDueDate.getTime())) {
+      const err = new Error("Invalid due date format");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (parsedDueDate < parsedInvoiceDate) {
+      const err = new Error("Due date cannot be earlier than invoice date");
+      err.statusCode = 400;
+      throw err;
+    }
+  }
 
-  // Side effect: Notify vendor
+  // 9. Generate Unique Invoice Number
+  const invoiceId = await generateInvoiceNumber(project, invoiceData.invoiceId);
+
+  // 10. Build Review History Entry
+  const initialAction = initialStatus === "Submitted" ? "SUBMITTED" : "DRAFT_SAVED";
+  const initialHistory = [
+    {
+      action: initialAction,
+      actorId: user.id || null,
+      actorRole: user.role || "SYSTEM",
+      actorEmail: user.email || null,
+      reason: null,
+      timestamp: new Date(),
+    },
+  ];
+
+  // 11. Create Document
+  let invoice;
+  try {
+    invoice = await Invoice.create({
+      invoiceId,
+      projectId: project._id,
+      projectTitle: project.projectName,
+      vendorId: vendor._id,
+      vendorName: vendor.companyName,
+      companyId: project.companyId || null,
+      items: calculation.processedItems,
+      subtotal: calculation.subtotal,
+      amount: calculation.amount,
+      tax: 0,
+      totalAmount: calculation.totalAmount,
+      status: initialStatus,
+      invoiceDate: parsedInvoiceDate,
+      dueDate: parsedDueDate,
+      notes: notes || "",
+      paymentDate: initialStatus === "Paid" ? new Date() : null,
+      reviewHistory: initialHistory,
+    });
+  } catch (dbErr) {
+    // Catch Mongo duplicate key errors (E11000) for concurrency protection
+    if (dbErr.code === 11000) {
+      const keyField = dbErr.keyPattern?.projectId ? "project" : "invoice ID";
+      const err = new Error(`An invoice already exists for this ${keyField}`);
+      err.statusCode = 409;
+      throw err;
+    }
+    throw dbErr;
+  }
+
+  // 12. Notify Vendor or Admin if applicable
   if (invoice && invoice.vendorId) {
     try {
       const vendorUserId = await getVendorUserId(invoice.vendorId);
-      if (vendorUserId) {
+      if (vendorUserId && user.role !== "VENDOR") {
         await createNotification({
           userId: vendorUserId,
           title: "New Invoice Created",
@@ -79,18 +330,105 @@ export const createInvoice = async (invoiceData) => {
           data: {
             invoiceId: invoice._id.toString(),
             invoiceCode: invoice.invoiceId,
-            projectId: invoice.projectId ? invoice.projectId.toString() : null,
+            projectId: invoice.projectId.toString(),
           },
         });
       }
     } catch (notifErr) {
-      console.error("Failed to generate invoice creation notification:", notifErr.message);
+      console.warn("Failed to dispatch invoice creation notification:", notifErr.message);
     }
   }
 
-  return invoice;
+  return await Invoice.findById(invoice._id)
+    .populate("projectId", "projectId projectName client location status deadline companyId")
+    .populate("vendorId", "companyName contactName location status");
 };
 
+/**
+ * Previews invoice data for an approved project.
+ */
+export const getInvoicePreview = async (projectId, user = {}) => {
+  if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+    const err = new Error("Invalid project ID format");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const project = await Project.findById(projectId)
+    .populate("serviceId", "serviceCategory serviceTypeName defaultPrice")
+    .populate("vendorId", "companyName contactName location rating status");
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // If vendor, check ownership
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor || !project.vendorId || project.vendorId._id.toString() !== vendor._id.toString()) {
+      const err = new Error("Access denied: You are not assigned to this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  const isEligible = project.status === "Approved";
+  const existingInvoice = await Invoice.findOne({ projectId: project._id })
+    .populate("projectId", "projectId projectName client location status deadline")
+    .populate("vendorId", "companyName contactName location");
+
+  const defaultPrice = project.serviceId?.defaultPrice || 0;
+  const suggestedItems = defaultPrice > 0
+    ? [
+        {
+          description: project.serviceTypeName || project.projectName || "Field Services",
+          quantity: 1,
+          rate: defaultPrice,
+          amount: defaultPrice,
+        },
+      ]
+    : [];
+
+  return {
+    eligible: isEligible,
+    eligibilityReason: isEligible
+      ? "Project is approved and ready for invoicing"
+      : `Project status must be "Approved", currently "${project.status}"`,
+    hasExistingInvoice: !!existingInvoice,
+    existingInvoice: existingInvoice || null,
+    previewData: {
+      suggestedInvoiceId: `INV-${project.projectId || "PRJ"}`,
+      invoiceDate: new Date(),
+      suggestedDueDate: project.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      project: {
+        id: project._id,
+        projectId: project.projectId,
+        projectName: project.projectName,
+        client: project.client,
+        location: project.location,
+        status: project.status,
+      },
+      vendor: project.vendorId
+        ? {
+            id: project.vendorId._id,
+            companyName: project.vendorId.companyName,
+            contactName: project.vendorId.contactName,
+            location: project.vendorId.location,
+          }
+        : null,
+      items: suggestedItems,
+      subtotal: defaultPrice,
+      tax: 0,
+      totalAmount: defaultPrice,
+    },
+  };
+};
+
+/**
+ * Lists invoices with vendor-scoping and query filtering.
+ */
 export const getInvoices = async (query = {}, user = {}) => {
   const filter = {};
 
@@ -105,12 +443,22 @@ export const getInvoices = async (query = {}, user = {}) => {
     filter.vendorId = query.vendorId;
   }
 
+  // Company boundaries for Admin/Staff
+  if (user.role !== "SUPER_ADMIN" && user.companyId) {
+    filter.companyId = user.companyId;
+  }
+
   if (query.status && query.status !== "All") {
     filter.status = query.status;
   }
 
   if (query.projectId && mongoose.Types.ObjectId.isValid(query.projectId)) {
     filter.projectId = query.projectId;
+  }
+
+  if (query.isOverdue === "true" || query.isOverdue === true) {
+    filter.dueDate = { $lt: new Date(), $ne: null };
+    filter.status = { $in: ["Submitted", "Pending", "Approved", "Sent"] };
   }
 
   if (query.search && query.search.trim()) {
@@ -123,236 +471,703 @@ export const getInvoices = async (query = {}, user = {}) => {
   }
 
   const invoices = await Invoice.find(filter)
-    .populate("projectId", "projectId projectName client status")
+    .populate("projectId", "projectId projectName client status deadline location")
     .populate("vendorId", "companyName contactName location status")
     .sort({ createdAt: -1 });
 
   return invoices;
 };
 
+/**
+ * Reads single invoice details by Mongo _id or invoiceId.
+ */
 export const getInvoiceById = async (id, user = {}) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
     : { invoiceId: id };
 
   const invoice = await Invoice.findOne(query)
-    .populate("projectId", "projectId projectName client status")
-    .populate("vendorId", "companyName contactName location status");
+    .populate("projectId", "projectId projectName client status deadline location")
+    .populate("vendorId", "companyName contactName location status")
+    .populate("paidBy", "name email");
 
   if (!invoice) {
-    throw new Error("Invoice not found");
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
   }
 
-  // VENDOR SCOPING
+  // Vendor Scoping Security Check
   if (user.role === "VENDOR") {
     const vendor = await Vendor.findOne({ userId: user.id });
-    const invoiceVendorId = invoice.vendorId._id
+    const invoiceVendorId = invoice.vendorId?._id
       ? invoice.vendorId._id.toString()
-      : invoice.vendorId.toString();
+      : invoice.vendorId?.toString();
 
     if (!vendor || invoiceVendorId !== vendor._id.toString()) {
-      const error = new Error("Forbidden: You do not have permission to view this invoice");
-      error.statusCode = 403;
-      throw error;
+      const err = new Error("Forbidden: You do not have permission to view this invoice");
+      err.statusCode = 403;
+      throw err;
     }
   }
 
   return invoice;
 };
 
-export const updateInvoice = async (id, updateData) => {
+/**
+ * Updates an invoice (Vendor edits draft/rejected, or Admin updates).
+ */
+export const updateInvoice = async (id, updateData, user = {}) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
     : { invoiceId: id };
 
   const invoice = await Invoice.findOne(query);
   if (!invoice) {
-    throw new Error("Invoice not found");
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
   }
 
-  // If invoiceId is being updated, check uniqueness
-  if (updateData.invoiceId && updateData.invoiceId.trim() !== invoice.invoiceId) {
-    const existing = await Invoice.findOne({ invoiceId: updateData.invoiceId.trim() });
-    if (existing) {
-      throw new Error("Invoice ID already exists");
+  // Vendor Permission & Lifecycle Guard
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor || invoice.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("Forbidden: You do not have permission to edit this invoice");
+      err.statusCode = 403;
+      throw err;
     }
-  }
 
-  let targetProjectId = invoice.projectId;
-  let targetVendorId = invoice.vendorId;
-
-  if (updateData.projectId) {
-    if (!mongoose.Types.ObjectId.isValid(updateData.projectId)) {
-      throw new Error("Invalid project ID format");
-    }
-    const project = await Project.findById(updateData.projectId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    targetProjectId = project._id;
-    if (!updateData.projectTitle) {
-      updateData.projectTitle = project.projectName;
+    // Vendors can ONLY edit Drafts or Rejected invoices
+    if (!["Draft", "Rejected"].includes(invoice.status)) {
+      const err = new Error(
+        `Cannot edit invoice in "${invoice.status}" status. Only Draft or Rejected invoices can be edited.`
+      );
+      err.statusCode = 400;
+      throw err;
     }
   }
 
-  if (updateData.vendorId) {
-    if (!mongoose.Types.ObjectId.isValid(updateData.vendorId)) {
-      throw new Error("Invalid vendor ID format");
-    }
-    const vendor = await Vendor.findById(updateData.vendorId);
-    if (!vendor) {
-      throw new Error("Vendor not found");
-    }
-    targetVendorId = vendor._id;
-    if (!updateData.vendorName) {
-      updateData.vendorName = vendor.companyName;
+  // If items updated, recalculate on server
+  if (Array.isArray(updateData.items)) {
+    const calculation = calculateLineItems(updateData.items);
+    invoice.items = calculation.processedItems;
+    invoice.subtotal = calculation.subtotal;
+    invoice.amount = calculation.amount;
+    invoice.tax = 0;
+    invoice.totalAmount = calculation.totalAmount;
+  } else if (updateData.amount !== undefined && user.role !== "VENDOR") {
+    const numAmount = Number(updateData.amount);
+    invoice.amount = numAmount;
+    invoice.subtotal = numAmount;
+    invoice.tax = 0;
+    invoice.totalAmount = numAmount;
+  }
+
+  if (updateData.dueDate !== undefined) {
+    if (updateData.dueDate) {
+      const parsedDue = new Date(updateData.dueDate);
+      if (isNaN(parsedDue.getTime())) {
+        const err = new Error("Invalid due date format");
+        err.statusCode = 400;
+        throw err;
+      }
+      invoice.dueDate = parsedDue;
+    } else {
+      invoice.dueDate = null;
     }
   }
 
-  // Check relationship match
-  const projectToCheck = await Project.findById(targetProjectId);
-  if (projectToCheck && projectToCheck.vendorId) {
-    if (projectToCheck.vendorId.toString() !== targetVendorId.toString()) {
-      throw new Error("Vendor ID does not match project assigned vendor");
+  if (updateData.invoiceDate) {
+    const parsedInv = new Date(updateData.invoiceDate);
+    if (!isNaN(parsedInv.getTime())) {
+      invoice.invoiceDate = parsedInv;
     }
   }
 
-  // Recalculate totalAmount if amount or tax changes
-  const numAmount = updateData.amount !== undefined ? Number(updateData.amount) : invoice.amount;
-  const numTax = updateData.tax !== undefined ? Number(updateData.tax) : invoice.tax;
-  updateData.amount = numAmount;
-  updateData.tax = numTax;
-  updateData.totalAmount = numAmount + numTax;
-
-  // Handle status & paymentDate
-  if (updateData.status === "Paid" && !invoice.paymentDate && !updateData.paymentDate) {
-    updateData.paymentDate = new Date();
+  if (updateData.notes !== undefined) {
+    invoice.notes = updateData.notes;
   }
 
-  Object.assign(invoice, updateData);
+  // If vendor requests submission or resubmission
+  const isResubmission = invoice.status === "Rejected" && updateData.submit;
+  const isDraftSubmit = invoice.status === "Draft" && updateData.submit;
+
+  if (isDraftSubmit || isResubmission) {
+    if (invoice.items.length === 0) {
+      const err = new Error("Cannot submit invoice without at least one line item");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!invoice.dueDate) {
+      const err = new Error("Due date is required when submitting an invoice");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    invoice.status = "Submitted";
+    invoice.rejectionReason = null;
+    invoice.reviewHistory.push({
+      action: isResubmission ? "RESUBMITTED" : "SUBMITTED",
+      actorId: user.id || null,
+      actorRole: user.role || "VENDOR",
+      actorEmail: user.email || null,
+      reason: null,
+      timestamp: new Date(),
+    });
+  } else {
+    invoice.reviewHistory.push({
+      action: "DRAFT_SAVED",
+      actorId: user.id || null,
+      actorRole: user.role || "SYSTEM",
+      actorEmail: user.email || null,
+      reason: null,
+      timestamp: new Date(),
+    });
+  }
+
   await invoice.save();
 
-  // Side effect: Notify vendor
-  if (invoice && invoice.vendorId) {
+  return await Invoice.findById(invoice._id)
+    .populate("projectId", "projectId projectName client status deadline location")
+    .populate("vendorId", "companyName contactName location status");
+};
+
+/**
+ * Submits a Draft or Rejected invoice for Admin review.
+ */
+export const submitInvoice = async (id, user = {}) => {
+  const query = mongoose.Types.ObjectId.isValid(id)
+    ? { $or: [{ _id: id }, { invoiceId: id }] }
+    : { invoiceId: id };
+
+  const invoice = await Invoice.findOne(query);
+  if (!invoice) {
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor || invoice.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("Forbidden: You do not have permission to submit this invoice");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  if (!["Draft", "Rejected"].includes(invoice.status)) {
+    const err = new Error(
+      `Cannot submit invoice in "${invoice.status}" status. Only Draft or Rejected invoices can be submitted.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!Array.isArray(invoice.items) || invoice.items.length === 0) {
+    const err = new Error("Cannot submit invoice without at least one line item");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!invoice.dueDate) {
+    const err = new Error("Due date is required when submitting an invoice");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isResubmission = invoice.status === "Rejected";
+  invoice.status = "Submitted";
+  invoice.rejectionReason = null;
+  invoice.reviewHistory.push({
+    action: isResubmission ? "RESUBMITTED" : "SUBMITTED",
+    actorId: user.id || null,
+    actorRole: user.role || "VENDOR",
+    actorEmail: user.email || null,
+    reason: null,
+    timestamp: new Date(),
+  });
+
+  await invoice.save();
+
+  return await Invoice.findById(invoice._id)
+    .populate("projectId", "projectId projectName client status deadline location")
+    .populate("vendorId", "companyName contactName location status");
+};
+
+/**
+ * Admin reviews (Approves or Rejects) a submitted invoice.
+ */
+export const reviewInvoice = async (id, { action, rejectionReason }, user = {}) => {
+  const query = mongoose.Types.ObjectId.isValid(id)
+    ? { $or: [{ _id: id }, { invoiceId: id }] }
+    : { invoiceId: id };
+
+  const invoice = await Invoice.findOne(query);
+  if (!invoice) {
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Invoice must be in reviewable state
+  if (!["Submitted", "Pending"].includes(invoice.status)) {
+    const err = new Error(
+      `Only invoices awaiting review can be reviewed. Current status: "${invoice.status}"`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalizedAction = (action || "").trim().toUpperCase();
+
+  if (normalizedAction === "APPROVE") {
+    invoice.status = "Approved";
+    invoice.rejectionReason = null;
+    invoice.reviewHistory.push({
+      action: "APPROVED",
+      actorId: user.id || null,
+      actorRole: user.role || "ADMIN",
+      actorEmail: user.email || null,
+      reason: null,
+      timestamp: new Date(),
+    });
+
+    await invoice.save();
+
+    // Notify vendor of approval
     try {
       const vendorUserId = await getVendorUserId(invoice.vendorId);
       if (vendorUserId) {
         await createNotification({
           userId: vendorUserId,
-          title: "Invoice Updated",
-          body: `Invoice ${invoice.invoiceId} details have been updated.`,
+          title: "Invoice Approved",
+          body: `Invoice ${invoice.invoiceId} for $${invoice.totalAmount} has been approved.`,
           type: "INVOICE_UPDATED",
-          data: { invoiceId: invoice._id.toString(), invoiceCode: invoice.invoiceId, status: invoice.status },
+          data: {
+            invoiceId: invoice._id.toString(),
+            invoiceCode: invoice.invoiceId,
+            status: "Approved",
+          },
         });
       }
     } catch (notifErr) {
-      console.error("Failed to generate invoice update notification:", notifErr.message);
+      console.warn("Failed to notify vendor of invoice approval:", notifErr.message);
     }
+  } else if (normalizedAction === "REJECT") {
+    const reason = (rejectionReason || "").trim();
+    if (!reason) {
+      const err = new Error("Rejection reason is required when rejecting an invoice");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    invoice.status = "Rejected";
+    invoice.rejectionReason = reason;
+    invoice.reviewHistory.push({
+      action: "REJECTED",
+      actorId: user.id || null,
+      actorRole: user.role || "ADMIN",
+      actorEmail: user.email || null,
+      reason,
+      timestamp: new Date(),
+    });
+
+    await invoice.save();
+
+    // Notify vendor of rejection
+    try {
+      const vendorUserId = await getVendorUserId(invoice.vendorId);
+      if (vendorUserId) {
+        await createNotification({
+          userId: vendorUserId,
+          title: "Invoice Rejected",
+          body: `Invoice ${invoice.invoiceId} was rejected: ${reason}`,
+          type: "INVOICE_UPDATED",
+          data: {
+            invoiceId: invoice._id.toString(),
+            invoiceCode: invoice.invoiceId,
+            status: "Rejected",
+            rejectionReason: reason,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("Failed to notify vendor of invoice rejection:", notifErr.message);
+    }
+  } else {
+    const err = new Error('Review action must be either "APPROVE" or "REJECT"');
+    err.statusCode = 400;
+    throw err;
   }
 
   return await Invoice.findById(invoice._id)
-    .populate("projectId", "projectId projectName client status")
+    .populate("projectId", "projectId projectName client status deadline location")
     .populate("vendorId", "companyName contactName location status");
 };
 
-export const updateInvoiceStatus = async (id, status) => {
+/**
+ * Sends an approved invoice to the client.
+ * If sending fails, invoice remains Approved and retryable.
+ */
+export const sendInvoice = async (id, options = {}, user = {}) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
     : { invoiceId: id };
 
   const invoice = await Invoice.findOne(query);
   if (!invoice) {
-    throw new Error("Invoice not found");
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (invoice.status !== "Approved") {
+    const err = new Error(
+      `Only approved invoices can be sent. Current status: "${invoice.status}"`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const project = await Project.findById(invoice.projectId);
+
+  // Attempt send via email service
+  // If this throws, status remains Approved and retryable!
+  const sendResult = await sendInvoiceEmail({
+    to: options.recipientEmail,
+    invoice,
+    project,
+    simulateFailure: options.simulateFailure === true,
+  });
+
+  // Only transition upon confirmed success
+  invoice.status = "Sent";
+  invoice.sentAt = sendResult.sentAt || new Date();
+  invoice.sentTo = sendResult.recipient;
+  invoice.reviewHistory.push({
+    action: "SENT",
+    actorId: user.id || null,
+    actorRole: user.role || "ADMIN",
+    actorEmail: user.email || null,
+    reason: `Delivered to ${sendResult.recipient}`,
+    timestamp: new Date(),
+  });
+
+  await invoice.save();
+
+  // Notify vendor that invoice was sent
+  try {
+    const vendorUserId = await getVendorUserId(invoice.vendorId);
+    if (vendorUserId) {
+      await createNotification({
+        userId: vendorUserId,
+        title: "Invoice Sent",
+        body: `Invoice ${invoice.invoiceId} has been sent to ${sendResult.recipient}.`,
+        type: "INVOICE_UPDATED",
+        data: {
+          invoiceId: invoice._id.toString(),
+          invoiceCode: invoice.invoiceId,
+          status: "Sent",
+        },
+      });
+    }
+  } catch (notifErr) {
+    console.warn("Failed to notify vendor of invoice send:", notifErr.message);
+  }
+
+  return await Invoice.findById(invoice._id)
+    .populate("projectId", "projectId projectName client status deadline location")
+    .populate("vendorId", "companyName contactName location status");
+};
+
+/**
+ * Records payment for an invoice.
+ * Restricted to SUPER_ADMIN and ADMIN.
+ */
+export const recordPayment = async (id, paymentData = {}, user = {}) => {
+  const query = mongoose.Types.ObjectId.isValid(id)
+    ? { $or: [{ _id: id }, { invoiceId: id }] }
+    : { invoiceId: id };
+
+  const invoice = await Invoice.findOne(query);
+  if (!invoice) {
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Can only record payment on Approved, Sent, or legacy Pending
+  if (!["Approved", "Sent", "Pending"].includes(invoice.status)) {
+    const err = new Error(
+      `Cannot record payment for an invoice with status "${invoice.status}". Invoice must be Approved or Sent.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let parsedPaymentDate = new Date();
+  if (paymentData.paymentDate) {
+    const pDate = new Date(paymentData.paymentDate);
+    if (isNaN(pDate.getTime())) {
+      const err = new Error("Invalid payment date format");
+      err.statusCode = 400;
+      throw err;
+    }
+    parsedPaymentDate = pDate;
+  }
+
+  invoice.status = "Paid";
+  invoice.paymentDate = parsedPaymentDate;
+  invoice.paymentMethod = paymentData.paymentMethod || "Bank Transfer";
+  invoice.paymentNotes = paymentData.paymentNotes || "";
+  invoice.paidBy = user.id || null;
+
+  invoice.reviewHistory.push({
+    action: "PAID",
+    actorId: user.id || null,
+    actorRole: user.role || "ADMIN",
+    actorEmail: user.email || null,
+    reason: `Payment recorded via ${invoice.paymentMethod}`,
+    timestamp: new Date(),
+  });
+
+  await invoice.save();
+
+  // Notify vendor of recorded payment
+  try {
+    const vendorUserId = await getVendorUserId(invoice.vendorId);
+    if (vendorUserId) {
+      await createNotification({
+        userId: vendorUserId,
+        title: "Invoice Paid",
+        body: `Payment of $${invoice.totalAmount} for Invoice ${invoice.invoiceId} has been recorded.`,
+        type: "INVOICE_UPDATED",
+        data: {
+          invoiceId: invoice._id.toString(),
+          invoiceCode: invoice.invoiceId,
+          status: "Paid",
+          paymentDate: invoice.paymentDate,
+        },
+      });
+    }
+  } catch (notifErr) {
+    console.warn("Failed to notify vendor of recorded payment:", notifErr.message);
+  }
+
+  return await Invoice.findById(invoice._id)
+    .populate("projectId", "projectId projectName client status deadline location")
+    .populate("vendorId", "companyName contactName location status")
+    .populate("paidBy", "name email");
+};
+
+/**
+ * Legacy status update handler for backward compatibility.
+ */
+export const updateInvoiceStatus = async (id, status, user = {}) => {
+  if (status === "Approved") {
+    return await reviewInvoice(id, { action: "APPROVE" }, user);
+  }
+  if (status === "Rejected") {
+    return await reviewInvoice(
+      id,
+      { action: "REJECT", rejectionReason: "Rejected by Administrator" },
+      user
+    );
+  }
+  if (status === "Paid") {
+    return await recordPayment(id, {}, user);
+  }
+  if (status === "Sent") {
+    return await sendInvoice(id, {}, user);
+  }
+
+  const query = mongoose.Types.ObjectId.isValid(id)
+    ? { $or: [{ _id: id }, { invoiceId: id }] }
+    : { invoiceId: id };
+
+  const invoice = await Invoice.findOne(query);
+  if (!invoice) {
+    const err = new Error("Invoice not found");
+    err.statusCode = 404;
+    throw err;
   }
 
   invoice.status = status;
-
-  if (status === "Paid" && !invoice.paymentDate) {
-    invoice.paymentDate = new Date();
-  }
+  invoice.reviewHistory.push({
+    action: "STATUS_CHANGED",
+    actorId: user.id || null,
+    actorRole: user.role || "ADMIN",
+    actorEmail: user.email || null,
+    reason: `Status set to ${status}`,
+    timestamp: new Date(),
+  });
 
   await invoice.save();
-
-  // Side effect: Notify vendor
-  if (invoice && invoice.vendorId) {
-    try {
-      const vendorUserId = await getVendorUserId(invoice.vendorId);
-      if (vendorUserId) {
-        let title = `Invoice Status: ${status}`;
-        if (status === "Paid") {
-          title = "Invoice Paid";
-        } else if (status === "Approved") {
-          title = "Invoice Approved";
-        }
-        await createNotification({
-          userId: vendorUserId,
-          title,
-          body: `Invoice ${invoice.invoiceId} status has been updated to ${status}.`,
-          type: "INVOICE_UPDATED",
-          data: { invoiceId: invoice._id.toString(), invoiceCode: invoice.invoiceId, status },
-        });
-      }
-    } catch (notifErr) {
-      console.error("Failed to generate invoice status notification:", notifErr.message);
-    }
-  }
-
-  return await Invoice.findById(invoice._id)
-    .populate("projectId", "projectId projectName client status")
-    .populate("vendorId", "companyName contactName location status");
+  return invoice;
 };
 
-export const getInvoiceStats = async () => {
-  // 1. Total Outstanding (Sum of totalAmount for Pending + Approved)
-  const outstandingAgg = await Invoice.aggregate([
-    { $match: { status: { $in: ["Pending", "Approved"] } } },
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } },
-  ]);
-  const totalOutstanding = outstandingAgg.length > 0 ? outstandingAgg[0].total : 0;
+/**
+ * Computes shared earnings and invoice statistics with rigorous category isolation.
+ */
+export const getInvoiceStats = async (user = {}, query = {}) => {
+  const filter = {};
 
-  // 2. Pending Review (Count of Pending)
-  const pendingReview = await Invoice.countDocuments({ status: "Pending" });
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor) {
+      return {
+        totalInvoiced: 0,
+        awaitingReview: { count: 0, amount: 0 },
+        approvedAwaitingPayment: { count: 0, amount: 0 },
+        actualPaidEarnings: { count: 0, amount: 0 },
+        overdueUnpaid: { count: 0, amount: 0 },
+        paidThisMonth: { count: 0, amount: 0 },
+        drafts: { count: 0, amount: 0 },
+        totalOutstanding: 0,
+        pendingReview: 0,
+        approved: 0,
+      };
+    }
+    filter.vendorId = vendor._id;
+  } else if (query.vendorId && mongoose.Types.ObjectId.isValid(query.vendorId)) {
+    filter.vendorId = new mongoose.Types.ObjectId(query.vendorId);
+  }
 
-  // 3. Approved (Count of Approved)
-  const approved = await Invoice.countDocuments({ status: "Approved" });
+  if (user.role !== "SUPER_ADMIN" && user.companyId) {
+    filter.companyId = user.companyId;
+  }
 
-  // 4. Paid This Month (Sum of totalAmount for Paid with paymentDate in current month)
+  const allInvoices = await Invoice.find(filter).lean();
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  const paidMonthAgg = await Invoice.aggregate([
-    {
-      $match: {
-        status: "Paid",
-        paymentDate: { $gte: startOfMonth, $lte: endOfMonth },
-      },
-    },
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } },
-  ]);
-  const paidThisMonth = paidMonthAgg.length > 0 ? paidMonthAgg[0].total : 0;
+  let totalInvoiced = 0;
+  let awaitingReviewAmount = 0;
+  let awaitingReviewCount = 0;
+  let approvedAwaitingPaymentAmount = 0;
+  let approvedAwaitingPaymentCount = 0;
+  let actualPaidEarningsAmount = 0;
+  let actualPaidEarningsCount = 0;
+  let overdueUnpaidAmount = 0;
+  let overdueUnpaidCount = 0;
+  let paidThisMonthAmount = 0;
+  let paidThisMonthCount = 0;
+  let draftCount = 0;
+  let draftAmount = 0;
+
+  allInvoices.forEach((inv) => {
+    const total = Number(inv.totalAmount || inv.amount || 0);
+
+    // 1. Drafts
+    if (inv.status === "Draft") {
+      draftCount++;
+      draftAmount += total;
+      return;
+    }
+
+    // 2. Total Invoiced (all submitted/approved/sent/paid)
+    if (["Submitted", "Pending", "Approved", "Sent", "Paid"].includes(inv.status)) {
+      totalInvoiced += total;
+    }
+
+    // 3. Awaiting Review
+    if (["Submitted", "Pending"].includes(inv.status)) {
+      awaitingReviewCount++;
+      awaitingReviewAmount += total;
+    }
+
+    // 4. Approved & Sent (Awaiting Payment)
+    if (["Approved", "Sent"].includes(inv.status)) {
+      approvedAwaitingPaymentCount++;
+      approvedAwaitingPaymentAmount += total;
+    }
+
+    // 5. Actual Paid
+    if (inv.status === "Paid") {
+      actualPaidEarningsCount++;
+      actualPaidEarningsAmount += total;
+
+      if (inv.paymentDate) {
+        const pDate = new Date(inv.paymentDate);
+        if (pDate >= startOfMonth && pDate <= endOfMonth) {
+          paidThisMonthCount++;
+          paidThisMonthAmount += total;
+        }
+      }
+    }
+
+    // 6. Overdue Unpaid (DueDate passed and not Paid)
+    if (["Submitted", "Pending", "Approved", "Sent"].includes(inv.status)) {
+      if (inv.dueDate) {
+        const dDate = new Date(inv.dueDate);
+        if (dDate < now) {
+          overdueUnpaidCount++;
+          overdueUnpaidAmount += total;
+        }
+      }
+    }
+  });
 
   return {
-    totalOutstanding,
-    pendingReview,
-    approved,
-    paidThisMonth,
+    totalInvoiced: Math.round(totalInvoiced * 100) / 100,
+    awaitingReview: {
+      count: awaitingReviewCount,
+      amount: Math.round(awaitingReviewAmount * 100) / 100,
+    },
+    approvedAwaitingPayment: {
+      count: approvedAwaitingPaymentCount,
+      amount: Math.round(approvedAwaitingPaymentAmount * 100) / 100,
+    },
+    actualPaidEarnings: {
+      count: actualPaidEarningsCount,
+      amount: Math.round(actualPaidEarningsAmount * 100) / 100,
+    },
+    overdueUnpaid: {
+      count: overdueUnpaidCount,
+      amount: Math.round(overdueUnpaidAmount * 100) / 100,
+    },
+    paidThisMonth: Math.round(paidThisMonthAmount * 100) / 100,
+    drafts: {
+      count: draftCount,
+      amount: Math.round(draftAmount * 100) / 100,
+    },
+    // Backward compatibility for existing Admin and Vendor dashboards
+    totalOutstanding: Math.round(
+      (awaitingReviewAmount + approvedAwaitingPaymentAmount) * 100
+    ) / 100,
+    pendingReview: awaitingReviewCount,
+    approved: approvedAwaitingPaymentCount,
   };
 };
 
-export const getInvoiceOverview = async () => {
+/**
+ * Aggregates monthly payment overview.
+ */
+export const getInvoiceOverview = async (user = {}, query = {}) => {
+  const matchFilter = {
+    status: "Paid",
+    paymentDate: { $ne: null },
+  };
+
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id });
+    if (!vendor) return [];
+    matchFilter.vendorId = vendor._id;
+  } else if (query.vendorId && mongoose.Types.ObjectId.isValid(query.vendorId)) {
+    matchFilter.vendorId = new mongoose.Types.ObjectId(query.vendorId);
+  }
+
   const monthNames = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ];
 
   const overview = await Invoice.aggregate([
-    {
-      $match: {
-        status: "Paid",
-        paymentDate: { $ne: null },
-      },
-    },
+    { $match: matchFilter },
     {
       $group: {
         _id: {
@@ -363,9 +1178,7 @@ export const getInvoiceOverview = async () => {
         count: { $sum: 1 },
       },
     },
-    {
-      $sort: { "_id.year": 1, "_id.month": 1 },
-    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } },
   ]);
 
   return overview.map((item) => {
@@ -373,10 +1186,26 @@ export const getInvoiceOverview = async () => {
     const monthLabel = `${monthNames[monthIndex]} ${item._id.year}`;
     return {
       month: monthLabel,
-      amount: item.amount,
+      amount: Math.round(item.amount * 100) / 100,
       count: item.count,
       year: item._id.year,
       monthNum: item._id.month,
     };
   });
+};
+
+/**
+ * Downloads invoice PDF document buffer.
+ */
+export const downloadInvoicePdf = async (id, user = {}) => {
+  const invoice = await getInvoiceById(id, user);
+  const project = await Project.findById(invoice.projectId);
+  const vendor = await Vendor.findById(invoice.vendorId);
+
+  const pdfBuffer = await generateInvoicePdf(invoice, project || {}, vendor || {});
+  return {
+    pdfBuffer,
+    invoice,
+    filename: `${invoice.invoiceId || "invoice"}.pdf`,
+  };
 };

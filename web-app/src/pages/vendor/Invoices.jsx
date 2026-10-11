@@ -1,61 +1,56 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import VendorSidebar from "../../components/vendor/VendorSidebar";
 import VendorHeader from "../../components/vendor/VendorHeader";
-import { getInvoices } from "../../services/invoiceService";
+import {
+  getInvoices,
+  getInvoiceStats,
+  submitInvoice,
+  downloadInvoicePdf,
+} from "../../services/invoiceService";
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
 import MonthlyEarningsChart from "../../components/vendor/invoices/MonthlyEarningsChart";
 import WeeklyEarningsChart from "../../components/vendor/invoices/WeeklyEarningsChart";
 import PaymentHistoryTable from "../../components/vendor/invoices/PaymentHistoryTable";
+import RaiseInvoiceModal from "../../components/vendor/invoices/RaiseInvoiceModal";
+import VendorInvoiceDetailModal from "../../components/vendor/invoices/VendorInvoiceDetailModal";
 import {
   FiFileText,
   FiDollarSign,
   FiCheckCircle,
   FiClock,
   FiDownload,
-  FiCalendar,
-  FiTrendingDown,
+  FiPlus,
+  FiAlertTriangle,
+  FiAlertCircle,
+  FiCheck,
+  FiX,
   FiArrowUpRight,
+  FiCalendar,
 } from "react-icons/fi";
 
 const Invoices = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
   const [collapsed, setCollapsed] = useState(false);
-  const [periodFilter, setPeriodFilter] = useState("THIS_YEAR"); // "THIS_YEAR" | "THIS_MONTH" | "LAST_MONTH" | "ALL_TIME"
+  const [periodFilter, setPeriodFilter] = useState("THIS_YEAR");
 
   const [vendorProfile, setVendorProfile] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [statsData, setStatsData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState(null);
+  const [error, setError] = useState(null);
+  const [actionFeedback, setActionFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
-  const loadVendorInvoices = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [vendorRes, invoiceRes] = await Promise.all([
-        getMyVendorProfile().catch(() => null),
-        getInvoices(),
-      ]);
-
-      if (vendorRes) {
-        setVendorProfile(vendorRes.data || vendorRes);
-      }
-
-      const invoiceData = invoiceRes.data || invoiceRes || [];
-      setInvoices(Array.isArray(invoiceData) ? invoiceData : []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message || err.message || "Failed to load vendor invoices from server"
-      );
-      setInvoices([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadVendorInvoices();
-  }, []);
+  // Modal States
+  const [raiseModalOpen, setRaiseModalOpen] = useState(false);
+  const [raiseProjectId, setRaiseProjectId] = useState(null);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
 
   // Format currency helper
   const formatCurrency = (val) => {
@@ -78,6 +73,132 @@ const Invoices = () => {
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  const loadVendorInvoices = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [vendorRes, invoiceRes, statsRes] = await Promise.all([
+        getMyVendorProfile().catch(() => null),
+        getInvoices(),
+        getInvoiceStats().catch(() => ({})),
+      ]);
+
+      if (vendorRes) {
+        setVendorProfile(vendorRes.data || vendorRes);
+      }
+
+      const invoiceData = invoiceRes.data || invoiceRes || [];
+      setInvoices(Array.isArray(invoiceData) ? invoiceData : []);
+      setStatsData(statsRes.data || statsRes || {});
+    } catch (err) {
+      setError(
+        err.response?.data?.message || err.message || "Failed to load vendor invoices from server"
+      );
+      setInvoices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      getMyVendorProfile().catch(() => null),
+      getInvoices().catch(() => []),
+      getInvoiceStats().catch(() => ({})),
+    ]).then(([vendorRes, invoiceRes, statsRes]) => {
+      if (!isMounted) return;
+      if (vendorRes) {
+        setVendorProfile(vendorRes.data || vendorRes);
+      }
+      const invoiceData = invoiceRes.data || invoiceRes || [];
+      setInvoices(Array.isArray(invoiceData) ? invoiceData : []);
+      setStatsData(statsRes.data || statsRes || {});
+      setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Check URL query parameters for auto-opening Raise Invoice modal
+  useEffect(() => {
+    const pId = searchParams.get("projectId");
+    if (pId) {
+      Promise.resolve().then(() => {
+        setRaiseProjectId(pId);
+        setEditingInvoice(null);
+        setRaiseModalOpen(true);
+      });
+    }
+  }, [searchParams]);
+
+  // Handlers for Raise / Edit / Submit / Download
+  const handleOpenRaiseModal = (projectId = null) => {
+    setRaiseProjectId(projectId);
+    setEditingInvoice(null);
+    setRaiseModalOpen(true);
+  };
+
+  const handleEditInvoice = (invoice) => {
+    setEditingInvoice(invoice);
+    setRaiseProjectId(null);
+    setViewingInvoice(null);
+    setRaiseModalOpen(true);
+  };
+
+  const handleViewInvoice = (invoice) => {
+    setViewingInvoice(invoice);
+  };
+
+  const handleInvoiceSuccess = async (actionType) => {
+    setActionFeedback({
+      type: "success",
+      message:
+        actionType === "submitted"
+          ? "Invoice submitted for Admin review successfully!"
+          : "Invoice draft saved successfully.",
+    });
+    await loadVendorInvoices();
+  };
+
+  const handleSubmitDraft = async (invoiceId) => {
+    setIsSubmittingDraft(true);
+    try {
+      await submitInvoice(invoiceId);
+      setActionFeedback({
+        type: "success",
+        message: "Draft invoice submitted for Admin review successfully!",
+      });
+      setViewingInvoice(null);
+      await loadVendorInvoices();
+    } catch (err) {
+      setActionFeedback({
+        type: "error",
+        message:
+          err.response?.data?.message || err.message || "Failed to submit draft invoice.",
+      });
+    } finally {
+      setIsSubmittingDraft(false);
+    }
+  };
+
+  const handleDownloadPdf = async (invoice) => {
+    setDownloadingId(invoice._id);
+    try {
+      await downloadInvoicePdf(invoice._id, invoice.invoiceId);
+    } catch (err) {
+      setActionFeedback({
+        type: "error",
+        message:
+          err.response?.data?.message || err.message || "Failed to download invoice PDF.",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   // Period Filter Helper logic
@@ -111,73 +232,10 @@ const Invoices = () => {
     return true;
   };
 
-  // Filter invoices strictly by period
+  // Filter invoices strictly by period for charts
   const periodFilteredInvoices = useMemo(() => {
     return invoices.filter((inv) => isDateInPeriod(inv.createdAt, periodFilter));
   }, [invoices, periodFilter]);
-
-  // Derive Financial Summaries strictly from periodFilteredInvoices
-  const financialSummary = useMemo(() => {
-    let totalEarnings = 0;
-    let pendingPayments = 0;
-    let paidThisMonth = 0;
-    let paidLastMonth = 0;
-    let overdueOrApproved = 0;
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
-    const lastMonth = lastMonthDate.getMonth();
-    const lastMonthYear = lastMonthDate.getFullYear();
-
-    periodFilteredInvoices.forEach((inv) => {
-      const total = Number(inv.totalAmount || inv.amount || 0);
-      if (inv.status === "Paid") {
-        totalEarnings += total;
-
-        // Check if paid in current month vs last month
-        if (inv.paymentDate) {
-          const pDate = new Date(inv.paymentDate);
-          if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
-            paidThisMonth += total;
-          } else if (pDate.getMonth() === lastMonth && pDate.getFullYear() === lastMonthYear) {
-            paidLastMonth += total;
-          }
-        }
-      } else if (inv.status === "Pending") {
-        pendingPayments += total;
-      } else if (inv.status === "Approved") {
-        overdueOrApproved += total;
-      }
-    });
-
-    // Real Paid This Month trend
-    let paidThisMonthTrend = null;
-    if (paidLastMonth > 0) {
-      const diff = paidThisMonth - paidLastMonth;
-      const sign = diff >= 0 ? "+" : "-";
-      paidThisMonthTrend = `${sign}${formatCurrency(Math.abs(diff))} vs last`;
-    } else if (paidThisMonth > 0) {
-      paidThisMonthTrend = `+${formatCurrency(paidThisMonth)} vs last`;
-    }
-
-    const paidCount = periodFilteredInvoices.filter((i) => i.status === "Paid").length;
-    const pendingCount = periodFilteredInvoices.filter((i) => i.status === "Pending").length;
-    const approvedCount = periodFilteredInvoices.filter((i) => i.status === "Approved").length;
-
-    return {
-      totalEarnings,
-      pendingPayments,
-      paidThisMonth,
-      paidThisMonthTrend,
-      overdueOrApproved,
-      paidCount,
-      pendingCount,
-      approvedCount,
-    };
-  }, [periodFilteredInvoices]);
 
   // Monthly Earnings calculation for Recharts
   const monthlyData = useMemo(() => {
@@ -238,11 +296,17 @@ const Invoices = () => {
     const approved = invoices.filter((i) => i.status === "Approved");
     const paid = invoices.filter((i) => i.status === "Paid");
 
-    const nextPayoutAmount = approved.reduce((acc, i) => acc + Number(i.totalAmount || i.amount || 0), 0);
-    const lastPayoutAmount = paid.length > 0 ? Number(paid[0].totalAmount || paid[0].amount || 0) : 0;
-    const lastPayoutDate = paid.length > 0 ? formatDate(paid[0].paymentDate || paid[0].updatedAt) : "N/A";
+    const nextPayoutAmount = approved.reduce(
+      (acc, i) => acc + Number(i.totalAmount || i.amount || 0),
+      0
+    );
+    const lastPayoutAmount =
+      paid.length > 0 ? Number(paid[0].totalAmount || paid[0].amount || 0) : 0;
+    const lastPayoutDate =
+      paid.length > 0
+        ? formatDate(paid[0].paymentDate || paid[0].updatedAt)
+        : "N/A";
 
-    // Calculate avg turnaround days for paid invoices
     let avgDays = "N/A";
     if (paid.length > 0) {
       let totalDiffMs = 0;
@@ -275,7 +339,7 @@ const Invoices = () => {
 
   // CSV Export handler
   const handleExportCSV = () => {
-    if (periodFilteredInvoices.length === 0) return;
+    if (invoices.length === 0) return;
 
     const headers = [
       "Invoice ID",
@@ -289,7 +353,7 @@ const Invoices = () => {
       "Payment Date",
     ];
 
-    const rows = periodFilteredInvoices.map((inv) => [
+    const rows = invoices.map((inv) => [
       inv.invoiceId || inv._id,
       `"${(inv.projectTitle || inv.projectId?.projectName || "").replace(/"/g, '""')}"`,
       `"${(inv.vendorName || "").replace(/"/g, '""')}"`,
@@ -308,10 +372,8 @@ const Invoices = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `vendor_invoices_${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    const exportTime = Math.floor(new Date().getTime() / 1000);
+    link.setAttribute("download", `vendor_invoices_${exportTime}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -322,6 +384,25 @@ const Invoices = () => {
     vendorProfile?.userId?.name ||
     user?.name ||
     "Vendor Partner";
+
+  // Backend Stats metrics (Source of Truth)
+  const totalInvoiced = statsData.totalInvoiced ?? statsData.totalOutstanding ?? 0;
+  const awaitingReviewAmount = statsData.awaitingReview?.amount ?? 0;
+  const awaitingReviewCount =
+    statsData.awaitingReview?.count ?? statsData.pendingReview ?? 0;
+  const awaitingPaymentAmount = statsData.approvedAwaitingPayment?.amount ?? 0;
+  const awaitingPaymentCount =
+    statsData.approvedAwaitingPayment?.count ?? statsData.approved ?? 0;
+  const paidEarningsAmount =
+    statsData.actualPaidEarnings?.amount ??
+    (typeof statsData.actualPaidEarnings === "number"
+      ? statsData.actualPaidEarnings
+      : 0);
+  const paidEarningsCount = statsData.actualPaidEarnings?.count ?? 0;
+  const paidThisMonthAmount = statsData.paidThisMonth ?? 0;
+
+  const overdueCount = statsData.overdueUnpaid?.count ?? 0;
+  const overdueAmount = statsData.overdueUnpaid?.amount ?? 0;
 
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#2D3436] font-sans antialiased">
@@ -342,6 +423,60 @@ const Invoices = () => {
 
         {/* Page Content Body */}
         <main className="flex-1 p-6 space-y-5 max-w-7xl w-full mx-auto">
+          {/* Action Feedback Banner */}
+          {actionFeedback && (
+            <div
+              className={`p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs ${
+                actionFeedback.type === "success"
+                  ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                  : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {actionFeedback.type === "success" ? (
+                  <FiCheck className="text-base shrink-0" />
+                ) : (
+                  <FiAlertCircle className="text-base shrink-0" />
+                )}
+                <span>{actionFeedback.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionFeedback(null)}
+                className="p-1 rounded-lg hover:bg-black/5"
+              >
+                <FiX className="text-sm" />
+              </button>
+            </div>
+          )}
+
+          {/* Overdue Alert Banner */}
+          {overdueCount > 0 && (
+            <div className="bg-[#FFF3E0] border border-[#FF9800]/30 text-[#E65100] px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+              <FiAlertTriangle className="text-base text-[#F57C00] shrink-0" />
+              <span>
+                <strong>{overdueCount} {overdueCount === 1 ? "invoice is" : "invoices are"} overdue and unpaid</strong> ({formatCurrency(overdueAmount)} outstanding).
+              </span>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {error && (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={loadVendorInvoices}
+                className="bg-[#C62828] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[#B71C1C] transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Section 1: Page Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -350,10 +485,10 @@ const Invoices = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-[#2D3436] tracking-tight">
-                  Earnings & Payments
+                  Earnings & Invoices
                 </h1>
                 <p className="text-xs text-[#817B77] font-medium">
-                  Financial overview for your vendor account
+                  Financial overview, billing, and invoice submissions
                 </p>
               </div>
             </div>
@@ -379,104 +514,112 @@ const Invoices = () => {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                disabled={periodFilteredInvoices.length === 0}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                  periodFilteredInvoices.length > 0
-                    ? "bg-[#6C5CE7] text-white hover:bg-[#5B4BC4]"
+                disabled={invoices.length === 0}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                  invoices.length > 0
+                    ? "bg-white hover:bg-[#FAF7F5] text-[#2D3436] border border-[#EBE6E3]"
                     : "bg-white text-[#A09893] border border-[#EBE6E3] cursor-not-allowed"
                 }`}
               >
                 <FiDownload className="text-sm" />
                 <span>Export</span>
               </button>
+
+              {/* Raise Invoice Button */}
+              <button
+                type="button"
+                onClick={() => handleOpenRaiseModal()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#928880] hover:bg-[#F7D8CF] text-white shadow-xs transition-all cursor-pointer"
+              >
+                <FiPlus className="text-sm" />
+                <span>Raise Invoice</span>
+              </button>
             </div>
           </div>
 
-          {/* Section 2: Financial Summary Cards (2x2 Grid) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Card 1: Total Earnings */}
+          {/* Section 2: Real Financial Summary Cards from Backend Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Total Invoiced */}
             <div className="bg-white rounded-2xl border border-[#EBE6E3] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between h-36">
               <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-[#00B894]/10 text-[#00B894] flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-[#FCECE7] text-[#C87A65] flex items-center justify-center font-bold">
                   <FiDollarSign size={18} />
                 </div>
-                {financialSummary.paidCount > 0 && (
-                  <span className="text-[11px] font-bold text-[#817B77]">
-                    {financialSummary.paidCount} {financialSummary.paidCount === 1 ? "paid invoice" : "paid invoices"}
+                {statsData.drafts?.count > 0 && (
+                  <span className="text-[10px] font-bold text-[#817B77] bg-[#FAF7F5] border border-[#F2EBE5] px-2 py-0.5 rounded-full">
+                    {statsData.drafts.count} draft{statsData.drafts.count > 1 ? "s" : ""}
                   </span>
                 )}
               </div>
               <div>
                 <div className="text-2xl font-black text-[#2D3436] tracking-tight">
-                  {loading ? "..." : formatCurrency(financialSummary.totalEarnings)}
+                  {loading ? "..." : formatCurrency(totalInvoiced)}
                 </div>
-                <p className="text-xs font-bold text-[#817B77] mt-0.5">Total Earnings</p>
+                <p className="text-xs font-bold text-[#817B77] mt-0.5">Total Invoiced</p>
               </div>
-              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#00B894]/5 pointer-events-none" />
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#FCECE7]/40 pointer-events-none" />
             </div>
 
-            {/* Card 2: Pending Payments */}
+            {/* Card 2: Awaiting Review */}
             <div className="bg-white rounded-2xl border border-[#EBE6E3] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between h-36">
               <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-[#E17055]/10 text-[#E17055] flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-[#FEF3C7] text-[#D97706] flex items-center justify-center font-bold">
                   <FiClock size={18} />
                 </div>
-                {financialSummary.pendingCount > 0 && (
-                  <span className="text-[11px] font-bold text-[#817B77]">
-                    {financialSummary.pendingCount} {financialSummary.pendingCount === 1 ? "invoice" : "invoices"}
-                  </span>
-                )}
+                <span className="text-[11px] font-bold text-[#817B77]">
+                  {awaitingReviewCount} {awaitingReviewCount === 1 ? "invoice" : "invoices"}
+                </span>
               </div>
               <div>
                 <div className="text-2xl font-black text-[#2D3436] tracking-tight">
-                  {loading ? "..." : formatCurrency(financialSummary.pendingPayments)}
+                  {loading ? "..." : formatCurrency(awaitingReviewAmount)}
                 </div>
-                <p className="text-xs font-bold text-[#817B77] mt-0.5">Pending Payments</p>
+                <p className="text-xs font-bold text-[#817B77] mt-0.5">Awaiting Review</p>
               </div>
-              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#E17055]/5 pointer-events-none" />
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#FEF3C7]/40 pointer-events-none" />
             </div>
 
-            {/* Card 3: Paid This Month */}
+            {/* Card 3: Awaiting Payment */}
             <div className="bg-white rounded-2xl border border-[#EBE6E3] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between h-36">
               <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-[#E3F2FD] text-[#1565C0] flex items-center justify-center font-bold">
                   <FiCheckCircle size={18} />
                 </div>
-                {financialSummary.paidThisMonthTrend && (
-                  <span className="flex items-center gap-1 text-[11px] font-extrabold text-[#00B894] bg-[#00B894]/10 px-2 py-0.5 rounded-full">
-                    <FiArrowUpRight size={12} />
-                    {financialSummary.paidThisMonthTrend}
-                  </span>
-                )}
+                <span className="text-[11px] font-bold text-[#817B77]">
+                  {awaitingPaymentCount} {awaitingPaymentCount === 1 ? "approved" : "approved"}
+                </span>
               </div>
               <div>
                 <div className="text-2xl font-black text-[#2D3436] tracking-tight">
-                  {loading ? "..." : formatCurrency(financialSummary.paidThisMonth)}
+                  {loading ? "..." : formatCurrency(awaitingPaymentAmount)}
                 </div>
-                <p className="text-xs font-bold text-[#817B77] mt-0.5">Paid This Month</p>
+                <p className="text-xs font-bold text-[#817B77] mt-0.5">Awaiting Payment</p>
               </div>
-              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#6C5CE7]/5 pointer-events-none" />
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#E3F2FD]/40 pointer-events-none" />
             </div>
 
-            {/* Card 4: Overdue */}
+            {/* Card 4: Paid Earnings */}
             <div className="bg-white rounded-2xl border border-[#EBE6E3] p-5 shadow-xs relative overflow-hidden flex flex-col justify-between h-36">
               <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-[#D63031]/10 text-[#D63031] flex items-center justify-center font-bold">
-                  <FiTrendingDown size={18} />
+                <div className="w-9 h-9 rounded-xl bg-[#E8F5E9] text-[#2E7D32] flex items-center justify-center font-bold">
+                  <FiDollarSign size={18} />
                 </div>
-                {financialSummary.approvedCount > 0 && (
-                  <span className="text-[11px] font-bold text-[#817B77]">
-                    {financialSummary.approvedCount} {financialSummary.approvedCount === 1 ? "invoice" : "invoices"}
+                {paidThisMonthAmount > 0 && (
+                  <span className="flex items-center gap-1 text-[10px] font-extrabold text-[#2E7D32] bg-[#E8F5E9] border border-[#2E7D32]/20 px-2 py-0.5 rounded-full">
+                    <FiArrowUpRight size={11} />
+                    {formatCurrency(paidThisMonthAmount)} mo
                   </span>
                 )}
               </div>
               <div>
-                <div className="text-2xl font-black text-[#2D3436] tracking-tight">
-                  {loading ? "..." : formatCurrency(financialSummary.overdueOrApproved)}
+                <div className="text-2xl font-black text-[#2E7D32] tracking-tight">
+                  {loading ? "..." : formatCurrency(paidEarningsAmount)}
                 </div>
-                <p className="text-xs font-bold text-[#817B77] mt-0.5">Overdue</p>
+                <p className="text-xs font-bold text-[#817B77] mt-0.5">
+                  Paid Earnings ({paidEarningsCount} paid)
+                </p>
               </div>
-              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#D63031]/5 pointer-events-none" />
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-[#E8F5E9]/40 pointer-events-none" />
             </div>
           </div>
 
@@ -554,13 +697,43 @@ const Invoices = () => {
 
           {/* Section 6: Payment History Table Component */}
           <PaymentHistoryTable
-            invoices={periodFilteredInvoices}
+            invoices={invoices}
             loading={loading}
             formatCurrency={formatCurrency}
             formatDate={formatDate}
+            onViewInvoice={handleViewInvoice}
+            onEditInvoice={handleEditInvoice}
+            onSubmitDraft={handleSubmitDraft}
+            onDownloadPdf={handleDownloadPdf}
+            downloadingId={downloadingId}
           />
         </main>
       </div>
+
+      {/* Raise / Edit Invoice Modal */}
+      <RaiseInvoiceModal
+        isOpen={raiseModalOpen}
+        onClose={() => {
+          setRaiseModalOpen(false);
+          setEditingInvoice(null);
+          setRaiseProjectId(null);
+        }}
+        initialProjectId={raiseProjectId}
+        existingInvoice={editingInvoice}
+        onSuccess={handleInvoiceSuccess}
+      />
+
+      {/* Invoice Detail Modal */}
+      <VendorInvoiceDetailModal
+        isOpen={Boolean(viewingInvoice)}
+        onClose={() => setViewingInvoice(null)}
+        invoice={viewingInvoice}
+        onEditInvoice={handleEditInvoice}
+        onSubmitDraft={handleSubmitDraft}
+        onDownloadPdf={handleDownloadPdf}
+        isDownloadingPdf={downloadingId === viewingInvoice?._id}
+        isSubmitting={isSubmittingDraft}
+      />
     </div>
   );
 };

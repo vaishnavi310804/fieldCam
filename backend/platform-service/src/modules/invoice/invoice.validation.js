@@ -1,93 +1,75 @@
 import { body, param } from "express-validator";
 
-const ALLOWED_STATUSES = ["Pending", "Approved", "Paid"];
+const ALLOWED_STATUSES = [
+  "Draft",
+  "Submitted",
+  "Pending",
+  "Approved",
+  "Sent",
+  "Paid",
+  "Rejected",
+];
 
 export const createInvoiceValidation = [
-  body("invoiceId")
-    .trim()
-    .notEmpty()
-    .withMessage("Invoice ID is required"),
-
   body("projectId")
     .notEmpty()
     .withMessage("Project ID is required")
     .isMongoId()
     .withMessage("Project ID must be a valid MongoDB ObjectId"),
 
-  body("vendorId")
-    .notEmpty()
-    .withMessage("Vendor ID is required")
-    .isMongoId()
-    .withMessage("Vendor ID must be a valid MongoDB ObjectId"),
-
-  body("amount")
-    .notEmpty()
-    .withMessage("Amount is required")
-    .isFloat({ min: 0 })
-    .withMessage("Amount must be a non-negative number"),
-
-  body("tax")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Tax must be a non-negative number"),
-
-  body("totalAmount")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Total amount must be a non-negative number"),
-
-  body("projectTitle")
-    .optional()
-    .trim()
-    .isString()
-    .withMessage("Project title must be a string"),
-
-  body("vendorName")
-    .optional()
-    .trim()
-    .isString()
-    .withMessage("Vendor name must be a string"),
-
-  body("status")
-    .optional()
-    .isIn(ALLOWED_STATUSES)
-    .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
-
-  body("paymentDate")
-    .optional({ nullable: true })
-    .isISO8601()
-    .withMessage("Payment date must be a valid ISO8601 date string"),
-];
-
-export const updateInvoiceValidation = [
   body("invoiceId")
     .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Invoice ID cannot be empty"),
-
-  body("projectId")
-    .optional()
-    .isMongoId()
-    .withMessage("Project ID must be a valid MongoDB ObjectId"),
+    .isString()
+    .withMessage("Invoice ID must be a string"),
 
   body("vendorId")
     .optional()
     .isMongoId()
     .withMessage("Vendor ID must be a valid MongoDB ObjectId"),
 
-  body("projectTitle")
+  body("items")
+    .optional()
+    .isArray()
+    .withMessage("Items must be an array of line items"),
+
+  body("items.*.description")
+    .if(body("items").isArray({ min: 1 }))
+    .trim()
+    .notEmpty()
+    .withMessage("Line item description is required"),
+
+  body("items.*.quantity")
+    .if(body("items").isArray({ min: 1 }))
+    .isFloat({ min: 0.01 })
+    .withMessage("Line item quantity must be greater than 0"),
+
+  body("items.*.rate")
+    .if(body("items").isArray({ min: 1 }))
+    .isFloat({ min: 0 })
+    .withMessage("Line item rate must be a non-negative number"),
+
+  body("invoiceDate")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Invoice date must be a valid ISO8601 date string"),
+
+  body("dueDate")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Due date must be a valid ISO8601 date string"),
+
+  body("notes")
     .optional()
     .trim()
-    .isString()
-    .withMessage("Project title must be a string"),
+    .isString(),
 
-  body("vendorName")
+  body("status")
     .optional()
-    .trim()
-    .isString()
-    .withMessage("Vendor name must be a string"),
+    .isIn(ALLOWED_STATUSES)
+    .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
 
+  // Legacy fields accepted for backward compatibility
   body("amount")
     .optional()
     .isFloat({ min: 0 })
@@ -95,18 +77,100 @@ export const updateInvoiceValidation = [
 
   body("tax")
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Tax must be a non-negative number"),
+    .isFloat({ min: 0 }),
+];
 
-  body("status")
+export const updateInvoiceValidation = [
+  body("items")
     .optional()
-    .isIn(ALLOWED_STATUSES)
-    .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
+    .isArray()
+    .withMessage("Items must be an array of line items"),
 
+  body("items.*.description")
+    .if(body("items").isArray({ min: 1 }))
+    .trim()
+    .notEmpty()
+    .withMessage("Line item description is required"),
+
+  body("items.*.quantity")
+    .if(body("items").isArray({ min: 1 }))
+    .isFloat({ min: 0.01 })
+    .withMessage("Line item quantity must be greater than 0"),
+
+  body("items.*.rate")
+    .if(body("items").isArray({ min: 1 }))
+    .isFloat({ min: 0 })
+    .withMessage("Line item rate must be a non-negative number"),
+
+  body("invoiceDate")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Invoice date must be a valid ISO8601 date string"),
+
+  body("dueDate")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Due date must be a valid ISO8601 date string"),
+
+  body("notes")
+    .optional()
+    .trim()
+    .isString(),
+
+  body("submit")
+    .optional()
+    .isBoolean()
+    .withMessage("Submit flag must be a boolean"),
+
+  body("amount")
+    .optional()
+    .isFloat({ min: 0 }),
+];
+
+export const submitInvoiceValidation = [
+  body("dueDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Due date must be a valid ISO8601 date string"),
+];
+
+export const reviewInvoiceValidation = [
+  body("action")
+    .trim()
+    .notEmpty()
+    .withMessage("Review action is required")
+    .isIn(["APPROVE", "REJECT", "approve", "reject"])
+    .withMessage('Action must be either "APPROVE" or "REJECT"'),
+
+  body("rejectionReason")
+    .if((value, { req }) => (req.body.action || "").toUpperCase() === "REJECT")
+    .trim()
+    .notEmpty()
+    .withMessage("Rejection reason is required when rejecting an invoice"),
+];
+
+export const sendInvoiceValidation = [
+  body("recipientEmail")
+    .optional({ checkFalsy: true })
+    .isEmail()
+    .withMessage("Recipient must be a valid email address"),
+];
+
+export const recordPaymentValidation = [
   body("paymentDate")
     .optional({ nullable: true })
     .isISO8601()
     .withMessage("Payment date must be a valid ISO8601 date string"),
+
+  body("paymentMethod")
+    .optional()
+    .trim()
+    .isString(),
+
+  body("paymentNotes")
+    .optional()
+    .trim()
+    .isString(),
 ];
 
 export const updateInvoiceStatusValidation = [
@@ -115,4 +179,15 @@ export const updateInvoiceStatusValidation = [
     .withMessage("Status is required")
     .isIn(ALLOWED_STATUSES)
     .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
+
+  body("rejectionReason")
+    .if(body("status").equals("Rejected"))
+    .trim()
+    .notEmpty()
+    .withMessage("Rejection reason is required when setting status to Rejected"),
+
+  body("paymentDate")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Payment date must be a valid ISO8601 date string"),
 ];

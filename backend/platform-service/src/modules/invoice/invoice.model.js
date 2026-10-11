@@ -1,5 +1,74 @@
 import mongoose from "mongoose";
 
+const lineItemSchema = new mongoose.Schema(
+  {
+    description: {
+      type: String,
+      required: [true, "Line item description is required"],
+      trim: true,
+    },
+    quantity: {
+      type: Number,
+      required: [true, "Line item quantity is required"],
+      min: [0.01, "Quantity must be greater than 0"],
+    },
+    rate: {
+      type: Number,
+      required: [true, "Line item rate is required"],
+      min: [0, "Rate cannot be negative"],
+    },
+    amount: {
+      type: Number,
+      required: [true, "Line item amount is required"],
+      min: [0, "Amount cannot be negative"],
+    },
+  },
+  { _id: true }
+);
+
+const reviewHistorySchema = new mongoose.Schema(
+  {
+    action: {
+      type: String,
+      enum: [
+        "CREATED",
+        "DRAFT_SAVED",
+        "SUBMITTED",
+        "RESUBMITTED",
+        "APPROVED",
+        "REJECTED",
+        "SENT",
+        "PAID",
+        "STATUS_CHANGED",
+      ],
+      required: true,
+    },
+    actorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    actorRole: {
+      type: String,
+      default: null,
+    },
+    actorEmail: {
+      type: String,
+      default: null,
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceId: {
@@ -28,6 +97,20 @@ const invoiceSchema = new mongoose.Schema(
       required: [true, "Vendor name is required"],
       trim: true,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      default: null,
+    },
+    items: {
+      type: [lineItemSchema],
+      default: [],
+    },
+    subtotal: {
+      type: Number,
+      min: [0, "Subtotal cannot be negative"],
+      default: 0,
+    },
     amount: {
       type: Number,
       required: [true, "Amount is required"],
@@ -47,14 +130,68 @@ const invoiceSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ["Pending", "Approved", "Paid"],
+        values: [
+          "Draft",
+          "Submitted",
+          "Pending",
+          "Approved",
+          "Sent",
+          "Paid",
+          "Rejected",
+        ],
         message: "{VALUE} is not a valid invoice status",
       },
-      default: "Pending",
+      default: "Draft",
+    },
+    invoiceDate: {
+      type: Date,
+      default: Date.now,
+    },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    sentAt: {
+      type: Date,
+      default: null,
+    },
+    sentTo: {
+      type: String,
+      trim: true,
+      default: null,
     },
     paymentDate: {
       type: Date,
       default: null,
+    },
+    paymentMethod: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paymentNotes: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paidBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewHistory: {
+      type: [reviewHistorySchema],
+      default: [],
     },
   },
   {
@@ -63,9 +200,12 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 // Indexes
-invoiceSchema.index({ status: 1 });
+invoiceSchema.index({ projectId: 1 }, { unique: true });
 invoiceSchema.index({ vendorId: 1 });
-invoiceSchema.index({ projectId: 1 });
+invoiceSchema.index({ companyId: 1 });
+invoiceSchema.index({ status: 1 });
+invoiceSchema.index({ dueDate: 1 });
+invoiceSchema.index({ paymentDate: 1 });
 invoiceSchema.index({ createdAt: -1 });
 
 const Invoice = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);
