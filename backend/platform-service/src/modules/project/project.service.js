@@ -711,8 +711,8 @@ export const addProjectNote = async (projectIdOrId, text, user) => {
 };
 
 export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) => {
-  if (!user || user.role !== "VENDOR") {
-    const err = new Error("Only authenticated vendors can upload photos");
+  if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
+    const err = new Error("Only authenticated vendors and assigned staff can upload photos");
     err.statusCode = 403;
     throw err;
   }
@@ -729,13 +729,6 @@ export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) =>
     throw err;
   }
 
-  const vendor = await Vendor.findOne({ userId: user.id || user._id });
-  if (!vendor) {
-    const err = new Error("Vendor profile not found for authenticated user");
-    err.statusCode = 404;
-    throw err;
-  }
-
   const project = await findProjectByIdOrCode(projectIdOrId);
   if (!project) {
     const err = new Error("Project not found");
@@ -743,10 +736,26 @@ export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) =>
     throw err;
   }
 
-  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
-    const err = new Error("You are not authorized to upload photos to this project");
-    err.statusCode = 403;
-    throw err;
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor) {
+      const err = new Error("Vendor profile not found for authenticated user");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to upload photos to this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (user.role === "STAFF") {
+    const staffId = (user.id || user._id).toString();
+    const assignedStaffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
+    if (!assignedStaffIdStr || assignedStaffIdStr !== staffId) {
+      const err = new Error("You are not authorized to upload photos to this project");
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   if (project.status !== "In Progress") {
@@ -905,16 +914,9 @@ export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) =>
 };
 
 export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
-  if (!user || user.role !== "VENDOR") {
-    const err = new Error("Only authenticated vendors can delete photos");
+  if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
+    const err = new Error("Only authenticated vendors and assigned staff can delete photos");
     err.statusCode = 403;
-    throw err;
-  }
-
-  const vendor = await Vendor.findOne({ userId: user.id || user._id });
-  if (!vendor) {
-    const err = new Error("Vendor profile not found for authenticated user");
-    err.statusCode = 404;
     throw err;
   }
 
@@ -925,10 +927,26 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
     throw err;
   }
 
-  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
-    const err = new Error("You are not authorized to delete photos from this project");
-    err.statusCode = 403;
-    throw err;
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor) {
+      const err = new Error("Vendor profile not found for authenticated user");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to delete photos from this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (user.role === "STAFF") {
+    const staffId = (user.id || user._id).toString();
+    const assignedStaffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
+    if (!assignedStaffIdStr || assignedStaffIdStr !== staffId) {
+      const err = new Error("You are not authorized to delete photos from this project");
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   if (project.status !== "In Progress") {
@@ -1000,16 +1018,9 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
 };
 
 export const submitVendorProject = async (projectIdOrId, user) => {
-  if (!user || user.role !== "VENDOR") {
-    const err = new Error("Only authenticated vendors can submit projects");
+  if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
+    const err = new Error("Only authenticated vendors and assigned staff can submit projects");
     err.statusCode = 403;
-    throw err;
-  }
-
-  const vendor = await Vendor.findOne({ userId: user.id || user._id });
-  if (!vendor) {
-    const err = new Error("Vendor profile not found for authenticated user");
-    err.statusCode = 404;
     throw err;
   }
 
@@ -1020,10 +1031,26 @@ export const submitVendorProject = async (projectIdOrId, user) => {
     throw err;
   }
 
-  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
-    const err = new Error("You are not authorized to submit this project");
-    err.statusCode = 403;
-    throw err;
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor) {
+      const err = new Error("Vendor profile not found for authenticated user");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to submit this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (user.role === "STAFF") {
+    const staffId = (user.id || user._id).toString();
+    const assignedStaffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
+    if (!assignedStaffIdStr || assignedStaffIdStr !== staffId) {
+      const err = new Error("You are not authorized to submit this project");
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   if (project.status !== "In Progress") {

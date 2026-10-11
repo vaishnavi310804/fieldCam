@@ -118,32 +118,32 @@ router.post(
   addProjectNoteController
 );
 
-// POST /api/projects/:id/photos - Vendor uploads photo for a checklist item (VENDOR)
+// POST /api/projects/:id/photos - Vendor or assigned Staff uploads photo for a checklist item (VENDOR, STAFF)
 router.post(
   "/:id/photos",
   protect,
-  authorize("VENDOR"),
+  authorize("VENDOR", "STAFF"),
   handleVendorPhotoUpload,
   uploadVendorPhotoValidation,
   validate,
   uploadVendorPhotoController
 );
 
-// POST /api/projects/:id/submit - Vendor submits project for review (VENDOR)
+// POST /api/projects/:id/submit - Vendor or assigned Staff submits project for review (VENDOR, STAFF)
 router.post(
   "/:id/submit",
   protect,
-  authorize("VENDOR"),
+  authorize("VENDOR", "STAFF"),
   submitVendorProjectValidation,
   validate,
   submitVendorProjectController
 );
 
-// DELETE /api/projects/:id/photos/:photoId - Vendor deletes photo (VENDOR)
+// DELETE /api/projects/:id/photos/:photoId - Vendor or assigned Staff deletes photo (VENDOR, STAFF)
 router.delete(
   "/:id/photos/:photoId",
   protect,
-  authorize("VENDOR"),
+  authorize("VENDOR", "STAFF"),
   deleteVendorPhotoValidation,
   validate,
   deleteVendorPhotoController
