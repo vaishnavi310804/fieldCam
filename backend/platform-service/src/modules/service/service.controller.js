@@ -7,9 +7,6 @@ import {
 } from "./service.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Controller to handle Service creation.
- */
 export const createServiceController = async (req, res) => {
   try {
     const result = await createService(req.body);
@@ -37,9 +34,6 @@ export const createServiceController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching all services.
- */
 export const getServicesController = async (req, res) => {
   try {
     const result = await getServices(req.query);
@@ -56,9 +50,6 @@ export const getServicesController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching a single service by ID.
- */
 export const getServiceByIdController = async (req, res) => {
   try {
     const result = await getServiceById(req.params.id);
@@ -75,9 +66,6 @@ export const getServiceByIdController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating a service configuration.
- */
 export const updateServiceController = async (req, res) => {
   try {
     const result = await updateService(req.params.id, req.body);
@@ -108,9 +96,6 @@ export const updateServiceController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating service status.
- */
 export const updateServiceStatusController = async (req, res) => {
   try {
     const result = await updateServiceStatus(req.params.id, req.body.status);

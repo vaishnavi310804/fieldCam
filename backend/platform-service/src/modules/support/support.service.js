@@ -4,23 +4,12 @@ import Project from "../project/project.model.js";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
 
-/**
- * Helper to get a vendor's user ID for notification delivery.
- * @param {string|mongoose.Types.ObjectId} vendorId
- * @returns {Promise<mongoose.Types.ObjectId|null>}
- */
 const getVendorUserId = async (vendorId) => {
   if (!vendorId) return null;
   const vendor = await Vendor.findById(vendorId);
   return vendor ? vendor.userId : null;
 };
 
-/**
- * Creates a new Support ticket document.
- * @param {Object} ticketData 
- * @param {Object} user 
- * @returns {Promise<Object>}
- */
 export const createTicket = async (ticketData, user = {}) => {
   let { vendorId, projectId, ticketId } = ticketData;
 
@@ -126,12 +115,6 @@ export const createTicket = async (ticketData, user = {}) => {
   return ticket;
 };
 
-/**
- * Retrieves support tickets with filtering, search, and vendor scoping.
- * @param {Object} query 
- * @param {Object} user 
- * @returns {Promise<Array>}
- */
 export const getTickets = async (query = {}, user = {}) => {
   const filter = {};
 
@@ -181,12 +164,6 @@ export const getTickets = async (query = {}, user = {}) => {
   return tickets;
 };
 
-/**
- * Retrieves a single support ticket by Mongo _id or ticketId.
- * @param {String} id 
- * @param {Object} user 
- * @returns {Promise<Object>}
- */
 export const getTicketById = async (id, user = {}) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { ticketId: id }] }
@@ -217,12 +194,6 @@ export const getTicketById = async (id, user = {}) => {
   return ticket;
 };
 
-/**
- * Updates a support ticket (Admin/Super Admin only).
- * @param {String} id 
- * @param {Object} updateData 
- * @returns {Promise<Object>}
- */
 export const updateTicket = async (id, updateData) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { ticketId: id }] }
@@ -312,12 +283,6 @@ export const updateTicket = async (id, updateData) => {
     .populate("projectId", "projectId projectName client status");
 };
 
-/**
- * Updates support ticket status (Admin/Super Admin only).
- * @param {String} id 
- * @param {String} status 
- * @returns {Promise<Object>}
- */
 export const updateTicketStatus = async (id, status) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { ticketId: id }] }
@@ -362,11 +327,6 @@ export const updateTicketStatus = async (id, status) => {
     .populate("projectId", "projectId projectName client status");
 };
 
-/**
- * Calculates aggregate ticket statistics from database.
- * @param {Object} user
- * @returns {Promise<Object>}
- */
 export const getTicketStats = async (user = {}) => {
   const filter = {};
 

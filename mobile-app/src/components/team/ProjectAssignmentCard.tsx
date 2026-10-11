@@ -22,7 +22,7 @@ export const ProjectAssignmentCard: React.FC<ProjectAssignmentCardProps> = ({
     : null;
 
   const rawStatus = (project.status || "NEW").toUpperCase();
-  const statusDisplay = rawStatus === "NEW" || rawStatus === "ASSIGNED" ? "AVAILABLE" : rawStatus;
+  const statusDisplay = rawStatus === "ASSIGNED" ? "AVAILABLE" : rawStatus;
 
   return (
     <Pressable

@@ -1,6 +1,5 @@
 import { body } from "express-validator";
 
-// Admin creates a new user account
 export const createUserByAdminValidation = [
   body("name")
     .trim()
@@ -35,8 +34,6 @@ export const createUserByAdminValidation = [
     .withMessage("Invalid company ID"),
 ];
 
-
-// Web login
 export const webLoginValidation = [
   body("email")
     .trim()
@@ -51,8 +48,6 @@ export const webLoginValidation = [
     .withMessage("Password is required"),
 ];
 
-
-// Mobile login
 export const mobileLoginValidation = [
   body("phone")
     .trim()
@@ -67,8 +62,6 @@ export const mobileLoginValidation = [
     .withMessage("Password is required"),
 ];
 
-
-// Verify registration OTP
 export const verifyRegistrationOtpValidation = [
   body("email")
     .trim()
@@ -87,8 +80,6 @@ export const verifyRegistrationOtpValidation = [
     .withMessage("OTP must contain only numbers."),
 ];
 
-
-// Complete onboarding/profile
 export const completeProfileValidation = [
   body("password")
     .trim()
@@ -103,9 +94,6 @@ export const completeProfileValidation = [
     .withMessage("Profile image must be a valid string"),
 ];
 
-
-
-// Forgot password
 export const forgotPasswordValidation = [
   body("email")
     .trim()
@@ -115,8 +103,6 @@ export const forgotPasswordValidation = [
     .withMessage("Please provide a valid email."),
 ];
 
-
-// Verify password reset OTP
 export const verifyResetOTPValidation = [
   body("email")
     .trim()
@@ -135,8 +121,6 @@ export const verifyResetOTPValidation = [
     .withMessage("OTP must contain only numbers."),
 ];
 
-
-// Reset password
 export const resetPasswordValidation = [
   body("resetToken")
     .notEmpty()
@@ -150,7 +134,6 @@ export const resetPasswordValidation = [
     .withMessage("Password must be at least 6 characters long."),
 ];
 
-// Send registration OTP email
 export const sendRegistrationOtpEmailValidation = [
   body("email")
     .trim()
@@ -169,7 +152,6 @@ export const sendRegistrationOtpEmailValidation = [
     .withMessage("OTP must contain only numbers."),
 ];
 
-// Update user profile validation
 export const updateProfileValidation = [
   body("firstName")
     .optional({ checkFalsy: true })

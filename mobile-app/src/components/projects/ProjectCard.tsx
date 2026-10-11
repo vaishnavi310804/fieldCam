@@ -81,9 +81,7 @@ export const ProjectCard = ({
   showAcceptButton = false,
 }: ProjectCardProps) => {
   const badge = getStatusBadgeStyle(project.status);
-  const statusUpper = (project.status || "").toUpperCase();
-  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
-  const hasProgress = !isPendingAcceptance && typeof project.progress === "number" && !isNaN(project.progress);
+  const hasProgress = typeof project.progress === "number" && !isNaN(project.progress);
 
   return (
     <Pressable
@@ -151,8 +149,8 @@ export const ProjectCard = ({
           </View>
         ) : null}
 
-        {/* Presentational Accept Button for ASSIGNED projects */}
-        {(showAcceptButton || project.status.toUpperCase() === "ASSIGNED") ? (
+        {/* Presentational Accept Button for NEW projects */}
+        {(showAcceptButton || project.status.toUpperCase() === "NEW") ? (
           <Pressable
             style={styles.acceptButton}
             onPress={onAcceptPress}

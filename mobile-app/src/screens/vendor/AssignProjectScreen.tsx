@@ -49,10 +49,10 @@ export const AssignProjectScreen: React.FC = () => {
           staffId ? dashboardApi.getVendorStaffList() : Promise.resolve([]),
         ]);
 
-        // Filter out completed / approved projects based on backend status semantics
+        // Only accepted projects with status ASSIGNED are eligible for staff assignment
         const assignableProjects = fetchedProjects.filter((p) => {
           const s = (p.status || "").toUpperCase();
-          return s !== "APPROVED" && s !== "COMPLETED";
+          return s === "ASSIGNED";
         });
 
         setProjects(assignableProjects);

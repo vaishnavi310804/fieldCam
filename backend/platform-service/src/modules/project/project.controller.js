@@ -17,9 +17,6 @@ import {
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Controller to handle Project creation.
- */
 export const createProjectController = async (req, res) => {
   try {
     const result = await createProject(req.body, req.files);
@@ -46,9 +43,6 @@ export const createProjectController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching all projects with filters & search.
- */
 export const getProjectsController = async (req, res) => {
   try {
     const query = { ...req.query };
@@ -80,9 +74,6 @@ export const getProjectsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching a single project by ID.
- */
 export const getProjectByIdController = async (req, res) => {
   try {
     const result = await getProjectById(req.params.id, req.user);
@@ -104,9 +95,6 @@ export const getProjectByIdController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating an existing project.
- */
 export const updateProjectController = async (req, res) => {
   try {
     const result = await updateProject(req.params.id, req.body);
@@ -138,9 +126,6 @@ export const updateProjectController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating project status.
- */
 export const updateProjectStatusController = async (req, res) => {
   try {
     const result = await updateProjectStatus(
@@ -183,10 +168,6 @@ export const updateProjectStatusController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor Project Acceptance (ASSIGNED -> In Progress).
- * PATCH /api/projects/:id/accept
- */
 export const acceptProjectController = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -217,10 +198,6 @@ export const acceptProjectController = async (req, res) => {
   }
 };
 
-/**
- * Controller to fetch project notes.
- * GET /api/projects/:id/notes
- */
 export const getProjectNotesController = async (req, res) => {
   try {
     const notes = await getProjectNotes(req.params.id, req.user);
@@ -238,10 +215,6 @@ export const getProjectNotesController = async (req, res) => {
   }
 };
 
-/**
- * Controller to add a note to a project.
- * POST /api/projects/:id/notes
- */
 export const addProjectNoteController = async (req, res) => {
   try {
     const note = await addProjectNote(req.params.id, req.body.text, req.user);
@@ -269,10 +242,6 @@ export const addProjectNoteController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor photo upload.
- * POST /api/projects/:id/photos
- */
 export const uploadVendorPhotoController = async (req, res) => {
   try {
     const result = await uploadVendorPhoto(
@@ -296,10 +265,6 @@ export const uploadVendorPhotoController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor photo deletion.
- * DELETE /api/projects/:id/photos/:photoId
- */
 export const deleteVendorPhotoController = async (req, res) => {
   try {
     const result = await deleteVendorPhoto(
@@ -322,10 +287,6 @@ export const deleteVendorPhotoController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor Project Submission (In Progress -> Submitted).
- * POST /api/projects/:id/submit
- */
 export const submitVendorProjectController = async (req, res) => {
   try {
     const result = await submitVendorProject(req.params.id, req.user);
@@ -348,10 +309,6 @@ export const submitVendorProjectController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor assigning project to a staff member.
- * POST /api/projects/:id/assign-staff
- */
 export const assignStaffController = async (req, res) => {
   try {
     const { id } = req.params;
@@ -373,10 +330,6 @@ export const assignStaffController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching projects assigned to the authenticated staff user.
- * GET /api/projects/staff/me
- */
 export const getStaffProjectsController = async (req, res) => {
   try {
     const result = await getStaffAssignedProjects(req.user.id);
@@ -393,10 +346,6 @@ export const getStaffProjectsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle generating and downloading Project PDF Report.
- * GET /api/projects/:id/report/pdf
- */
 export const downloadProjectReportPdfController = async (req, res) => {
   try {
     const { pdfBuffer, project } = await generateProjectReportPdf(

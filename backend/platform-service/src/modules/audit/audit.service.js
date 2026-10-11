@@ -44,12 +44,6 @@ export const logAuditEvent = async ({
   }
 };
 
-/**
- * Retrieves audit logs for the authenticated user with pagination.
- * @param {string} actorId 
- * @param {Object} query - { page, limit }
- * @returns {Promise<Object>} { logs, pagination }
- */
 export const getMyAuditLogs = async (actorId, query = {}) => {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 10));
@@ -84,12 +78,6 @@ export const getMyAuditLogs = async (actorId, query = {}) => {
   };
 };
 
-/**
- * Retrieves audit logs for a specific entity (e.g. Project).
- * @param {string} entityType 
- * @param {string} entityId 
- * @returns {Promise<Array>}
- */
 export const getEntityAuditLogs = async (entityType, entityId) => {
   const strId = String(entityId);
   return await AuditLog.find({

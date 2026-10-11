@@ -1,9 +1,5 @@
 import { getMyAuditLogs, getEntityAuditLogs } from "./audit.service.js";
 
-/**
- * Controller to handle fetching audit logs for the currently authenticated user.
- * GET /api/audit-logs/me
- */
 export const getMyAuditLogsController = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
@@ -29,10 +25,6 @@ export const getMyAuditLogsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching audit logs for a specific entity.
- * GET /api/audit-logs/entity/:entityType/:entityId
- */
 export const getEntityAuditLogsController = async (req, res) => {
   try {
     const { entityType, entityId } = req.params;

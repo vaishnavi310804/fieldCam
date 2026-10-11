@@ -3,10 +3,6 @@ import {
   getSuperAdminDashboardData,
 } from "./dashboard.service.js";
 
-/**
- * Controller to handle fetching real Admin Dashboard metrics and datasets.
- * GET /api/dashboard/stats
- */
 export const getAdminDashboardStatsController = async (req, res) => {
   try {
     const result = await getAdminDashboardData();
@@ -23,10 +19,6 @@ export const getAdminDashboardStatsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching real Super Admin Dashboard telemetry.
- * GET /api/dashboard/super-admin/stats
- */
 export const getSuperAdminDashboardStatsController = async (req, res) => {
   try {
     const result = await getSuperAdminDashboardData();

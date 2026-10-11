@@ -5,10 +5,6 @@ import {
   markAllNotificationsAsRead,
 } from "./notification.service.js";
 
-/**
- * Fetch all notifications for the authenticated user.
- * GET /api/notifications
- */
 export const getUserNotificationsController = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -27,10 +23,6 @@ export const getUserNotificationsController = async (req, res) => {
   }
 };
 
-/**
- * Fetch unread notification count for the authenticated user.
- * GET /api/notifications/unread-count
- */
 export const getUnreadCountController = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -50,10 +42,6 @@ export const getUnreadCountController = async (req, res) => {
   }
 };
 
-/**
- * Mark a single notification as read for the authenticated user.
- * PATCH /api/notifications/:id/read
- */
 export const markNotificationAsReadController = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -79,10 +67,6 @@ export const markNotificationAsReadController = async (req, res) => {
   }
 };
 
-/**
- * Mark all notifications as read for the authenticated user.
- * PATCH /api/notifications/read-all
- */
 export const markAllNotificationsAsReadController = async (req, res) => {
   try {
     const userId = req.user?.id;

@@ -239,7 +239,7 @@ export const ProjectDetailsScreen = () => {
       await acceptProject(targetId);
       Alert.alert(
         "Success",
-        "Project accepted successfully! It is now In Progress."
+        "Project accepted successfully! It is now assigned to your organization and ready for staff assignment."
       );
       await fetchProjectData(false);
     } catch (err: any) {
@@ -276,13 +276,14 @@ export const ProjectDetailsScreen = () => {
 
   // Status & Progress calculations
   const statusUpper = (project?.status || "").toUpperCase();
-  const isAssignedOrNew = statusUpper === "ASSIGNED" || statusUpper === "NEW";
+  const isNew = statusUpper === "NEW";
+  const isAssigned = statusUpper === "ASSIGNED";
   const isInProgress = statusUpper === "IN PROGRESS";
 
   const checklist = Array.isArray(project?.checklistItems) ? project!.checklistItems : [];
   const totalChecklist = checklist.length;
   const checkedChecklist = checklist.filter((item) => item.checked).length;
-  const hasChecklist = !isAssignedOrNew && totalChecklist > 0;
+  const hasChecklist = !isNew && totalChecklist > 0;
   const progressPercent = hasChecklist
     ? Math.round((checkedChecklist / totalChecklist) * 100)
     : 0;
@@ -444,7 +445,7 @@ export const ProjectDetailsScreen = () => {
                     ))}
                   </View>
                 </View>
-              ) : isAssignedOrNew ? null : (
+              ) : (isNew || isAssigned) ? null : (
                 <View style={styles.emptyCard}>
                   <Ionicons name="list-outline" size={24} color="#A39A94" />
                   <Text style={styles.emptyCardText}>No checklist items available.</Text>
@@ -610,9 +611,9 @@ export const ProjectDetailsScreen = () => {
           ) : null}
 
           {/* BOTTOM PRIMARY ACTION AREA (Only visible in Overview tab) */}
-          {activeTab !== "photos" && activeTab !== "notes" && (isAssignedOrNew || isInProgress) ? (
+          {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress) ? (
             <View style={styles.actionContainer}>
-              {isAssignedOrNew ? (
+              {isNew ? (
                 <Pressable
                   style={[styles.primaryActionButton, isAccepting && styles.disabledButton]}
                   onPress={handleAcceptProject}
@@ -625,6 +626,16 @@ export const ProjectDetailsScreen = () => {
                   ) : (
                     <Text style={styles.primaryActionText}>Accept Project</Text>
                   )}
+                </Pressable>
+              ) : isAssigned ? (
+                <Pressable
+                  style={styles.primaryActionButton}
+                  onPress={() => router.push("/(app)/team" as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Assign to Staff"
+                >
+                  <Ionicons name="person-add-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                  <Text style={styles.primaryActionText}>Assign to Staff</Text>
                 </Pressable>
               ) : isInProgress ? (
                 <View style={styles.actionRow}>

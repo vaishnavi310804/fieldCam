@@ -45,8 +45,14 @@ router.get(
   getStaffProjectsController
 );
 
-// PATCH /api/projects/:id/accept - Vendor accepts an assigned project (VENDOR)
+// PATCH or POST /api/projects/:id/accept - Vendor accepts an assigned project (VENDOR)
 router.patch(
+  "/:id/accept",
+  protect,
+  authorize("VENDOR"),
+  acceptProjectController
+);
+router.post(
   "/:id/accept",
   protect,
   authorize("VENDOR"),
@@ -104,6 +110,12 @@ router.get(
   protect,
   authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
   getProjectNotesController
+);
+router.post(
+  "/:id/notes",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  addProjectNoteController
 );
 
 // POST /api/projects/:id/photos - Vendor uploads photo for a checklist item (VENDOR)

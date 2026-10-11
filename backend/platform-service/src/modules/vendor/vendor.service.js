@@ -1,15 +1,12 @@
 import Vendor from "./vendor.model.js";
 import User from "../users/user.model.js";
 import Project from "../project/project.model.js";
+import DeviceToken from "../notification/deviceToken.model.js";
 import crypto from "crypto";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
+import { calculateProjectWorkflowProgress } from "../project/project.service.js";
 
-/**
- * Creates a new Vendor profile linked to an authenticating VENDOR user account.
- * @param {Object} vendorData 
- * @returns {Promise<Object>}
- */
 export const createVendor = async (vendorData) => {
   let createdUserId = null;
   let createdVendorId = null;
@@ -124,11 +121,6 @@ export const createVendor = async (vendorData) => {
   }
 };
 
-/**
- * Retrieves vendors with optional filters and search functionality.
- * @param {Object} query - { status, search }
- * @returns {Promise<Array>}
- */
 export const getVendors = async (query = {}) => {
   const filter = {};
 
@@ -264,11 +256,6 @@ export const getVendors = async (query = {}) => {
   return formattedVendors;
 };
 
-/**
- * Retrieves the vendor profile for the currently authenticated User ID.
- * @param {string} userId 
- * @returns {Promise<Object>}
- */
 export const getMyVendorProfile = async (userId) => {
   const vendor = await Vendor.findOne({ userId });
   if (!vendor) {
@@ -277,11 +264,6 @@ export const getMyVendorProfile = async (userId) => {
   return await getVendorById(vendor._id.toString());
 };
 
-/**
- * Retrieves a single vendor profile by ID enriched with live project statistics.
- * @param {string} id 
- * @returns {Promise<Object>}
- */
 export const getVendorById = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid vendor ID format");
@@ -331,17 +313,15 @@ export const getVendorById = async (id) => {
   vendorObj.activeProjects = activeCount;
   vendorObj.completed = completedCount;
   vendorObj.approval = waitingForApprovalCount;
-  vendorObj.projects = assignedProjectsList;
+  vendorObj.projects = assignedProjectsList.map((p) => {
+    const pObj = typeof p.toObject === "function" ? p.toObject() : { ...p };
+    pObj.progress = calculateProjectWorkflowProgress(pObj.status, pObj.checklistItems);
+    return pObj;
+  });
 
   return vendorObj;
 };
 
-/**
- * Updates vendor information.
- * @param {string} id 
- * @param {Object} updateData 
- * @returns {Promise<Object>}
- */
 export const updateVendor = async (id, updateData) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid vendor ID format");
@@ -364,12 +344,6 @@ export const updateVendor = async (id, updateData) => {
   return updatedVendor;
 };
 
-/**
- * Updates vendor status (Active / Suspended / Inactive).
- * @param {string} id 
- * @param {string} status 
- * @returns {Promise<Object>}
- */
 export const updateVendorStatus = async (id, status) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid vendor ID format");
@@ -408,10 +382,6 @@ export const updateVendorStatus = async (id, status) => {
   return updatedVendor;
 };
 
-/**
- * Calculates Vendor summary stats for the Admin Vendors page.
- * @returns {Promise<Object>}
- */
 export const getVendorStats = async () => {
   const [totalVendors, activeVendors, suspendedVendors, inactiveVendors] =
     await Promise.all([
@@ -429,11 +399,6 @@ export const getVendorStats = async () => {
   };
 };
 
-/**
- * Retrieves STAFF-role users belonging strictly to the authenticated VENDOR.
- * @param {Object} currentUser - req.user from protect middleware { id, email, role }
- * @returns {Promise<Array>}
- */
 export const getVendorStaff = async (currentUser) => {
   const vendorUserId = currentUser.id;
 
@@ -459,5 +424,131 @@ export const getVendorStaff = async (currentUser) => {
     .select("-password -registrationOtpHash -registrationOtpExpires -resetOtpHash -resetOtpExpires")
     .sort({ createdAt: -1 });
 
-  return staffMembers.map((member) => member.toObject());
+  const staffMemberIds = staffMembers.map((s) => s._id);
+
+  // Derive real assigned project metrics for each staff member
+  const projectAgg = await Project.aggregate([
+    { $match: { assignedStaffId: { $in: staffMemberIds } } },
+    {
+      $group: {
+        _id: "$assignedStaffId",
+        active: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["New", "ASSIGNED", "In Progress", "Submitted", "Under Review"]] },
+              1,
+              0,
+            ],
+          },
+        },
+        completed: {
+          $sum: {
+            $cond: [{ $in: ["$status", ["Approved", "Completed"]] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  const projectStatsMap = new Map();
+  projectAgg.forEach((stat) => {
+    if (stat._id) {
+      projectStatsMap.set(stat._id.toString(), {
+        active: stat.active || 0,
+        completed: stat.completed || 0,
+      });
+    }
+  });
+
+  // Query device tokens for real lastSeenAt presence
+  const deviceTokens = await DeviceToken.find({
+    userId: { $in: staffMemberIds },
+    isActive: true,
+  }).sort({ lastSeenAt: -1 });
+
+  const tokenMap = new Map();
+  deviceTokens.forEach((tok) => {
+    const key = tok.userId.toString();
+    if (!tokenMap.has(key)) {
+      tokenMap.set(key, tok.lastSeenAt);
+    }
+  });
+
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+  return staffMembers.map((member) => {
+    const obj = member.toObject();
+    const stats = projectStatsMap.get(obj._id.toString()) || { active: 0, completed: 0 };
+    const lastSeen = tokenMap.get(obj._id.toString()) || null;
+    obj.activeProjects = stats.active;
+    obj.completedProjects = stats.completed;
+    obj.lastSeenAt = lastSeen;
+    obj.isOnline = lastSeen ? new Date(lastSeen) >= fifteenMinutesAgo : false;
+    return obj;
+  });
+};
+
+export const updateVendorStaffStatus = async (staffId, status, currentUser) => {
+  if (!mongoose.Types.ObjectId.isValid(staffId)) {
+    throw new Error("Invalid staff ID format");
+  }
+
+  const normalizedStatus = status?.toUpperCase() === "ACTIVE" ? "ACTIVE" : "INACTIVE";
+
+  const vendorUser = await User.findById(currentUser.id);
+  const vendorProfile = await Vendor.findOne({ userId: currentUser.id });
+  const companyIds = [currentUser.id.toString()];
+  if (vendorUser?.companyId) companyIds.push(vendorUser.companyId.toString());
+  if (vendorProfile?._id) companyIds.push(vendorProfile._id.toString());
+
+  const staffUser = await User.findById(staffId);
+  if (!staffUser || staffUser.role !== "STAFF") {
+    throw new Error("Staff member not found");
+  }
+
+  const staffCompanyId = staffUser.companyId ? staffUser.companyId.toString() : null;
+  if (!staffCompanyId || !companyIds.includes(staffCompanyId)) {
+    const error = new Error("Forbidden: Staff member does not belong to your organization");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  staffUser.status = normalizedStatus;
+  await staffUser.save();
+
+  return staffUser.toObject();
+};
+
+export const updateVendorStaff = async (staffId, updateData, currentUser) => {
+  if (!mongoose.Types.ObjectId.isValid(staffId)) {
+    throw new Error("Invalid staff ID format");
+  }
+
+  const vendorUser = await User.findById(currentUser.id);
+  const vendorProfile = await Vendor.findOne({ userId: currentUser.id });
+  const companyIds = [currentUser.id.toString()];
+  if (vendorUser?.companyId) companyIds.push(vendorUser.companyId.toString());
+  if (vendorProfile?._id) companyIds.push(vendorProfile._id.toString());
+
+  const staffUser = await User.findById(staffId);
+  if (!staffUser || staffUser.role !== "STAFF") {
+    throw new Error("Staff member not found");
+  }
+
+  const staffCompanyId = staffUser.companyId ? staffUser.companyId.toString() : null;
+  if (!staffCompanyId || !companyIds.includes(staffCompanyId)) {
+    const error = new Error("Forbidden: Staff member does not belong to your organization");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const allowedFields = ["name", "phone", "title", "location", "department", "bio"];
+  allowedFields.forEach((field) => {
+    if (updateData[field] !== undefined) {
+      staffUser[field] = updateData[field];
+    }
+  });
+
+  await staffUser.save();
+  return staffUser.toObject();
 };

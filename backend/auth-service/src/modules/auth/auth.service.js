@@ -42,13 +42,11 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
     }
   }
 
-  // Check if email already exists
   const existingEmail = await User.findOne({ email: email.toLowerCase() });
   if (existingEmail) {
     throw new Error("Email already registered");
   }
 
-  // Check if phone already exists
   if (phone) {
     const existingPhone = await User.findOne({ phone: phone.trim() });
     if (existingPhone) {
@@ -58,11 +56,10 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
 
   const otp = generateOTP();
   const registrationOtpHash = await hashOTP(otp);
-  const registrationOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const registrationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
   let user = null;
   try {
-    // Create new user without password
     user = await User.create({
       name,
       email: email.toLowerCase(),
@@ -75,7 +72,6 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
       registrationOtpExpires,
     });
 
-    // Send registration OTP via Brevo email
     try {
       await sendRegistrationOTP(user.email, otp);
     } catch (emailErr) {
@@ -129,7 +125,6 @@ export const verifyRegistrationOTP = async (data) => {
     throw new Error("Invalid OTP");
   }
 
-  // Update verification status and clear OTP details
   user.isVerified = true;
   user.registrationOtpHash = null;
   user.registrationOtpExpires = null;
@@ -184,7 +179,6 @@ export const completeProfile = async (data, setupTokenFromHeader) => {
     throw new Error("Account setup is already complete or password has already been established");
   }
 
-  // Hash password & update details
   const hashedPassword = await hashPassword(data.password);
   user.password = hashedPassword;
   if (data.profileImage) {
@@ -282,14 +276,13 @@ export const forgotPassword = async (data) => {
 
   const otp = generateOTP();
   const resetOtpHash = await hashOTP(otp);
-  const resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
   user.resetOtpHash = resetOtpHash;
   user.resetOtpExpires = resetOtpExpires;
 
   await user.save();
 
-  // Send password reset OTP via Brevo email
   try {
     await sendForgotPasswordOTP(user.email, otp);
   } catch (emailErr) {

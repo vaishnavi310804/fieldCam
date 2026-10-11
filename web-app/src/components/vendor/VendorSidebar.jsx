@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import fieldCamLogo from "../../assets/fieldCamLogo.png";
@@ -11,11 +10,9 @@ import {
   FiTrendingUp,
   FiHelpCircle,
   FiLogOut,
-  FiChevronLeft,
-  FiChevronRight,
 } from "react-icons/fi";
 
-const VendorSidebar = ({ collapsed, setCollapsed }) => {
+const VendorSidebar = ({ collapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -40,12 +37,16 @@ const VendorSidebar = ({ collapsed, setCollapsed }) => {
     },
     {
       id: "invoices",
-      label: "Invoices",
+      label: "Earnings & Invoices",
       icon: FiFileText,
       path: "/vendor/invoices",
     },
-    { id: "earnings", label: "Earnings", icon: FiDollarSign, path: "#" },
-    { id: "staff", label: "Staff", icon: FiUsers, path: "#" },
+    {
+      id: "staff",
+      label: "Staff",
+      icon: FiUsers,
+      path: "/vendor/staff",
+    },
     {
       id: "performance",
       label: "Performance",
@@ -103,7 +104,11 @@ const VendorSidebar = ({ collapsed, setCollapsed }) => {
             const isActive =
               location.pathname === item.path ||
               (item.id === "dashboard" &&
-                location.pathname === "/vendor/dashboard");
+                location.pathname === "/vendor/dashboard") ||
+              (item.id === "projects" &&
+                location.pathname.startsWith("/vendor/projects")) ||
+              (item.id === "staff" &&
+                location.pathname.startsWith("/vendor/staff"));
 
             return (
               <Link

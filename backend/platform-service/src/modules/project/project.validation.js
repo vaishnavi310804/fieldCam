@@ -2,6 +2,7 @@ import { body, param } from "express-validator";
 
 const ALLOWED_STATUSES = [
   "New",
+  "ASSIGNED",
   "In Progress",
   "Submitted",
   "Under Review",

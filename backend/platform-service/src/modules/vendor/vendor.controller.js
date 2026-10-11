@@ -7,12 +7,11 @@ import {
   updateVendorStatus,
   getVendorStats,
   getVendorStaff,
+  updateVendorStaffStatus,
+  updateVendorStaff,
 } from "./vendor.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Controller to handle fetching authenticated vendor's profile & statistics.
- */
 export const getMyVendorProfileController = async (req, res) => {
   try {
     const result = await getMyVendorProfile(req.user.id);
@@ -28,9 +27,6 @@ export const getMyVendorProfileController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle Vendor profile creation.
- */
 export const createVendorController = async (req, res) => {
   try {
     const result = await createVendor(req.body);
@@ -57,9 +53,6 @@ export const createVendorController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching all vendors with search/filter.
- */
 export const getVendorsController = async (req, res) => {
   try {
     const result = await getVendors(req.query);
@@ -87,9 +80,6 @@ export const getVendorsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching a single vendor profile by ID.
- */
 export const getVendorByIdController = async (req, res) => {
   try {
     const result = await getVendorById(req.params.id);
@@ -110,9 +100,6 @@ export const getVendorByIdController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating a vendor profile.
- */
 export const updateVendorController = async (req, res) => {
   try {
     const result = await updateVendor(req.params.id, req.body);
@@ -144,9 +131,6 @@ export const updateVendorController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating vendor status.
- */
 export const updateVendorStatusController = async (req, res) => {
   try {
     const result = await updateVendorStatus(req.params.id, req.body.status);
@@ -178,9 +162,6 @@ export const updateVendorStatusController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching vendor statistics summary.
- */
 export const getVendorStatsController = async (req, res) => {
   try {
     const result = await getVendorStats();
@@ -196,9 +177,6 @@ export const getVendorStatsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching authenticated vendor's STAFF members.
- */
 export const getVendorStaffController = async (req, res) => {
   try {
     const result = await getVendorStaff(req.user);
@@ -214,3 +192,38 @@ export const getVendorStaffController = async (req, res) => {
     });
   }
 };
+
+export const updateVendorStaffStatusController = async (req, res) => {
+  try {
+    const result = await updateVendorStaffStatus(req.params.id, req.body.status, req.user);
+    return res.status(200).json({
+      success: true,
+      message: `Staff status updated to ${result.status}`,
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to update staff status",
+    });
+  }
+};
+
+export const updateVendorStaffController = async (req, res) => {
+  try {
+    const result = await updateVendorStaff(req.params.id, req.body, req.user);
+    return res.status(200).json({
+      success: true,
+      message: "Staff details updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to update staff member",
+    });
+  }
+};
+

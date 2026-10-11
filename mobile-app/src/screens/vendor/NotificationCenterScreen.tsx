@@ -38,10 +38,6 @@ const formatNotificationTime = (isoString: string): string => {
     day: "numeric",
   });
 };
-
-/**
- * Map notification type and text content to icon config (icon name & color).
- */
 const getNotificationIconConfig = (
   type: string,
   title?: string,

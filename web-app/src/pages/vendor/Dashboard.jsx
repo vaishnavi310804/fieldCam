@@ -21,6 +21,7 @@ import {
   FiMapPin,
   FiCalendar,
 } from "react-icons/fi";
+import { getProjectProgress } from "../../utils/projectProgress";
 
 const VendorDashboard = () => {
   const { user } = useAuth();
@@ -63,6 +64,7 @@ const VendorDashboard = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadVendorDashboardData();
   }, []);
 
@@ -133,16 +135,7 @@ const VendorDashboard = () => {
   };
 
   const calculateProgress = (proj) => {
-    const statusUpper = (proj?.status || "").toUpperCase();
-    if (statusUpper === "NEW" || statusUpper === "ASSIGNED") return null;
-    if (proj.status === "Approved") return 100;
-    if (Array.isArray(proj.checklistItems) && proj.checklistItems.length > 0) {
-      const checked = proj.checklistItems.filter((i) => i.checked).length;
-      return Math.round((checked / proj.checklistItems.length) * 100);
-    }
-    if (proj.status === "In Progress") return 50;
-    if (proj.status === "Submitted" || proj.status === "Under Review") return 85;
-    return null;
+    return getProjectProgress(proj?.status, proj?.checklistItems, proj?.progress);
   };
 
   const vendorDisplayName =
@@ -334,7 +327,7 @@ const VendorDashboard = () => {
                   </div>
 
                   <Link
-                    to="/admin/projects"
+                    to="/vendor/projects"
                     className="text-xs font-bold text-[#5141F5] hover:text-[#4535E8] flex items-center gap-1 transition-colors"
                   >
                     <span>View All</span>
@@ -350,7 +343,8 @@ const VendorDashboard = () => {
                       return (
                         <div
                           key={proj._id || proj.projectId}
-                          className="bg-[#FAF7F5] border border-[#E8E2DE] hover:border-[#C8B5AC] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-xs"
+                          onClick={() => navigate(`/vendor/projects/${proj._id || proj.projectId}`)}
+                          className="bg-[#FAF7F5] border border-[#E8E2DE] hover:border-[#C8B5AC] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-xs cursor-pointer"
                         >
                           {/* Project Details */}
                           <div className="space-y-1 min-w-0 flex-1">

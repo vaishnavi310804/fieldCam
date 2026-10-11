@@ -113,7 +113,7 @@ export const VendorProjectsScreen = () => {
       await acceptProject(targetId);
       Alert.alert(
         "Success",
-        "Project accepted successfully! It is now In Progress.",
+        "Project accepted successfully! Status updated to ASSIGNED.",
       );
       await fetchProjectsData(false);
       await fetchUnreadCount();

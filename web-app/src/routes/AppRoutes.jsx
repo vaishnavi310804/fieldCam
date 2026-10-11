@@ -26,6 +26,8 @@ import VendorInvoices from "../pages/vendor/Invoices";
 import VendorPerformance from "../pages/vendor/Performance";
 import VendorSupport from "../pages/vendor/Support";
 import VendorProfile from "../pages/vendor/Profile";
+import VendorProjectDetails from "../pages/vendor/ProjectDetails";
+import VendorStaff from "../pages/vendor/Staff";
 import StaffDashboard from "../pages/staff/Dashboard";
 import StaffProjects from "../pages/staff/Projects";
 import StaffProfile from "../pages/staff/Profile";
@@ -55,29 +57,28 @@ const AppRoutes = () => {
         <Route path="/super-admin/settings/email-templates/:templateId" element={<EditEmailTemplate />} />
       </Route>
 
-      {/* Admin & Shared Operational Routes */}
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"]} />}>
+      {/* Admin Protected Routes */}
+      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/projects" element={<AdminProjects />} />
+        <Route path="/admin/projects/new" element={<CreateProject />} />
         <Route path="/admin/projects/:id/review" element={<ReviewSubmission />} />
+        <Route path="/admin/vendors" element={<AdminVendors />} />
         <Route path="/admin/invoices" element={<AdminInvoices />} />
+        <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        <Route path="/admin/services" element={<AdminServices />} />
         <Route path="/admin/support" element={<AdminSupport />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/admin/activity" element={<AdminActivity />} />
-      </Route>
-
-      <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/projects/new" element={<CreateProject />} />
-        <Route path="/admin/vendors" element={<AdminVendors />} />
-        <Route path="/admin/analytics" element={<AdminAnalytics />} />
-        <Route path="/admin/services" element={<AdminServices />} />
       </Route>
 
       {/* Vendor Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["VENDOR"]} />}>
         <Route path="/vendor/dashboard" element={<VendorDashboard />} />
         <Route path="/vendor/projects" element={<VendorProjects />} />
+        <Route path="/vendor/projects/:id" element={<VendorProjectDetails />} />
         <Route path="/vendor/invoices" element={<VendorInvoices />} />
+        <Route path="/vendor/staff" element={<VendorStaff />} />
         <Route path="/vendor/performance" element={<VendorPerformance />} />
         <Route path="/vendor/support" element={<VendorSupport />} />
         <Route path="/vendor/profile" element={<VendorProfile />} />

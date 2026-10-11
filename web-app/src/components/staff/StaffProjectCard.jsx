@@ -6,6 +6,7 @@ import {
   FiEye,
   FiUser,
 } from "react-icons/fi";
+import { getProjectProgress } from "../../utils/projectProgress";
 
 const StaffProjectCard = ({ project }) => {
   const navigate = useNavigate();
@@ -90,25 +91,12 @@ const StaffProjectCard = ({ project }) => {
     });
   };
 
-  // Progress Percentage Calculation from checklistItems
-  const checklist = Array.isArray(project.checklistItems) ? project.checklistItems : [];
-  const checkedCount = checklist.filter((item) => item.checked).length;
-  const totalCount = checklist.length;
-
-  const statusUpper = (project.status || "").toUpperCase();
-
-  let progressPercentage = null;
-  if (totalCount > 0) {
-    progressPercentage = Math.round((checkedCount / totalCount) * 100);
-  } else if (statusUpper === "APPROVED" || statusUpper === "COMPLETED") {
-    progressPercentage = 100;
-  } else if (statusUpper === "IN PROGRESS") {
-    progressPercentage = 50;
-  } else if (statusUpper === "SUBMITTED" || statusUpper === "UNDER REVIEW") {
-    progressPercentage = 85;
-  } else if (statusUpper === "ASSIGNED" || statusUpper === "NEW") {
-    progressPercentage = 0;
-  }
+  // Progress Percentage Calculation using centralized workflow business rules
+  const progressPercentage = getProjectProgress(
+    project.status,
+    project.checklistItems,
+    project.progress
+  );
 
   // Cover Image from Presigned S3 URL
   const coverImage =

@@ -4,22 +4,12 @@ import Vendor from "../vendor/vendor.model.js";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
 
-/**
- * Helper to get a vendor's user ID for notification delivery.
- * @param {string|mongoose.Types.ObjectId} vendorId
- * @returns {Promise<mongoose.Types.ObjectId|null>}
- */
 const getVendorUserId = async (vendorId) => {
   if (!vendorId) return null;
   const vendor = await Vendor.findById(vendorId);
   return vendor ? vendor.userId : null;
 };
 
-/**
- * Creates a new Invoice document.
- * @param {Object} invoiceData 
- * @returns {Promise<Object>}
- */
 export const createInvoice = async (invoiceData) => {
   const { projectId, vendorId, amount, tax = 0, invoiceId } = invoiceData;
 
@@ -101,12 +91,6 @@ export const createInvoice = async (invoiceData) => {
   return invoice;
 };
 
-/**
- * Retrieves invoices with filtering, search, pagination/sort, and vendor scoping.
- * @param {Object} query 
- * @param {Object} user 
- * @returns {Promise<Array>}
- */
 export const getInvoices = async (query = {}, user = {}) => {
   const filter = {};
 
@@ -146,12 +130,6 @@ export const getInvoices = async (query = {}, user = {}) => {
   return invoices;
 };
 
-/**
- * Retrieves a single invoice by MongoDB _id or invoiceId.
- * @param {String} id 
- * @param {Object} user 
- * @returns {Promise<Object>}
- */
 export const getInvoiceById = async (id, user = {}) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
@@ -182,12 +160,6 @@ export const getInvoiceById = async (id, user = {}) => {
   return invoice;
 };
 
-/**
- * Updates an invoice (Admin/Super Admin only).
- * @param {String} id 
- * @param {Object} updateData 
- * @returns {Promise<Object>}
- */
 export const updateInvoice = async (id, updateData) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
@@ -283,12 +255,6 @@ export const updateInvoice = async (id, updateData) => {
     .populate("vendorId", "companyName contactName location status");
 };
 
-/**
- * Updates an invoice status (Admin/Super Admin only).
- * @param {String} id 
- * @param {String} status 
- * @returns {Promise<Object>}
- */
 export const updateInvoiceStatus = async (id, status) => {
   const query = mongoose.Types.ObjectId.isValid(id)
     ? { $or: [{ _id: id }, { invoiceId: id }] }
@@ -336,10 +302,6 @@ export const updateInvoiceStatus = async (id, status) => {
     .populate("vendorId", "companyName contactName location status");
 };
 
-/**
- * Calculates aggregate invoice statistics from database.
- * @returns {Promise<Object>}
- */
 export const getInvoiceStats = async () => {
   // 1. Total Outstanding (Sum of totalAmount for Pending + Approved)
   const outstandingAgg = await Invoice.aggregate([
@@ -378,10 +340,6 @@ export const getInvoiceStats = async () => {
   };
 };
 
-/**
- * Aggregates monthly payment overview from actual database data.
- * @returns {Promise<Array>}
- */
 export const getInvoiceOverview = async () => {
   const monthNames = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",

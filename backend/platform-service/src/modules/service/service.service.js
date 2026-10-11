@@ -1,11 +1,6 @@
 import Service from "./service.model.js";
 import mongoose from "mongoose";
 
-/**
- * Creates a new Service configuration.
- * @param {Object} serviceData 
- * @returns {Promise<Object>}
- */
 export const createService = async (serviceData) => {
   const existingService = await Service.findOne({
     serviceTypeName: { $regex: new RegExp(`^${serviceData.serviceTypeName.trim()}$`, "i") },
@@ -19,11 +14,6 @@ export const createService = async (serviceData) => {
   return service;
 };
 
-/**
- * Retrieves all services with optional filters.
- * @param {Object} filters - { status, category, serviceCategory }
- * @returns {Promise<Array>}
- */
 export const getServices = async (filters = {}) => {
   const query = {};
 
@@ -40,11 +30,6 @@ export const getServices = async (filters = {}) => {
   return services;
 };
 
-/**
- * Retrieves a single service by ID.
- * @param {string} id 
- * @returns {Promise<Object>}
- */
 export const getServiceById = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid service ID format");
@@ -58,12 +43,6 @@ export const getServiceById = async (id) => {
   return service;
 };
 
-/**
- * Updates an existing service configuration.
- * @param {string} id 
- * @param {Object} updateData 
- * @returns {Promise<Object>}
- */
 export const updateService = async (id, updateData) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid service ID format");
@@ -92,12 +71,6 @@ export const updateService = async (id, updateData) => {
   return updatedService;
 };
 
-/**
- * Updates the status of a service (ACTIVE / INACTIVE).
- * @param {string} id 
- * @param {string} status 
- * @returns {Promise<Object>}
- */
 export const updateServiceStatus = async (id, status) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid service ID format");

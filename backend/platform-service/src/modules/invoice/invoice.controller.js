@@ -9,10 +9,6 @@ import {
 } from "./invoice.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Controller to handle Invoice creation.
- * POST /api/invoices
- */
 export const createInvoiceController = async (req, res) => {
   try {
     const result = await createInvoice(req.body);
@@ -40,10 +36,6 @@ export const createInvoiceController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching all invoices with filters & search.
- * GET /api/invoices
- */
 export const getInvoicesController = async (req, res) => {
   try {
     const result = await getInvoices(req.query, req.user);
@@ -60,10 +52,6 @@ export const getInvoicesController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching a single invoice by Mongo _id or invoiceId.
- * GET /api/invoices/:id
- */
 export const getInvoiceByIdController = async (req, res) => {
   try {
     const result = await getInvoiceById(req.params.id, req.user);
@@ -83,10 +71,6 @@ export const getInvoiceByIdController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating an existing invoice.
- * PUT /api/invoices/:id
- */
 export const updateInvoiceController = async (req, res) => {
   try {
     const result = await updateInvoice(req.params.id, req.body);
@@ -117,10 +101,6 @@ export const updateInvoiceController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating invoice status.
- * PATCH /api/invoices/:id/status
- */
 export const updateInvoiceStatusController = async (req, res) => {
   try {
     const result = await updateInvoiceStatus(req.params.id, req.body.status);
@@ -151,10 +131,6 @@ export const updateInvoiceStatusController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching aggregate invoice statistics.
- * GET /api/invoices/stats
- */
 export const getInvoiceStatsController = async (req, res) => {
   try {
     const result = await getInvoiceStats();
@@ -170,10 +146,6 @@ export const getInvoiceStatsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching monthly payment overview statistics.
- * GET /api/invoices/overview
- */
 export const getInvoiceOverviewController = async (req, res) => {
   try {
     const result = await getInvoiceOverview();

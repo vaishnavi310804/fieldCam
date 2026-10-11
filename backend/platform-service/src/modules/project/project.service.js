@@ -10,29 +10,73 @@ import { validatePhotoLocation, validateCaptureTimestamp } from "../../utils/geo
 import { createNotification } from "../notification/notification.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Helper to get a vendor's user ID for notification delivery.
- * @param {string|mongoose.Types.ObjectId} vendorId
- * @returns {Promise<mongoose.Types.ObjectId|null>}
- */
 const getVendorUserId = async (vendorId) => {
   if (!vendorId) return null;
   const vendor = await Vendor.findById(vendorId);
   return vendor ? vendor.userId : null;
 };
 
-/**
- * Helper to generate temporary presigned GET URLs for a project's photos & attachments.
- * Converts Mongoose document to plain JS object without modifying DB.
- * @param {Object} projectDoc - Mongoose Project document
- * @returns {Promise<Object>} Plain project object with presigned media URLs
- */
+export const calculateProjectWorkflowProgress = (
+  statusRaw,
+  checklistItems = [],
+  rawProgress = null
+) => {
+  const status = (statusRaw || "").trim().toUpperCase();
+
+  switch (status) {
+    case "APPROVED":
+    case "COMPLETED":
+      return 100;
+
+    case "SUBMITTED":
+    case "UNDER REVIEW":
+    case "IN REVIEW":
+    case "REJECTED":
+      return 95;
+
+    case "NEW":
+    case "ASSIGNED":
+      return 0;
+
+    case "IN PROGRESS": {
+      let checklistProgress = null;
+
+      if (Array.isArray(checklistItems) && checklistItems.length > 0) {
+        const checkedCount = checklistItems.filter((item) => item.checked).length;
+        checklistProgress = Math.round((checkedCount / checklistItems.length) * 100);
+      } else if (typeof rawProgress === "number" && !isNaN(rawProgress)) {
+        checklistProgress = Math.round(rawProgress);
+      }
+
+      if (checklistProgress !== null) {
+        return Math.min(90, Math.max(0, checklistProgress));
+      }
+
+      return 0;
+    }
+
+    default: {
+      if (typeof rawProgress === "number" && !isNaN(rawProgress)) {
+        return Math.min(95, Math.max(0, Math.round(rawProgress)));
+      }
+      return 0;
+    }
+  }
+};
+
 const transformProjectMedia = async (projectDoc) => {
   if (!projectDoc) return projectDoc;
 
   const projectObj = typeof projectDoc.toObject === "function"
     ? projectDoc.toObject()
     : { ...projectDoc };
+
+  // Calculate authoritative workflow progress
+  projectObj.progress = calculateProjectWorkflowProgress(
+    projectObj.status,
+    projectObj.checklistItems,
+    projectObj.progress
+  );
 
   // Parallel presigned URL generation for photos
   if (Array.isArray(projectObj.photos) && projectObj.photos.length > 0) {
@@ -65,12 +109,6 @@ const transformProjectMedia = async (projectDoc) => {
   return projectObj;
 };
 
-/**
- * Creates a new Project document.
- * @param {Object} projectData 
- * @param {Object} [files] - Multer req.files object { photos, attachments }
- * @returns {Promise<Object>}
- */
 export const createProject = async (projectData, files = {}) => {
   // Parse checklistItems if sent as JSON string in FormData
   if (typeof projectData.checklistItems === "string") {
@@ -136,11 +174,11 @@ export const createProject = async (projectData, files = {}) => {
     if (!projectData.vendorName) {
       projectData.vendorName = vendor.companyName;
     }
+  }
 
-    // Automatically transition status to ASSIGNED when vendor is assigned on creation
-    if (!projectData.status || projectData.status === "New") {
-      projectData.status = "ASSIGNED";
-    }
+  // Ensure default status is New if not explicitly provided
+  if (!projectData.status) {
+    projectData.status = "New";
   }
 
   // 6. Prevent duplicate projectId
@@ -226,7 +264,7 @@ export const createProject = async (projectData, files = {}) => {
             data: {
               projectId: project.projectId,
               projectMongoId: project._id.toString(),
-              status: project.status || "ASSIGNED",
+              status: project.status || "New",
             },
           });
         }
@@ -245,11 +283,6 @@ export const createProject = async (projectData, files = {}) => {
   }
 };
 
-/**
- * Retrieves projects with search and filtering.
- * @param {Object} query - { status, vendorId, serviceId, search }
- * @returns {Promise<Array>}
- */
 export const getProjects = async (query = {}) => {
   const filter = {};
 
@@ -285,12 +318,6 @@ export const getProjects = async (query = {}) => {
   return await Promise.all(projects.map((proj) => transformProjectMedia(proj)));
 };
 
-/**
- * Retrieves a single project document by ID.
- * @param {string} id 
- * @param {Object} [user] - Authenticated user object
- * @returns {Promise<Object>}
- */
 export const getProjectById = async (id, user) => {
   let project = null;
 
@@ -342,11 +369,6 @@ export const getProjectById = async (id, user) => {
   return await transformProjectMedia(project);
 };
 
-/**
- * Retrieves projects assigned to the authenticated STAFF user.
- * @param {string} staffUserId 
- * @returns {Promise<Array>}
- */
 export const getStaffAssignedProjects = async (staffUserId) => {
   if (!staffUserId || !mongoose.Types.ObjectId.isValid(staffUserId)) {
     throw new Error("Invalid staff user ID");
@@ -360,12 +382,6 @@ export const getStaffAssignedProjects = async (staffUserId) => {
   return await Promise.all(projects.map((proj) => transformProjectMedia(proj)));
 };
 
-/**
- * Updates an existing project.
- * @param {string} id 
- * @param {Object} updateData 
- * @returns {Promise<Object>}
- */
 export const updateProject = async (id, updateData) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid project ID format");
@@ -436,9 +452,6 @@ export const updateProject = async (id, updateData) => {
     }
 
     isVendorAssignmentChanged = true;
-    if (!updateData.status || updateData.status === "New") {
-      updateData.status = "ASSIGNED";
-    }
   }
 
   const updatedProject = await Project.findByIdAndUpdate(id, updateData, {
@@ -464,7 +477,7 @@ export const updateProject = async (id, updateData) => {
             data: {
               projectId: updatedProject.projectId,
               projectMongoId: updatedProject._id.toString(),
-              status: updatedProject.status || "ASSIGNED",
+              status: updatedProject.status || "New",
             },
           });
         } else {
@@ -485,14 +498,7 @@ export const updateProject = async (id, updateData) => {
   return await transformProjectMedia(updatedProject);
 };
 
-/**
- * Updates status of a project.
- * @param {string} id 
- * @param {string} status 
- * @param {string} [rejectionReason] 
- * @param {string} [reviewComments]
- * @returns {Promise<Object>}
- */
+
 export const updateProjectStatus = async (id, status, rejectionReason, reviewComments) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid project ID format");
@@ -578,12 +584,6 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
   return await transformProjectMedia(updatedProject);
 };
 
-/**
- * Handles Vendor acceptance of an assigned project (ASSIGNED -> In Progress).
- * @param {string} projectIdOrId - MongoDB _id or string projectId
- * @param {string} userId - Authenticated Vendor user ID
- * @returns {Promise<Object>}
- */
 export const acceptProject = async (projectIdOrId, userId) => {
   const vendor = await Vendor.findOne({ userId });
   if (!vendor) {
@@ -612,29 +612,31 @@ export const acceptProject = async (projectIdOrId, userId) => {
     throw err;
   }
 
-  if (project.status === "In Progress") {
+  if (project.status === "ASSIGNED") {
     return await transformProjectMedia(project);
   }
 
-  if (project.status !== "ASSIGNED" && project.status !== "New") {
-    const err = new Error(`Cannot accept project with current status '${project.status}'`);
+  if (project.status !== "New") {
+    const err = new Error(
+      `Cannot accept project with current status '${project.status}'. Only 'New' projects can be accepted.`
+    );
     err.statusCode = 400;
     throw err;
   }
 
-  project.status = "In Progress";
+  project.status = "ASSIGNED";
   await project.save();
 
   try {
     await createNotification({
       userId,
       title: "Project Accepted",
-      body: `You have accepted project "${project.projectName}" (${project.projectId}). It is now In Progress.`,
+      body: `You have accepted project "${project.projectName}" (${project.projectId}). It is now ready for staff assignment.`,
       type: "PROJECT_UPDATED",
       data: {
         projectId: project._id.toString(),
         projectCode: project.projectId,
-        status: "In Progress",
+        status: "ASSIGNED",
       },
     });
   } catch (notifErr) {
@@ -644,9 +646,6 @@ export const acceptProject = async (projectIdOrId, userId) => {
   return await transformProjectMedia(project);
 };
 
-/**
- * Helper to find project by ObjectId or string projectId
- */
 const findProjectByIdOrCode = async (idOrCode) => {
   let project = null;
   if (mongoose.Types.ObjectId.isValid(idOrCode)) {
@@ -658,12 +657,6 @@ const findProjectByIdOrCode = async (idOrCode) => {
   return project;
 };
 
-/**
- * Retrieves notes for a project.
- * @param {string} projectIdOrId 
- * @param {Object} [user] - Authenticated user object
- * @returns {Promise<Array>} Array of note objects
- */
 export const getProjectNotes = async (projectIdOrId, user) => {
   const project = await findProjectByIdOrCode(projectIdOrId);
   if (!project) {
@@ -683,13 +676,6 @@ export const getProjectNotes = async (projectIdOrId, user) => {
   return project.notes || [];
 };
 
-/**
- * Adds a new note to a project.
- * @param {string} projectIdOrId 
- * @param {string} text 
- * @param {Object} user - Authenticated user object
- * @returns {Promise<Object>} Created note document
- */
 export const addProjectNote = async (projectIdOrId, text, user) => {
   if (!text || typeof text !== "string" || !text.trim()) {
     throw new Error("Note text cannot be empty");
@@ -724,14 +710,6 @@ export const addProjectNote = async (projectIdOrId, text, user) => {
   return newNote;
 };
 
-/**
- * Handles Vendor photo upload for a specific project checklist item.
- * @param {string} projectIdOrId - MongoDB _id or string projectId
- * @param {Object} file - Multer file object
- * @param {Object} body - Request body containing checklistItemId, capturedAt, location params
- * @param {Object} user - Authenticated user object (role: VENDOR)
- * @returns {Promise<Object>} { photo, project }
- */
 export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) => {
   if (!user || user.role !== "VENDOR") {
     const err = new Error("Only authenticated vendors can upload photos");
@@ -926,13 +904,6 @@ export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) =>
   };
 };
 
-/**
- * Handles Vendor photo deletion for a specific project.
- * @param {string} projectIdOrId - MongoDB _id or string projectId
- * @param {string} photoId - MongoDB _id of photo or S3 key
- * @param {Object} user - Authenticated user object (role: VENDOR)
- * @returns {Promise<Object>} Updated project object
- */
 export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
   if (!user || user.role !== "VENDOR") {
     const err = new Error("Only authenticated vendors can delete photos");
@@ -1028,13 +999,6 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
   return await getProjectById(project._id.toString(), user);
 };
 
-/**
- * Handles Vendor project submission (In Progress -> Submitted).
- * Enforces precondition: all required checklist items must have uploaded photos.
- * @param {string} projectIdOrId - MongoDB _id or string projectId
- * @param {Object} user - Authenticated user object (role: VENDOR)
- * @returns {Promise<Object>} Updated project object
- */
 export const submitVendorProject = async (projectIdOrId, user) => {
   if (!user || user.role !== "VENDOR") {
     const err = new Error("Only authenticated vendors can submit projects");
@@ -1179,13 +1143,6 @@ export const submitVendorProject = async (projectIdOrId, user) => {
   return await getProjectById(project._id.toString(), user);
 };
 
-/**
- * Assigns a project owned by the authenticated VENDOR to a specific STAFF member.
- * @param {string} projectId 
- * @param {string} staffId 
- * @param {Object} currentUser 
- * @returns {Promise<Object>}
- */
 export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
   if (!currentUser || currentUser.role !== "VENDOR") {
     const err = new Error("Only authenticated vendors can assign projects to staff");
@@ -1229,10 +1186,33 @@ export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
     throw err;
   }
 
-  // Validate Project Eligibility (not completed/approved)
-  const projStatus = (project.status || "").toUpperCase();
-  if (projStatus === "APPROVED" || projStatus === "COMPLETED") {
-    const err = new Error("Completed or approved projects cannot be assigned");
+  // Guard against duplicate / re-assignment
+  if (project.assignedStaffId) {
+    if (project.assignedStaffId.toString() === staffId.toString()) {
+      const err = new Error("Project is already assigned to this staff member.");
+      err.statusCode = 400;
+      throw err;
+    }
+    const err = new Error(
+      `Project is already assigned to ${project.assignedStaffName || "another staff member"}. Reassignment is not permitted.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Validate Project Status Eligibility
+  if (project.status === "New") {
+    const err = new Error(
+      "Cannot assign project with status 'New'. Project must first be accepted by the vendor."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (project.status !== "ASSIGNED") {
+    const err = new Error(
+      `Cannot assign staff to project with current status '${project.status}'. Only accepted projects with status 'ASSIGNED' are eligible for staff assignment.`
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -1270,12 +1250,10 @@ export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
     throw err;
   }
 
-  // Assign Staff
+  // Assign Staff & Transition to In Progress
   project.assignedStaffId = staffUser._id;
   project.assignedStaffName = staffUser.name;
-  if (project.status === "New") {
-    project.status = "ASSIGNED";
-  }
+  project.status = "In Progress";
 
   await project.save();
 
@@ -1290,45 +1268,42 @@ export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
         projectId: project.projectId,
         staffId: staffUser._id.toString(),
         staffName: staffUser.name,
+        newStatus: "In Progress",
       },
     });
   } catch (auditErr) {
     console.error("Failed to log PROJECT_STAFF_ASSIGNED audit event:", auditErr.message);
   }
 
+  try {
+    await createNotification({
+      userId: staffUser._id.toString(),
+      title: "Project Assigned",
+      body: `You have been assigned to project "${project.projectName}" (${project.projectId}). It is now In Progress.`,
+      type: "PROJECT_UPDATED",
+      data: {
+        projectId: project._id.toString(),
+        projectCode: project.projectId,
+        status: "In Progress",
+      },
+    });
+  } catch (notifErr) {
+    console.error("Failed to generate staff project assignment notification:", notifErr.message);
+  }
+
   return await getProjectById(project._id.toString(), currentUser);
 };
 
-/**
- * Generates an authoritative PDF report document for a given project ID.
- * @param {string} projectIdOrId - MongoDB _id or string projectId
- * @param {Object} currentUser - Authenticated user object (role: SUPER_ADMIN, ADMIN, VENDOR, STAFF)
- * @returns {Promise<{ pdfBuffer: Buffer, project: Object }>}
- */
 export const generateProjectReportPdf = async (projectIdOrId, currentUser) => {
   // 1. Authoritative project fetch + strict server-side vendor authorization check
   const project = await getProjectById(projectIdOrId, currentUser);
 
   // 2. Workflow progress calculation based on established rules
-  const statusUpper = (project.status || "").toUpperCase();
-  let progress = 0;
-  if (statusUpper === "APPROVED" || statusUpper === "COMPLETED") {
-    progress = 100;
-  } else if (statusUpper === "SUBMITTED" || statusUpper === "UNDER REVIEW") {
-    progress = 95;
-  } else if (statusUpper === "REJECTED") {
-    progress = 95;
-  } else if (statusUpper === "IN PROGRESS") {
-    const checklist = Array.isArray(project.checklistItems) ? project.checklistItems : [];
-    if (checklist.length > 0) {
-      const checked = checklist.filter((c) => c.checked).length;
-      progress = Math.min(90, Math.round((checked / checklist.length) * 100));
-    } else {
-      progress = 0;
-    }
-  } else {
-    progress = 0;
-  }
+  const progress = calculateProjectWorkflowProgress(
+    project.status,
+    project.checklistItems,
+    project.progress
+  );
 
   // 3. Generate PDF in-memory buffer using pdfkit
   return new Promise((resolve, reject) => {

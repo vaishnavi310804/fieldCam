@@ -3,10 +3,10 @@ import {
   FiMapPin,
   FiCalendar,
   FiCamera,
-  FiUserCheck,
   FiEye,
   FiUserPlus,
 } from "react-icons/fi";
+import { getProjectProgress } from "../../utils/projectProgress";
 
 const VendorProjectCard = ({ project, onAssignStaff }) => {
   const navigate = useNavigate();
@@ -34,6 +34,8 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
     switch (status) {
       case "New":
         return "bg-[#3498DB] text-white";
+      case "ASSIGNED":
+        return "bg-[#2563EB] text-white";
       case "In Progress":
         return "bg-[#E67E22] text-white";
       case "Submitted":
@@ -55,6 +57,8 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
     switch (status) {
       case "New":
         return "bg-[#3498DB]";
+      case "ASSIGNED":
+        return "bg-[#2563EB]";
       case "In Progress":
         return "bg-[#E67E22]";
       case "Submitted":
@@ -83,26 +87,12 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
     });
   };
 
-  // Progress Percentage Calculation from checklistItems
-  const checklist = Array.isArray(project.checklistItems) ? project.checklistItems : [];
-  const checkedCount = checklist.filter((item) => item.checked).length;
-  const totalCount = checklist.length;
-
-  const statusUpper = (project.status || "").toUpperCase();
-  const isPendingAcceptance = statusUpper === "NEW" || statusUpper === "ASSIGNED";
-
-  let progressPercentage = null;
-  if (!isPendingAcceptance) {
-    if (totalCount > 0) {
-      progressPercentage = Math.round((checkedCount / totalCount) * 100);
-    } else if (project.status === "Approved") {
-      progressPercentage = 100;
-    } else if (project.status === "In Progress") {
-      progressPercentage = 50;
-    } else if (project.status === "Submitted" || project.status === "Under Review") {
-      progressPercentage = 85;
-    }
-  }
+  // Progress Percentage Calculation using centralized workflow business rules
+  const progressPercentage = getProjectProgress(
+    project.status,
+    project.checklistItems,
+    project.progress
+  );
 
   // Cover Image from Presigned S3 URL
   const coverImage = Array.isArray(project.photos) && project.photos.length > 0
@@ -249,8 +239,8 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
       <div className="p-4 pt-0 grid grid-cols-2 gap-2 mt-2">
         <button
           type="button"
-          onClick={() => navigate(`/admin/projects/${project._id || project.id}/review`)}
-          className="w-full h-8 rounded-xl bg-[#FAF7F5] border border-[#E8E2DE] hover:bg-[#EAE4DF] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+          onClick={() => navigate(`/vendor/projects/${project._id || project.id}`)}
+          className="w-full h-8 rounded-xl bg-[#FAF7F5] border border-[#E8E2DE] hover:bg-[#EAE4DF] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
         >
           <FiEye size={12} />
           <span>View Details</span>
@@ -258,8 +248,8 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
 
         <button
           type="button"
-          onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/admin/projects/${project._id || project.id}/review`))}
-          className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+          onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/vendor/projects/${project._id || project.id}`))}
+          className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
         >
           <FiUserPlus size={12} />
           <span>Assign Staff</span>

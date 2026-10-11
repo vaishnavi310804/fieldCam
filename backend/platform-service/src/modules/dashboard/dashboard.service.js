@@ -4,10 +4,6 @@ import Invoice from "../invoice/invoice.model.js";
 import AuditLog from "../audit/audit.model.js";
 import User from "../users/user.model.js";
 
-/**
- * Calculates real-time Admin Dashboard statistics, metrics, and data structures.
- * Strictly sources all metrics from MongoDB platform service database collections.
- */
 export const getAdminDashboardData = async () => {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -203,10 +199,6 @@ export const getAdminDashboardData = async () => {
   };
 };
 
-/**
- * Calculates real-time Super Admin Dashboard telemetry metrics.
- * Strictly sources all metrics from MongoDB platform service database collections.
- */
 export const getSuperAdminDashboardData = async () => {
   const now = new Date();
   const currentYear = now.getFullYear();

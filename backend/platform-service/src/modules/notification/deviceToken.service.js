@@ -1,9 +1,6 @@
 import DeviceToken from "./deviceToken.model.js";
 
-/**
- * Register or update a device registration token.
- * Idempotent: Handles initial registration, repeated logins, token refreshes, and multi-device ownership.
- */
+// Idempotent: handles initial registration, repeated logins, token refreshes, and multi-device ownership
 export const registerOrUpdateDeviceTokenService = async ({
   userId,
   deviceToken,
@@ -49,9 +46,6 @@ export const registerOrUpdateDeviceTokenService = async ({
   return { status: "reassigned", data: existingRecord };
 };
 
-/**
- * Deactivate a device registration token for an authenticated user.
- */
 export const deactivateDeviceTokenService = async ({ userId, deviceToken }) => {
   const cleanToken = deviceToken.trim();
 
@@ -71,9 +65,6 @@ export const deactivateDeviceTokenService = async ({ userId, deviceToken }) => {
   return true;
 };
 
-/**
- * Retrieve active device registration tokens for a given user (Internal Service Method).
- */
 export const getActiveDeviceTokensService = async (userId) => {
   const activeTokens = await DeviceToken.find({
     userId,

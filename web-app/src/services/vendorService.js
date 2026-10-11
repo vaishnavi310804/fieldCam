@@ -1,4 +1,4 @@
-import platformApi from "./api";
+import platformApi, { authApi } from "./api";
 
 export const getVendors = async () => {
   const response = await platformApi.get("/vendors");
@@ -34,3 +34,39 @@ export const updateVendorStatus = async (id, status) => {
   const response = await platformApi.patch(`/vendors/${id}/status`, { status });
   return response.data;
 };
+
+export const getVendorStaff = async () => {
+  const response = await platformApi.get("/vendors/me/staff");
+  return response.data;
+};
+
+export const updateVendorStaffStatus = async (staffId, status) => {
+  const response = await platformApi.patch(`/vendors/me/staff/${staffId}/status`, { status });
+  return response.data;
+};
+
+export const updateVendorStaff = async (staffId, updateData) => {
+  const response = await platformApi.put(`/vendors/me/staff/${staffId}`, updateData);
+  return response.data;
+};
+
+export const createVendorStaff = async (staffData) => {
+  const response = await authApi.post("/auth/users", {
+    name: staffData.name,
+    email: staffData.email,
+    phone: staffData.phone,
+    role: "STAFF",
+  });
+
+  const createdUser = response.data?.data || response.data;
+  if (createdUser?._id && staffData.location) {
+    try {
+      await updateVendorStaff(createdUser._id, { location: staffData.location });
+    } catch (locErr) {
+      console.warn("Could not sync staff location:", locErr?.message || locErr);
+    }
+  }
+
+  return response.data;
+};
+

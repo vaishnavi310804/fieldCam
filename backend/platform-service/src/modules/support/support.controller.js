@@ -8,10 +8,6 @@ import {
 } from "./support.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
 
-/**
- * Controller to handle Support ticket creation.
- * POST /api/support/tickets
- */
 export const createTicketController = async (req, res) => {
   try {
     const result = await createTicket(req.body, req.user);
@@ -39,10 +35,6 @@ export const createTicketController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching all support tickets with filters & search.
- * GET /api/support/tickets
- */
 export const getTicketsController = async (req, res) => {
   try {
     const result = await getTickets(req.query, req.user);
@@ -59,10 +51,6 @@ export const getTicketsController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching a single support ticket by Mongo _id or ticketId.
- * GET /api/support/tickets/:id
- */
 export const getTicketByIdController = async (req, res) => {
   try {
     const result = await getTicketById(req.params.id, req.user);
@@ -82,10 +70,6 @@ export const getTicketByIdController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating an existing support ticket.
- * PUT /api/support/tickets/:id
- */
 export const updateTicketController = async (req, res) => {
   try {
     const result = await updateTicket(req.params.id, req.body);
@@ -116,10 +100,6 @@ export const updateTicketController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle updating ticket status.
- * PATCH /api/support/tickets/:id/status
- */
 export const updateTicketStatusController = async (req, res) => {
   try {
     const result = await updateTicketStatus(req.params.id, req.body.status);
@@ -150,10 +130,6 @@ export const updateTicketStatusController = async (req, res) => {
   }
 };
 
-/**
- * Controller to handle fetching support ticket statistics.
- * GET /api/support/stats
- */
 export const getTicketStatsController = async (req, res) => {
   try {
     const result = await getTicketStats(req.user);

@@ -44,3 +44,25 @@ export const getStaffProjects = async () => {
   const response = await platformApi.get("/projects/staff/me");
   return response.data;
 };
+
+export const getProjectNotes = async (projectId) => {
+  const response = await platformApi.get(`/projects/${projectId}/notes`);
+  return response.data;
+};
+
+export const addProjectNote = async (projectId, text) => {
+  const response = await platformApi.post(`/projects/${projectId}/notes`, { text });
+  return response.data;
+};
+
+export const assignStaffToProject = async (projectId, staffId) => {
+  const response = await platformApi.post(`/projects/${projectId}/assign-staff`, { staffId });
+  return response.data;
+};
+
+export const acceptProject = async (projectId) => {
+  const response = await platformApi.patch(`/projects/${projectId}/accept`);
+  return response.data;
+};
+
+

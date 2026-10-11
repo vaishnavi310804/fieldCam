@@ -15,6 +15,8 @@ import {
   updateVendorStatusController,
   getVendorStatsController,
   getVendorStaffController,
+  updateVendorStaffStatusController,
+  updateVendorStaffController,
 } from "./vendor.controller.js";
 
 const router = Router();
@@ -41,6 +43,22 @@ router.get(
   protect,
   authorize("VENDOR", "SUPER_ADMIN", "ADMIN"),
   getVendorStaffController
+);
+
+// PATCH /api/vendors/me/staff/:id/status - Update staff member status (VENDOR)
+router.patch(
+  "/me/staff/:id/status",
+  protect,
+  authorize("VENDOR"),
+  updateVendorStaffStatusController
+);
+
+// PUT /api/vendors/me/staff/:id - Update staff member details (VENDOR)
+router.put(
+  "/me/staff/:id",
+  protect,
+  authorize("VENDOR"),
+  updateVendorStaffController
 );
 
 // GET /api/vendors/stats - Vendor summary metrics (SUPER_ADMIN, ADMIN)
