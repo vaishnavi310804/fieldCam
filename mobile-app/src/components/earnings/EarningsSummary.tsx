@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -34,10 +34,7 @@ export const EarningsSummary: React.FC<EarningsSummaryProps> = ({
   };
 
   const handleNewInvoicePress = () => {
-    Alert.alert(
-      "New Invoice",
-      "Invoice creation and submission workflow will be available in the upcoming release.",
-    );
+    router.push("/(app)/raise-invoice");
   };
 
   const periods: EarningsPeriod[] = ["Week", "Month", "Year"];

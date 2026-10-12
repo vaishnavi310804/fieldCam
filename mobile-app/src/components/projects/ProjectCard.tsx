@@ -49,13 +49,19 @@ const getStatusBadgeStyle = (status: string) => {
         label: "Submitted",
       };
     case "completed":
+      return {
+        bg: "#DCFCE7",
+        text: "#166534",
+        dot: "#16A34A",
+        label: "Completed",
+      };
     case "approved":
     case "active":
       return {
         bg: "#DCFCE7",
         text: "#166534",
         dot: "#16A34A",
-        label: status.toUpperCase() === "ACTIVE" ? "Active" : "Completed",
+        label: status.toUpperCase() === "ACTIVE" ? "Active" : "Approved",
       };
     case "rejected":
       return {

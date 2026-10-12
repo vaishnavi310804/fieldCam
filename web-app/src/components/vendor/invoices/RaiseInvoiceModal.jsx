@@ -12,6 +12,8 @@ import {
   FiCalendar,
   FiChevronDown,
   FiLoader,
+  FiArrowLeft,
+  FiEye,
 } from "react-icons/fi";
 import {
   getInvoicePreview,
@@ -28,6 +30,7 @@ const RaiseInvoiceModal = ({
   onSuccess,
 }) => {
   const [activeTab, setActiveTab] = useState("GENERATE"); // "GENERATE" | "UPLOAD"
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   // Project selection & preview state
   const [vendorProjects, setVendorProjects] = useState([]);
@@ -71,7 +74,8 @@ const RaiseInvoiceModal = ({
     setLoadingPreview(true);
     setPreviewError("");
     try {
-      const data = await getInvoicePreview(projId);
+      const res = await getInvoicePreview(projId);
+      const data = res?.data || res;
       setPreviewInfo(data);
 
       if (data.eligible && !data.hasExistingInvoice && data.previewData) {
@@ -111,6 +115,7 @@ const RaiseInvoiceModal = ({
     const initModal = async () => {
       setFormError("");
       setActiveTab("GENERATE");
+      setIsPreviewMode(false);
 
       if (!isEditing) {
         setLoadingProjects(true);
@@ -265,6 +270,14 @@ const RaiseInvoiceModal = ({
       }
     }
 
+    if (dueDate && invoiceDate) {
+      const dDue = new Date(dueDate);
+      const dInv = new Date(invoiceDate);
+      if (!isNaN(dDue.getTime()) && !isNaN(dInv.getTime()) && dDue < dInv) {
+        return "Due date cannot be earlier than invoice date.";
+      }
+    }
+
     if (isSubmittingAction) {
       if (!dueDate) {
         return "Due date is required when submitting an invoice for review.";
@@ -275,6 +288,17 @@ const RaiseInvoiceModal = ({
     }
 
     return null;
+  };
+
+  // Open in-memory Invoice Preview before submitting
+  const handleOpenPreview = () => {
+    setFormError("");
+    const validationErr = validateForm(false);
+    if (validationErr) {
+      setFormError(validationErr);
+      return;
+    }
+    setIsPreviewMode(true);
   };
 
   // Save Draft or Submit
@@ -353,10 +377,12 @@ const RaiseInvoiceModal = ({
           <div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-[#6C5CE7]/10 text-[#6C5CE7] flex items-center justify-center font-bold">
-                <FiFileText size={16} />
+                {isPreviewMode ? <FiEye size={16} /> : <FiFileText size={16} />}
               </div>
               <h2 className="text-lg font-bold text-[#2D3436]">
-                {isRejected
+                {isPreviewMode
+                  ? "Invoice Preview"
+                  : isRejected
                   ? "Edit & Resubmit Invoice"
                   : isDraft
                   ? "Edit Draft Invoice"
@@ -364,7 +390,9 @@ const RaiseInvoiceModal = ({
               </h2>
             </div>
             <p className="text-xs text-[#817B77] mt-1 pl-10">
-              {isRejected
+              {isPreviewMode
+                ? "Review your itemized invoice before formal submission for Admin review."
+                : isRejected
                 ? "Address the reviewer's feedback and resubmit for approval."
                 : isDraft
                 ? "Update your draft line items and submit when ready."
@@ -383,50 +411,6 @@ const RaiseInvoiceModal = ({
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-2 bg-[#EAE4DF]/60 p-1 rounded-2xl w-fit">
-            <button
-              type="button"
-              onClick={() => setActiveTab("GENERATE")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === "GENERATE"
-                  ? "bg-white text-[#2D3436] shadow-xs"
-                  : "text-[#817B77] hover:text-[#2D3436]"
-              }`}
-            >
-              <FiFileText size={14} />
-              <span>Generate Digital Invoice</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("UPLOAD")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === "UPLOAD"
-                  ? "bg-white text-[#2D3436] shadow-xs"
-                  : "text-[#817B77] hover:text-[#2D3436]"
-              }`}
-            >
-              <FiUploadCloud size={14} />
-              <span>Upload Custom Invoice</span>
-              <span className="text-[9px] bg-[#E17055]/10 text-[#E17055] px-1.5 py-0.2 rounded-full font-extrabold uppercase">
-                Preview
-              </span>
-            </button>
-          </div>
-
-          {/* Rejection Notice Banner (if editing a rejected invoice) */}
-          {isRejected && existingInvoice?.rejectionReason && (
-            <div className="bg-[#FFEBEE] border border-[#C62828]/20 rounded-2xl p-4 text-xs text-[#C62828] space-y-1 shadow-xs">
-              <div className="font-bold flex items-center gap-1.5">
-                <FiAlertCircle size={15} />
-                <span>Admin Rejection Reason</span>
-              </div>
-              <p className="text-[#3E3734] font-medium pl-5 leading-relaxed">
-                {existingInvoice.rejectionReason}
-              </p>
-            </div>
-          )}
-
           {/* Form Error Banner */}
           {formError && (
             <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2">
@@ -434,6 +418,210 @@ const RaiseInvoiceModal = ({
               <span>{formError}</span>
             </div>
           )}
+
+          {isPreviewMode ? (
+            /* PREVIEW DOCUMENT */
+            <div className="space-y-4">
+              {/* Notice Banner */}
+              <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl p-4 text-xs text-[#1E3A8A] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FiEye size={16} className="text-[#2563EB] shrink-0" />
+                  <span>
+                    <strong>Unsaved Preview:</strong> Review your invoice details before formal submission. No invoice has been created yet.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewMode(false)}
+                  className="text-[#2563EB] hover:underline font-bold text-xs shrink-0 cursor-pointer"
+                >
+                  Edit Form →
+                </button>
+              </div>
+
+              {/* Invoice Preview Document Paper */}
+              <div className="bg-white border border-[#E8E2DE] rounded-2xl p-5 shadow-xs space-y-5">
+                {/* Header Row: Document Title & Badge */}
+                <div className="flex items-start justify-between border-b border-[#F2EBE5] pb-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-[#6C5CE7] uppercase tracking-wider block">
+                      OFFICIAL INVOICE PREVIEW
+                    </span>
+                    <h3 className="text-xl font-black text-[#2D3436] tracking-tight">
+                      {invoiceId.trim() || `INV-${selectedProjectObj?.projectId || "PRJ"}`}
+                    </h3>
+                    <p className="text-xs text-[#817B77] mt-0.5">
+                      Project: {selectedProjectObj?.projectName || "Field Services"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-block bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      {isRejected ? "Rejected (Editing)" : isDraft ? "Draft" : "Unsaved Preview"}
+                    </span>
+                    <p className="text-[11px] text-[#817B77] mt-1">
+                      Status: Ready for submission
+                    </p>
+                  </div>
+                </div>
+
+                {/* Two Column Details: Billed To & Dates */}
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70 space-y-1">
+                    <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block">
+                      BILLED TO / PROJECT
+                    </span>
+                    <p className="font-bold text-[#2D3436]">
+                      {selectedProjectObj?.client || "Client Representative"}
+                    </p>
+                    <p className="text-[#6E6763]">
+                      {selectedProjectObj?.projectName || "Field Project"} ({selectedProjectObj?.projectId || "PRJ"})
+                    </p>
+                    {selectedProjectObj?.location && (
+                      <p className="text-[#817B77] text-[11px]">
+                        📍 {selectedProjectObj.location}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70 space-y-1">
+                    <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block">
+                      INVOICE TIMELINE
+                    </span>
+                    <div className="flex justify-between">
+                      <span className="text-[#817B77]">Issue Date:</span>
+                      <span className="font-bold text-[#2D3436]">{invoiceDate || "Today"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#817B77]">Payment Due:</span>
+                      <span className="font-bold text-[#2D3436]">{dueDate || "Upon Receipt"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#817B77]">Payment Terms:</span>
+                      <span className="font-medium text-[#6E6763]">Net 30 Days</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Line Items Table */}
+                <div className="border border-[#E8E2DE] rounded-xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#FAF7F5] text-[#817B77] uppercase text-[10px] font-extrabold border-b border-[#E8E2DE]">
+                      <tr>
+                        <th className="py-2.5 px-3">Item Description</th>
+                        <th className="py-2.5 px-3 text-center w-16">Qty</th>
+                        <th className="py-2.5 px-3 text-right w-24">Rate</th>
+                        <th className="py-2.5 px-3 text-right w-24">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F2EBE5]">
+                      {items.map((it, idx) => (
+                        <tr key={it.id || idx} className="hover:bg-[#FAF7F5]/50">
+                          <td className="py-2.5 px-3 text-[#2D3436] font-medium">
+                            {it.description || "Field Service Item"}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-[#6E6763]">
+                            {it.quantity}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-[#6E6763]">
+                            ${Number(it.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-[#2D3436]">
+                            ${Number(it.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totals Breakdown */}
+                <div className="flex justify-end">
+                  <div className="w-64 bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-[#6E6763]">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold text-[#2D3436]">
+                        ${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[#817B77]">
+                      <span>Tax (0%):</span>
+                      <span>$0.00</span>
+                    </div>
+                    <div className="pt-2 border-t border-[#E8E2DE] flex justify-between font-extrabold text-sm text-[#2D3436]">
+                      <span>Total Due:</span>
+                      <span className="text-[#00B894]">
+                        ${totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes / Payment Instructions */}
+                {notes ? (
+                  <div className="text-xs bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70">
+                    <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block mb-1">
+                      NOTES / PAYMENT INSTRUCTIONS
+                    </span>
+                    <p className="text-[#3E3734] leading-relaxed whitespace-pre-wrap">
+                      {notes}
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Authorized Digital Representation Disclaimer */}
+                <div className="border-t border-[#F2EBE5] pt-3 text-[11px] text-[#817B77] flex items-center justify-between">
+                  <span>Authorized Vendor Representation</span>
+                  <span className="font-semibold text-[#2D3436]">
+                    Digital Verification on Submission
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Mode Switcher Tabs */}
+              <div className="flex items-center gap-2 bg-[#EAE4DF]/60 p-1 rounded-2xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("GENERATE")}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeTab === "GENERATE"
+                      ? "bg-white text-[#2D3436] shadow-xs"
+                      : "text-[#817B77] hover:text-[#2D3436]"
+                  }`}
+                >
+                  <FiFileText size={14} />
+                  <span>Generate Digital Invoice</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("UPLOAD")}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeTab === "UPLOAD"
+                      ? "bg-white text-[#2D3436] shadow-xs"
+                      : "text-[#817B77] hover:text-[#2D3436]"
+                  }`}
+                >
+                  <FiUploadCloud size={14} />
+                  <span>Upload Custom Invoice</span>
+                  <span className="text-[9px] bg-[#E17055]/10 text-[#E17055] px-1.5 py-0.2 rounded-full font-extrabold uppercase">
+                    Preview
+                  </span>
+                </button>
+              </div>
+
+              {/* Rejection Notice Banner (if editing a rejected invoice) */}
+              {isRejected && existingInvoice?.rejectionReason && (
+                <div className="bg-[#FFEBEE] border border-[#C62828]/20 rounded-2xl p-4 text-xs text-[#C62828] space-y-1 shadow-xs">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <FiAlertCircle size={15} />
+                    <span>Admin Rejection Reason</span>
+                  </div>
+                  <p className="text-[#3E3734] font-medium pl-5 leading-relaxed">
+                    {existingInvoice.rejectionReason}
+                  </p>
+                </div>
+              )}
 
           {/* TAB 1: GENERATE DIGITAL INVOICE */}
           {activeTab === "GENERATE" && (
@@ -472,10 +660,12 @@ const RaiseInvoiceModal = ({
                     >
                       <option value="">Select an approved project to invoice...</option>
                       {vendorProjects.map((p) => {
-                        const isApproved = p.status === "Approved";
+                        const statusLower = (p.status || "").trim().toLowerCase();
+                        const isApproved = statusLower === "approved";
+                        const isCompleted = statusLower === "completed";
                         return (
                           <option key={p._id || p.id} value={p._id || p.id}>
-                            {p.projectName} ({p.projectId || "PRJ"}) — {isApproved ? "Approved ✓" : p.status}
+                            {p.projectName} ({p.projectId || "PRJ"}) — {isApproved ? "Approved ✓" : isCompleted ? "Completed (Paid)" : p.status}
                           </option>
                         );
                       })}
@@ -763,41 +953,46 @@ const RaiseInvoiceModal = ({
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Modal Footer */}
-        <div className="pt-4 border-t border-[#F2EBE5] flex items-center justify-end gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="bg-white border border-[#E8E2DE] text-[#6E6763] hover:text-[#2D3436] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5] transition-colors"
-          >
-            Cancel
-          </button>
+        {isPreviewMode ? (
+          <div className="pt-4 border-t border-[#F2EBE5] flex items-center justify-between w-full shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsPreviewMode(false)}
+              disabled={isSubmitting}
+              className="bg-white border border-[#E8E2DE] text-[#2D3436] hover:bg-[#F2EBE5] font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <FiArrowLeft size={14} />
+              <span>Back to Edit</span>
+            </button>
 
-          {activeTab === "GENERATE" && (
-            <>
-              {/* Save Draft Button */}
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleSave(false)}
-                disabled={isSubmitting || disableForm}
-                className="bg-[#EAE4DF] hover:bg-[#DDD5CF] text-[#3E3734] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
+                className="bg-[#EAE4DF] hover:bg-[#DDD5CF] text-[#3E3734] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting && submittingAction === "draft"
                   ? "Saving Draft..."
                   : "Save Draft"}
               </button>
 
-              {/* Submit for Review Button */}
               <button
                 type="button"
                 onClick={() => handleSave(true)}
-                disabled={isSubmitting || disableForm}
-                className="bg-[#00B894] hover:bg-[#00A383] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                disabled={isSubmitting}
+                className="bg-[#00B894] hover:bg-[#00A383] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
-                <FiCheck size={14} />
+                {isSubmitting && submittingAction === "submit" ? (
+                  <FiLoader size={14} className="animate-spin" />
+                ) : (
+                  <FiCheck size={14} />
+                )}
                 <span>
                   {isSubmitting && submittingAction === "submit"
                     ? "Submitting..."
@@ -806,9 +1001,64 @@ const RaiseInvoiceModal = ({
                     : "Submit for Review"}
                 </span>
               </button>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <div className="pt-4 border-t border-[#F2EBE5] flex items-center justify-end gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="bg-white border border-[#E8E2DE] text-[#6E6763] hover:text-[#2D3436] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5] transition-colors"
+            >
+              Cancel
+            </button>
+
+            {activeTab === "GENERATE" && (
+              <>
+                {/* Save Draft Button */}
+                <button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={isSubmitting || disableForm}
+                  className="bg-[#EAE4DF] hover:bg-[#DDD5CF] text-[#3E3734] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting && submittingAction === "draft"
+                    ? "Saving Draft..."
+                    : "Save Draft"}
+                </button>
+
+                {/* Preview Invoice Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenPreview}
+                  disabled={isSubmitting || disableForm}
+                  className="bg-white border-2 border-[#6C5CE7] hover:bg-[#6C5CE7]/10 text-[#6C5CE7] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FiEye size={14} />
+                  <span>Preview Invoice</span>
+                </button>
+
+                {/* Submit for Review Button */}
+                <button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={isSubmitting || disableForm}
+                  className="bg-[#00B894] hover:bg-[#00A383] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FiCheck size={14} />
+                  <span>
+                    {isSubmitting && submittingAction === "submit"
+                      ? "Submitting..."
+                      : isRejected
+                      ? "Resubmit Invoice"
+                      : "Submit for Review"}
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

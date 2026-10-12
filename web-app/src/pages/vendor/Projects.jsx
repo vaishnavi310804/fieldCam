@@ -60,7 +60,11 @@ const Projects = () => {
     if (!project.deadline) return false;
     const deadlineDate = new Date(project.deadline);
     if (isNaN(deadlineDate.getTime())) return false;
-    return deadlineDate < new Date() && project.status !== "Approved";
+    return (
+      deadlineDate < new Date() &&
+      project.status !== "Approved" &&
+      project.status !== "Completed"
+    );
   };
 
   // Derive dynamic counts for status filter pills strictly from REAL project data
@@ -78,7 +82,7 @@ const Projects = () => {
       if (p.status === "New") counts.New += 1;
       if (p.status === "In Progress") counts["In Progress"] += 1;
       if (p.status === "Submitted" || p.status === "Under Review") counts.Submitted += 1;
-      if (p.status === "Approved") counts.Completed += 1;
+      if (p.status === "Completed" || p.status === "Approved") counts.Completed += 1;
       if (isProjectOverdue(p)) counts.Overdue += 1;
     });
 
@@ -95,7 +99,7 @@ const Projects = () => {
         if (activeFilter === "New") return p.status === "New";
         if (activeFilter === "In Progress") return p.status === "In Progress";
         if (activeFilter === "Submitted") return p.status === "Submitted" || p.status === "Under Review";
-        if (activeFilter === "Completed") return p.status === "Approved";
+        if (activeFilter === "Completed") return p.status === "Completed" || p.status === "Approved";
         if (activeFilter === "Overdue") return isProjectOverdue(p);
         return true;
       });

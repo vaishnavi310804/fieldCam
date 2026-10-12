@@ -55,6 +55,12 @@ const getStatusBadgeStyle = (status: string) => {
         label: "Submitted",
       };
     case "completed":
+      return {
+        bg: "#DCFCE7",
+        text: "#166534",
+        dot: "#16A34A",
+        label: "Completed",
+      };
     case "approved":
     case "active":
       return {
@@ -279,6 +285,8 @@ export const ProjectDetailsScreen = () => {
   const isNew = statusUpper === "NEW";
   const isAssigned = statusUpper === "ASSIGNED";
   const isInProgress = statusUpper === "IN PROGRESS";
+  const isApproved = statusUpper === "APPROVED";
+  const isCompleted = statusUpper === "COMPLETED";
 
   const checklist = Array.isArray(project?.checklistItems) ? project!.checklistItems : [];
   const totalChecklist = checklist.length;
@@ -611,7 +619,7 @@ export const ProjectDetailsScreen = () => {
           ) : null}
 
           {/* BOTTOM PRIMARY ACTION AREA (Only visible in Overview tab) */}
-          {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress) ? (
+          {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress || isApproved || isCompleted) ? (
             <View style={styles.actionContainer}>
               {isNew ? (
                 <Pressable
@@ -657,6 +665,26 @@ export const ProjectDetailsScreen = () => {
                   >
                     <Ionicons name="time-outline" size={22} color="#4A423F" />
                   </Pressable>
+                </View>
+              ) : isApproved ? (
+                <Pressable
+                  style={styles.primaryActionButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(app)/raise-invoice",
+                      params: { projectId: project?._id },
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel="Raise Invoice"
+                >
+                  <Ionicons name="document-text-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                  <Text style={styles.primaryActionText}>Raise Invoice</Text>
+                </Pressable>
+              ) : isCompleted ? (
+                <View style={[styles.primaryActionButton, { backgroundColor: "#166534", opacity: 0.95 }]}>
+                  <Ionicons name="checkmark-done-circle-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                  <Text style={styles.primaryActionText}>Project Completed & Paid</Text>
                 </View>
               ) : null}
             </View>

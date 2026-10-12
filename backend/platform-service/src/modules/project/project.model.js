@@ -278,6 +278,7 @@ const projectSchema = new mongoose.Schema(
           "Under Review",
           "Approved",
           "Rejected",
+          "Completed",
         ],
         message: "{VALUE} is not a valid project status",
       },

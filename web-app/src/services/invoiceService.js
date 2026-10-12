@@ -57,7 +57,7 @@ export const submitInvoice = async (id) => {
 
 export const getInvoicePreview = async (projectId) => {
   const response = await platformApi.get(`/invoices/preview/${projectId}`);
-  return response.data;
+  return response.data?.data || response.data;
 };
 
 export const downloadInvoicePdf = async (id, invoiceNumber) => {

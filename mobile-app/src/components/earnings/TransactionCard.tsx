@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { InvoiceListItem } from "@/src/api/invoices.api";
 
 interface TransactionCardProps {
@@ -41,10 +42,19 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
   );
   const statusDisplay = transaction.status;
 
+  const handlePress = () => {
+    if (transaction._id) {
+      router.push({
+        pathname: "/(app)/invoice-preview",
+        params: { id: transaction._id },
+      });
+    }
+  };
+
   const total = Number(transaction.totalAmount || transaction.amount || 0);
 
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={handlePress}>
       <View style={styles.leftSection}>
         <View style={styles.iconCircle}>
           <Text style={styles.dollarSign}>$</Text>
@@ -59,7 +69,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         </View>
       </View>
       <Text style={styles.amount}>{formatCurrency(total)}</Text>
-    </View>
+    </Pressable>
   );
 };
 

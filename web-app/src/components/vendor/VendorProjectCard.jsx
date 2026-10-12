@@ -19,14 +19,20 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
     if (!project.deadline) return false;
     const deadlineDate = new Date(project.deadline);
     if (isNaN(deadlineDate.getTime())) return false;
-    return deadlineDate < new Date() && project.status !== "Approved";
+    return (
+      deadlineDate < new Date() &&
+      project.status !== "Approved" &&
+      project.status !== "Completed"
+    );
   })();
 
   // Display Status Mapping
   let statusLabel = project.status || "New";
-  if (isOverdue && project.status !== "Approved") {
+  if (isOverdue && project.status !== "Approved" && project.status !== "Completed") {
     statusLabel = "Overdue";
   } else if (project.status === "Approved") {
+    statusLabel = "Approved";
+  } else if (project.status === "Completed") {
     statusLabel = "Completed";
   }
 

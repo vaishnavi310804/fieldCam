@@ -1,5 +1,13 @@
 import { platformClient } from "./platformClient";
 
+export interface InvoiceLineItem {
+  _id?: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
 export interface InvoiceStatsData {
   totalInvoiced: number;
   awaitingReview: { count: number; amount: number };
@@ -19,6 +27,16 @@ export interface InvoiceOverviewItem {
   count: number;
   year: number;
   monthNum: number;
+}
+
+export interface ReviewHistoryItem {
+  _id?: string;
+  action: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  actorEmail?: string | null;
+  reason?: string | null;
+  timestamp: string;
 }
 
 export interface InvoiceListItem {
@@ -42,16 +60,82 @@ export interface InvoiceListItem {
     status?: string;
   };
   vendorName?: string;
+  items?: InvoiceLineItem[];
+  subtotal?: number;
   amount: number;
   tax: number;
   totalAmount: number;
-  status: "Draft" | "Submitted" | "Pending" | "Approved" | "Sent" | "Paid" | "Rejected";
+  status:
+    | "Draft"
+    | "Submitted"
+    | "Pending"
+    | "Approved"
+    | "Sent"
+    | "Paid"
+    | "Rejected";
   invoiceDate?: string;
   dueDate?: string | null;
+  notes?: string;
+  rejectionReason?: string | null;
   paymentDate?: string | null;
   paymentMethod?: string | null;
+  paymentNotes?: string | null;
+  paidBy?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  } | null;
+  reviewHistory?: ReviewHistoryItem[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface InvoicePreviewResponse {
+  eligible: boolean;
+  eligibilityReason: string;
+  hasExistingInvoice: boolean;
+  existingInvoice: InvoiceListItem | null;
+  previewData?: {
+    suggestedInvoiceId: string;
+    invoiceDate: string;
+    suggestedDueDate: string;
+    project: {
+      id: string;
+      projectId: string;
+      projectName: string;
+      client: string;
+      location: string;
+      status: string;
+    };
+    vendor: {
+      id: string;
+      companyName: string;
+      contactName: string;
+      location: string;
+    } | null;
+    items: InvoiceLineItem[];
+    subtotal: number;
+    tax: number;
+    totalAmount: number;
+  };
+}
+
+export interface CreateInvoicePayload {
+  projectId: string;
+  invoiceId?: string;
+  items?: InvoiceLineItem[];
+  invoiceDate?: string;
+  dueDate?: string;
+  notes?: string;
+  status?: "Draft" | "Submitted";
+}
+
+export interface UpdateInvoicePayload {
+  items?: InvoiceLineItem[];
+  invoiceDate?: string;
+  dueDate?: string;
+  notes?: string;
+  submit?: boolean;
 }
 
 export const getInvoiceStats = async (): Promise<InvoiceStatsData> => {
@@ -99,10 +183,101 @@ export const getInvoices = async (
   return response.data.data;
 };
 
+export const getInvoiceById = async (id: string): Promise<InvoiceListItem> => {
+  const response = await platformClient.get<{
+    success: boolean;
+    data: InvoiceListItem;
+    message?: string;
+  }>(`/invoices/${id}`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to fetch invoice details");
+  }
+
+  return response.data.data;
+};
+
+export const getInvoicePreview = async (
+  projectId: string
+): Promise<InvoicePreviewResponse> => {
+  const response = await platformClient.get<{
+    success: boolean;
+    data: InvoicePreviewResponse;
+    message?: string;
+  }>(`/invoices/preview/${projectId}`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to fetch invoice preview");
+  }
+
+  return response.data.data;
+};
+
+export const createInvoice = async (
+  payload: CreateInvoicePayload
+): Promise<InvoiceListItem> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: InvoiceListItem;
+    message?: string;
+  }>("/invoices", payload);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to create invoice");
+  }
+
+  return response.data.data;
+};
+
+export const updateInvoice = async (
+  id: string,
+  payload: UpdateInvoicePayload
+): Promise<InvoiceListItem> => {
+  const response = await platformClient.put<{
+    success: boolean;
+    data: InvoiceListItem;
+    message?: string;
+  }>(`/invoices/${id}`, payload);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to update invoice");
+  }
+
+  return response.data.data;
+};
+
+export const submitInvoice = async (id: string): Promise<InvoiceListItem> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: InvoiceListItem;
+    message?: string;
+  }>(`/invoices/${id}/submit`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to submit invoice");
+  }
+
+  return response.data.data;
+};
+
+export const downloadInvoicePdf = async (id: string): Promise<ArrayBuffer> => {
+  const response = await platformClient.get<ArrayBuffer>(`/invoices/${id}/pdf`, {
+    responseType: "arraybuffer",
+  });
+
+  return response.data;
+};
+
 export const invoicesApi = {
   getInvoiceStats,
   getInvoiceOverview,
   getInvoices,
+  getInvoiceById,
+  getInvoicePreview,
+  createInvoice,
+  updateInvoice,
+  submitInvoice,
+  downloadInvoicePdf,
 };
 
 export default invoicesApi;

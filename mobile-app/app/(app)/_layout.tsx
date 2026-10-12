@@ -28,6 +28,8 @@ export default function AppLayout() {
       <Tabs.Screen name="performance-dashboard" options={{ href: null }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen name="project-report" options={{ href: null }} />
+      <Tabs.Screen name="raise-invoice" options={{ href: null }} />
+      <Tabs.Screen name="invoice-preview" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -24,6 +24,11 @@ const ProjectFilters = ({ activeFilter, setActiveFilter, allProjects = [] }) => 
       count: allProjects.filter((p) => p.status === "Approved").length,
     },
     {
+      id: "Completed",
+      label: "Completed",
+      count: allProjects.filter((p) => p.status === "Completed").length,
+    },
+    {
       id: "Rejected",
       label: "Rejected",
       count: allProjects.filter((p) => p.status === "Rejected").length,

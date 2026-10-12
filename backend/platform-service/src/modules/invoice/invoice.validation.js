@@ -14,8 +14,8 @@ export const createInvoiceValidation = [
   body("projectId")
     .notEmpty()
     .withMessage("Project ID is required")
-    .isMongoId()
-    .withMessage("Project ID must be a valid MongoDB ObjectId"),
+    .isString()
+    .withMessage("Project ID must be a valid string"),
 
   body("invoiceId")
     .optional()

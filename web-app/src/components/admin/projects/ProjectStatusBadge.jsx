@@ -19,6 +19,11 @@ const statusStyles = {
     text: "text-[#2E7D32]",
     dot: "bg-[#2E7D32]",
   },
+  Completed: {
+    bg: "bg-[#E8F5E9]",
+    text: "text-[#2E7D32]",
+    dot: "bg-[#2E7D32]",
+  },
   Rejected: {
     bg: "bg-[#FFEBEE]",
     text: "text-[#C62828]",

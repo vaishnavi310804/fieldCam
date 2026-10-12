@@ -4,6 +4,7 @@ import Vendor from "../vendor/vendor.model.js";
 import User from "../users/user.model.js";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
+import { logAuditEvent } from "../audit/audit.service.js";
 import { sendInvoiceEmail } from "./invoice.email.js";
 import { generateInvoicePdf } from "./invoice.pdf.js";
 
@@ -110,18 +111,35 @@ export const generateInvoiceNumber = async (project, clientProvidedId = null) =>
 export const createInvoice = async (invoiceData, user = {}) => {
   const { projectId, items = [], invoiceDate, dueDate, notes, status: requestedStatus } = invoiceData;
 
-  // 1. Verify Project ID format
-  if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
-    const err = new Error("Invalid project ID format");
-    err.statusCode = 400;
-    throw err;
+  // 1. Resolve Project (by ObjectId or projectId code)
+  let project = null;
+  if (projectId && mongoose.Types.ObjectId.isValid(projectId)) {
+    project = await Project.findById(projectId);
+  }
+  if (!project && projectId) {
+    project = await Project.findOne({ projectId: String(projectId).trim() });
   }
 
-  // 2. Fetch Project with populated details
-  const project = await Project.findById(projectId);
   if (!project) {
     const err = new Error("Project not found");
     err.statusCode = 404;
+    throw err;
+  }
+
+  // 2. Verify project approval eligibility (strictly Approved; Completed cannot be invoiced)
+  const statusNormalized = (project.status || "").trim().toLowerCase();
+  if (statusNormalized === "completed") {
+    const err = new Error(
+      "Project is completed and already paid. Invoices cannot be created for completed projects."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+  if (statusNormalized !== "approved") {
+    const err = new Error(
+      `Project is not eligible for invoicing. Project status must be "Approved", currently "${project.status}"`
+    );
+    err.statusCode = 400;
     throw err;
   }
 
@@ -136,18 +154,15 @@ export const createInvoice = async (invoiceData, user = {}) => {
     }
 
     // Verify vendor ownership of project
-    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const projectVendorIdStr = project.vendorId?._id
+      ? project.vendorId._id.toString()
+      : project.vendorId
+      ? project.vendorId.toString()
+      : null;
+
+    if (!projectVendorIdStr || projectVendorIdStr !== vendor._id.toString()) {
       const err = new Error("Access denied: You are not assigned to this project");
       err.statusCode = 403;
-      throw err;
-    }
-
-    // Verify project approval eligibility
-    if (project.status !== "Approved") {
-      const err = new Error(
-        `Project is not eligible for invoicing. Project status must be "Approved", currently "${project.status}"`
-      );
-      err.statusCode = 400;
       throw err;
     }
   } else {
@@ -348,15 +363,23 @@ export const createInvoice = async (invoiceData, user = {}) => {
  * Previews invoice data for an approved project.
  */
 export const getInvoicePreview = async (projectId, user = {}) => {
-  if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
-    const err = new Error("Invalid project ID format");
+  if (!projectId) {
+    const err = new Error("Project ID is required");
     err.statusCode = 400;
     throw err;
   }
 
-  const project = await Project.findById(projectId)
-    .populate("serviceId", "serviceCategory serviceTypeName defaultPrice")
-    .populate("vendorId", "companyName contactName location rating status");
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(projectId)) {
+    project = await Project.findById(projectId)
+      .populate("serviceId", "serviceCategory serviceTypeName defaultPrice")
+      .populate("vendorId", "companyName contactName location rating status");
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: String(projectId).trim() })
+      .populate("serviceId", "serviceCategory serviceTypeName defaultPrice")
+      .populate("vendorId", "companyName contactName location rating status");
+  }
 
   if (!project) {
     const err = new Error("Project not found");
@@ -367,17 +390,35 @@ export const getInvoicePreview = async (projectId, user = {}) => {
   // If vendor, check ownership
   if (user.role === "VENDOR") {
     const vendor = await Vendor.findOne({ userId: user.id });
-    if (!vendor || !project.vendorId || project.vendorId._id.toString() !== vendor._id.toString()) {
+    const projectVendorIdStr = project.vendorId?._id
+      ? project.vendorId._id.toString()
+      : project.vendorId
+      ? project.vendorId.toString()
+      : null;
+
+    if (!vendor || !projectVendorIdStr || projectVendorIdStr !== vendor._id.toString()) {
       const err = new Error("Access denied: You are not assigned to this project");
       err.statusCode = 403;
       throw err;
     }
   }
 
-  const isEligible = project.status === "Approved";
+  const statusNormalized = (project.status || "").trim().toLowerCase();
+  const isApproved = statusNormalized === "approved";
+  const isCompleted = statusNormalized === "completed";
   const existingInvoice = await Invoice.findOne({ projectId: project._id })
     .populate("projectId", "projectId projectName client location status deadline")
     .populate("vendorId", "companyName contactName location");
+
+  const isEligible = isApproved && !existingInvoice;
+  let eligibilityReason = "Project is approved and ready for invoicing";
+  if (isCompleted) {
+    eligibilityReason = "Project is completed and already paid. Invoices cannot be created for completed projects.";
+  } else if (!isApproved) {
+    eligibilityReason = `Project status must be "Approved", currently "${project.status}"`;
+  } else if (existingInvoice) {
+    eligibilityReason = `An invoice (${existingInvoice.invoiceId}) already exists for this project`;
+  }
 
   const defaultPrice = project.serviceId?.defaultPrice || 0;
   const suggestedItems = defaultPrice > 0
@@ -393,9 +434,7 @@ export const getInvoicePreview = async (projectId, user = {}) => {
 
   return {
     eligible: isEligible,
-    eligibilityReason: isEligible
-      ? "Project is approved and ready for invoicing"
-      : `Project status must be "Approved", currently "${project.status}"`,
+    eligibilityReason,
     hasExistingInvoice: !!existingInvoice,
     existingInvoice: existingInvoice || null,
     previewData: {
@@ -898,10 +937,17 @@ export const recordPayment = async (id, paymentData = {}, user = {}) => {
     throw err;
   }
 
-  // Can only record payment on Approved, Sent, or legacy Pending
-  if (!["Approved", "Sent", "Pending"].includes(invoice.status)) {
+  // Idempotency: Reject if already paid
+  if (invoice.status === "Paid") {
+    const err = new Error("Invoice is already paid");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Must be in Sent status (or legacy Pending) before payment can be recorded
+  if (invoice.status !== "Sent" && invoice.status !== "Pending") {
     const err = new Error(
-      `Cannot record payment for an invoice with status "${invoice.status}". Invoice must be Approved or Sent.`
+      `Cannot record payment for an invoice with status "${invoice.status}". Invoice must be in "Sent" status before recording payment.`
     );
     err.statusCode = 400;
     throw err;
@@ -916,6 +962,13 @@ export const recordPayment = async (id, paymentData = {}, user = {}) => {
       throw err;
     }
     parsedPaymentDate = pDate;
+  }
+
+  const project = await Project.findById(invoice.projectId);
+  if (!project) {
+    const err = new Error("Associated project not found for invoice");
+    err.statusCode = 404;
+    throw err;
   }
 
   invoice.status = "Paid";
@@ -933,7 +986,81 @@ export const recordPayment = async (id, paymentData = {}, user = {}) => {
     timestamp: new Date(),
   });
 
-  await invoice.save();
+  project.status = "Completed";
+
+  // Atomically persist both records within a MongoDB transaction session
+  let session = null;
+  let transactionActive = false;
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+    transactionActive = true;
+  } catch (sessErr) {
+    session = null;
+    transactionActive = false;
+  }
+
+  try {
+    const saveOpts = session && transactionActive ? { session } : {};
+    await invoice.save(saveOpts);
+    await project.save(saveOpts);
+
+    if (session && transactionActive) {
+      await session.commitTransaction();
+    }
+  } catch (saveErr) {
+    if (session && transactionActive) {
+      try {
+        await session.abortTransaction();
+      } catch (abortErr) {
+        console.warn("Failed to abort transaction:", abortErr.message);
+      }
+    }
+    throw saveErr;
+  } finally {
+    if (session) {
+      session.endSession();
+    }
+  }
+
+  // Log project completion audit event (only after verified DB commit)
+  try {
+    await logAuditEvent({
+      actor: user,
+      action: "PROJECT_STATUS_CHANGED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Project "${project.projectName}" marked as Completed upon payment of Invoice ${invoice.invoiceId}`,
+      metadata: {
+        projectId: project.projectId,
+        previousStatus: "Approved",
+        newStatus: "Completed",
+        invoiceId: invoice.invoiceId,
+      },
+    });
+  } catch (auditErr) {
+    console.warn("Failed to log project completion audit event:", auditErr.message);
+  }
+
+  // Notify assigned vendor of project completion (only after verified DB commit)
+  try {
+    const vendorUserId = await getVendorUserId(invoice.vendorId);
+    if (vendorUserId) {
+      await createNotification({
+        userId: vendorUserId,
+        title: "Project Completed",
+        body: `Project "${project.projectName}" (${project.projectId}) is now marked as Completed following payment receipt.`,
+        type: "PROJECT_UPDATED",
+        data: {
+          projectId: project._id.toString(),
+          projectCode: project.projectId,
+          status: "Completed",
+        },
+      });
+    }
+  } catch (notifErr) {
+    console.warn("Failed to notify vendor of project completion:", notifErr.message);
+  }
 
   // Notify vendor of recorded payment
   try {

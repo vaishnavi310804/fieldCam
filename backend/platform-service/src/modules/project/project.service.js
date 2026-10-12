@@ -504,6 +504,14 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
     throw new Error("Invalid project ID format");
   }
 
+  if (status === "Completed") {
+    const err = new Error(
+      "Project status cannot be manually set to 'Completed'. Projects can only be completed through the invoice payment workflow."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
   const ALLOWED_STATUSES = [
     "New",
     "ASSIGNED",
@@ -531,6 +539,8 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
     }
     updateFields.rejectionReason = finalReason;
   } else if (status === "Approved") {
+    updateFields.rejectionReason = null;
+  } else if (status === "Completed") {
     updateFields.rejectionReason = null;
   }
 
@@ -560,6 +570,9 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
         } else if (updatedProject.status === "Approved") {
           title = "Project Approved";
           body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) has been approved.`;
+        } else if (updatedProject.status === "Completed") {
+          title = "Project Completed";
+          body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) has been completed.`;
         } else if (updatedProject.status === "Rejected") {
           title = "Project Rejected";
           body = `Project "${updatedProject.projectName}" (${updatedProject.projectId}) was rejected: ${updatedProject.rejectionReason || "No reason specified"}.`;

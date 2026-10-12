@@ -295,7 +295,7 @@ const InvoiceTable = ({
 
                 const isReviewable = ["Submitted", "Pending"].includes(row.status);
                 const isSendable = row.status === "Approved";
-                const isPayable = ["Approved", "Sent", "Pending"].includes(row.status);
+                const isPayable = ["Sent", "Pending"].includes(row.status);
                 const isPdfEligible = ["Approved", "Sent", "Paid", "Submitted"].includes(row.status);
 
                 return (
@@ -735,7 +735,7 @@ const InvoiceTable = ({
                   </button>
                 )}
 
-                {!isReadOnly && ["Approved", "Sent", "Pending"].includes(viewInvoice.status) && (
+                {!isReadOnly && ["Sent", "Pending"].includes(viewInvoice.status) && (
                   <button
                     onClick={() => handleOpenPayment(viewInvoice)}
                     className="bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
