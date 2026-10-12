@@ -13,6 +13,7 @@ import {
   assignProjectToStaff,
   getStaffAssignedProjects,
   generateProjectReportPdf,
+  revalidateVendorPhoto,
 } from "./project.service.js";
 import Vendor from "../vendor/vendor.model.js";
 import { logAuditEvent } from "../audit/audit.service.js";
@@ -365,6 +366,28 @@ export const downloadProjectReportPdfController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to generate project PDF report",
+    });
+  }
+};
+
+export const revalidateVendorPhotoController = async (req, res) => {
+  try {
+    const result = await revalidateVendorPhoto(
+      req.params.id,
+      req.params.photoId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Photo revalidated successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to revalidate photo",
     });
   }
 };

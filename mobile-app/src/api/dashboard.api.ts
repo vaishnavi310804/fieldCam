@@ -370,6 +370,23 @@ export const uploadProjectPhoto = async (
   return response.data.data;
 };
 
+export const revalidateProjectPhoto = async (
+  projectId: string,
+  photoId: string
+): Promise<VendorProjectItem> => {
+  const response = await platformClient.post<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/photos/${photoId}/revalidate`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to revalidate photo");
+  }
+
+  return response.data.data;
+};
+
 export const submitVendorProject = async (
   projectId: string
 ): Promise<VendorProjectItem> => {

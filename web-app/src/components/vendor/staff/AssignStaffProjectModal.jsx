@@ -232,7 +232,7 @@ const AssignStaffProjectModalDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-xl w-full shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-[#C9A69B] p-4 sm:p-5 flex items-center justify-between gap-3 shrink-0">
@@ -430,7 +430,7 @@ const AssignStaffProjectModalDialog = ({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="flex-1 py-2.5 px-4 rounded-xl border border-[#E8E2DE] bg-white text-xs sm:text-sm font-bold text-[#3E3734] hover:bg-[#FAF7F5] transition-colors cursor-pointer text-center disabled:opacity-50"
+            className="flex-1 py-2.5 px-4 rounded-xl border border-[#E8E2DE] bg-[#F7D8CF] text-xs sm:text-sm font-bold text-[#3E3734] hover:bg-[#FAF7F5] transition-colors cursor-pointer text-center disabled:opacity-50"
           >
             Cancel
           </button>
@@ -438,7 +438,7 @@ const AssignStaffProjectModalDialog = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || selectedProjectIds.length === 0}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#D7A79A] to-[#C87A65] hover:from-[#C87A65] hover:to-[#B36854] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 px-4 rounded-xl bg-[#928880] hover:bg-[#B36854] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <>

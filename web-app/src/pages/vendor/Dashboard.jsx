@@ -81,7 +81,9 @@ const VendorDashboard = () => {
   }, [projects, searchTerm]);
 
   // Derive Summary Counts strictly from REAL backend project data
-  const newProjectsCount = projects.filter((p) => p.status === "New").length;
+  const newProjectsCount = projects.filter(
+    (p) => p.status === "New" || p.status === "ASSIGNED"
+  ).length;
   const inProgressCount = projects.filter((p) => p.status === "In Progress").length;
   const submittedCount = projects.filter(
     (p) => p.status === "Submitted" || p.status === "Under Review"

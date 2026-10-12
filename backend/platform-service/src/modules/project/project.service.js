@@ -1488,3 +1488,96 @@ export const generateProjectReportPdf = async (projectIdOrId, currentUser) => {
     }
   });
 };
+
+/**
+ * Re-validates an existing uploaded photo with the AI microservice.
+ * Allows recovery/retry when previous AI evaluation was PENDING due to transient 502/503/timeout.
+ *
+ * @param {string} projectIdOrId - MongoDB _id or projectId
+ * @param {string} photoId - Photo _id to re-verify
+ * @param {Object} user - Authenticated user object (role: VENDOR or STAFF)
+ * @returns {Promise<Object>} Updated project document
+ */
+export const revalidateVendorPhoto = async (projectIdOrId, photoId, user) => {
+  if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
+    const err = new Error("Only authenticated vendors and assigned staff can revalidate photos");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    if (!vendor) {
+      const err = new Error("Vendor profile not found for authenticated user");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+      const err = new Error("You are not authorized to revalidate photos for this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (user.role === "STAFF") {
+    const staffId = (user.id || user._id).toString();
+    const assignedStaffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
+    if (!assignedStaffIdStr || assignedStaffIdStr !== staffId) {
+      const err = new Error("You are not authorized to revalidate photos for this project");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  const photoIndex = project.photos.findIndex(
+    (p) => p._id?.toString() === photoId.toString()
+  );
+  if (photoIndex === -1) {
+    const err = new Error("Photo not found in this project");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const targetPhoto = project.photos[photoIndex];
+  const shortLivedPresignedUrl = await getPresignedMediaUrl(targetPhoto.url, 900);
+  if (!shortLivedPresignedUrl) {
+    const err = new Error("Failed to generate presigned URL for photo");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const aiResult = await validatePhotoWithAI(
+    shortLivedPresignedUrl,
+    targetPhoto.category || "Inspection Photo"
+  );
+
+  project.photos[photoIndex].aiValidation = aiResult;
+  await project.save();
+
+  try {
+    if (aiResult.status === "PASSED" || aiResult.status === "FAILED") {
+      await logAuditEvent({
+        actor: user,
+        action: "PHOTO_VALIDATED",
+        entityType: "Project",
+        entityId: project.projectId || project._id.toString(),
+        description: `AI revalidated photo for checklist item "${targetPhoto.category || ""}" in project ${project.projectId}: ${aiResult.status}`,
+        metadata: {
+          projectId: project.projectId,
+          photoId: photoId.toString(),
+          checklistItemId: targetPhoto.checklistItemId,
+          validationStatus: aiResult.status,
+        },
+      });
+    }
+  } catch (auditErr) {
+    console.error("Failed to log audit event:", auditErr.message);
+  }
+
+  return await getProjectById(project._id.toString(), user);
+};

@@ -4,6 +4,11 @@ const statusStyles = {
     text: "text-[#1565C0]",
     dot: "bg-[#1565C0]",
   },
+  ASSIGNED: {
+    bg: "bg-[#EEF2FF]",
+    text: "text-[#2563EB]",
+    dot: "bg-[#2563EB]",
+  },
   "In Progress": {
     bg: "bg-[#FFF3E0]",
     text: "text-[#E65100]",

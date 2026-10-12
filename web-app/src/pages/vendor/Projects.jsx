@@ -2,16 +2,17 @@ import { useState, useEffect, useMemo } from "react";
 import VendorSidebar from "../../components/vendor/VendorSidebar";
 import VendorHeader from "../../components/vendor/VendorHeader";
 import VendorProjectCard from "../../components/vendor/VendorProjectCard";
-import { getProjects } from "../../services/projectService";
+import { getProjects, acceptProject } from "../../services/projectService";
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
 import {
   FiSearch,
-  FiFilter,
   FiAlertCircle,
   FiRefreshCw,
   FiBriefcase,
   FiSliders,
+  FiCheckCircle,
+  FiX,
 } from "react-icons/fi";
 
 const Projects = () => {
@@ -26,6 +27,32 @@ const Projects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Acceptance feedback state
+  const [acceptingProjectId, setAcceptingProjectId] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState(null);
+  const [actionError, setActionError] = useState(null);
+
+  const handleAcceptProject = async (project) => {
+    const targetId = project._id || project.id || project.projectId;
+    if (!targetId || acceptingProjectId) return;
+
+    try {
+      setAcceptingProjectId(targetId);
+      setActionError(null);
+      await acceptProject(targetId);
+      setActionSuccess(
+        `Project "${project.projectName || project.projectId}" accepted successfully! Status updated to ASSIGNED.`
+      );
+      await loadVendorProjects();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message || err.message || "Failed to accept project."
+      );
+    } finally {
+      setAcceptingProjectId(null);
+    }
+  };
 
   const loadVendorProjects = async () => {
     setLoading(true);
@@ -79,7 +106,7 @@ const Projects = () => {
     };
 
     projects.forEach((p) => {
-      if (p.status === "New") counts.New += 1;
+      if (p.status === "New" || p.status === "ASSIGNED") counts.New += 1;
       if (p.status === "In Progress") counts["In Progress"] += 1;
       if (p.status === "Submitted" || p.status === "Under Review") counts.Submitted += 1;
       if (p.status === "Completed" || p.status === "Approved") counts.Completed += 1;
@@ -96,7 +123,7 @@ const Projects = () => {
     // 1. Filter by Status Pill
     if (activeFilter !== "All") {
       result = result.filter((p) => {
-        if (activeFilter === "New") return p.status === "New";
+        if (activeFilter === "New") return p.status === "New" || p.status === "ASSIGNED";
         if (activeFilter === "In Progress") return p.status === "In Progress";
         if (activeFilter === "Submitted") return p.status === "Submitted" || p.status === "Under Review";
         if (activeFilter === "Completed") return p.status === "Completed" || p.status === "Approved";
@@ -193,6 +220,39 @@ const Projects = () => {
               >
                 <FiRefreshCw className="text-xs" />
                 <span>Retry</span>
+              </button>
+            </div>
+          )}
+
+          {/* Action Feedback Alerts */}
+          {actionSuccess && (
+            <div className="bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <FiCheckCircle className="text-base shrink-0" />
+                <span>{actionSuccess}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionSuccess(null)}
+                className="text-[#2E7D32] hover:opacity-75 p-1 cursor-pointer"
+              >
+                <FiX size={14} />
+              </button>
+            </div>
+          )}
+
+          {actionError && (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <FiAlertCircle className="text-base shrink-0" />
+                <span>{actionError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionError(null)}
+                className="text-[#C62828] hover:opacity-75 p-1 cursor-pointer"
+              >
+                <FiX size={14} />
               </button>
             </div>
           )}
@@ -322,6 +382,8 @@ const Projects = () => {
                 <VendorProjectCard
                   key={project._id || project.id}
                   project={project}
+                  onAcceptProject={handleAcceptProject}
+                  isAccepting={acceptingProjectId === (project._id || project.id)}
                 />
               ))}
             </div>

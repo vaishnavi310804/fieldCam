@@ -144,9 +144,9 @@ const ProjectSelectionCard = ({
             />
             <span>
               {isAssigned
-                ? "ASSIGNED (Ready for Staff)"
+                ? "ASSIGNED"
                 : isNew
-                ? "New (Pending Acceptance)"
+                ? "New"
                 : project.status}
             </span>
           </div>

@@ -25,6 +25,7 @@ import {
   assignStaffController,
   getStaffProjectsController,
   downloadProjectReportPdfController,
+  revalidateVendorPhotoController,
 } from "./project.controller.js";
 import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
@@ -147,6 +148,14 @@ router.delete(
   deleteVendorPhotoValidation,
   validate,
   deleteVendorPhotoController
+);
+
+// POST /api/projects/:id/photos/:photoId/revalidate - Vendor or assigned Staff revalidates photo with AI (VENDOR, STAFF)
+router.post(
+  "/:id/photos/:photoId/revalidate",
+  protect,
+  authorize("VENDOR", "STAFF"),
+  revalidateVendorPhotoController
 );
 
 // POST /api/projects/:id/assign-staff - Vendor assigns project to a staff member (VENDOR)

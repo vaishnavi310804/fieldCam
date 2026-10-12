@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,7 @@ import Colors from "@/src/constants/color";
 import { PageHeader } from "@/src/components/navigation/PageHeader";
 import {
   getProjectById,
+  revalidateProjectPhoto,
   submitVendorProject,
   VendorProjectItem,
   VendorProjectPhoto,
@@ -46,6 +48,7 @@ export function AIVerificationScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isRevalidating, setIsRevalidating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showFailureModal, setShowFailureModal] = useState<boolean>(false);
 
@@ -117,10 +120,57 @@ export function AIVerificationScreen() {
     fetchProjectDetails(true);
   }, [fetchProjectDetails]);
 
-  const onRefresh = useCallback(() => {
+  const handleRetryVerification = async () => {
+    const activePhotoId = targetPhoto?._id ? String(targetPhoto._id) : photoId;
+    if (!projectId || !activePhotoId || isRevalidating) return;
+
+    try {
+      setIsRevalidating(true);
+      const updatedProject = await revalidateProjectPhoto(projectId, activePhotoId);
+      setProject(updatedProject);
+
+      const photos = updatedProject.photos || [];
+      const matched = photos.find((p) => String(p._id) === activePhotoId);
+      if (matched) {
+        setTargetPhoto(matched);
+        if (matched.aiValidation?.status === "FAILED") {
+          setShowFailureModal(true);
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to revalidate photo:", err);
+      Alert.alert(
+        "Verification Error",
+        err?.response?.data?.message || err?.message || "Failed to re-run AI verification."
+      );
+    } finally {
+      setIsRevalidating(false);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    const activePhotoId = targetPhoto?._id ? String(targetPhoto._id) : photoId;
+    if (targetPhoto?.aiValidation?.status === "PENDING" && projectId && activePhotoId) {
+      try {
+        const updatedProject = await revalidateProjectPhoto(projectId, activePhotoId);
+        setProject(updatedProject);
+        const photos = updatedProject.photos || [];
+        const matched = photos.find((p) => String(p._id) === activePhotoId);
+        if (matched) {
+          setTargetPhoto(matched);
+          if (matched.aiValidation?.status === "FAILED") {
+            setShowFailureModal(true);
+          }
+        }
+        setIsRefreshing(false);
+        return;
+      } catch {
+        // Fallback to fetchProjectDetails
+      }
+    }
     fetchProjectDetails(false);
-  }, [fetchProjectDetails]);
+  }, [projectId, targetPhoto, photoId, fetchProjectDetails]);
 
   // Step 1: User taps "Submit Photo" -> Open Confirmation Modal
   const handleOpenSubmissionConfirm = () => {
@@ -274,6 +324,29 @@ export function AIVerificationScreen() {
             categoryLabel={categoryItem?.label || targetPhoto?.category}
           />
 
+          {/* Retry AI Verification Action for Pending / Transient Errors */}
+          {currentStatus === "PENDING" && targetPhoto?._id && (
+            <Pressable
+              style={[styles.retryButton, isRevalidating && styles.disabledButton]}
+              onPress={handleRetryVerification}
+              disabled={isRevalidating}
+              accessibilityRole="button"
+              accessibilityLabel="Retry AI Verification"
+            >
+              {isRevalidating ? (
+                <>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.retryButtonText}>Verifying with AI...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+                  <Text style={styles.retryButtonText}>Retry AI Verification</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
           {/* Detailed Verification Checks */}
           <VerificationChecks photo={targetPhoto || undefined} project={project} />
 
@@ -389,5 +462,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  retryButton: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#D97706",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

@@ -8,8 +8,6 @@ import {
   FiBarChart2,
   FiTool,
   FiHeadphones,
-  FiChevronLeft,
-  FiChevronRight,
 } from "react-icons/fi";
 import fieldCamLogo from "../../assets/fieldCamLogo.png";
 
@@ -109,17 +107,6 @@ const AdminSidebar = ({
             );
           })}
         </nav>
-      </div>
-
-      {/* Collapse Button */}
-      <div className="pt-4 border-t border-[#E8E2DE]/60 flex justify-center">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 text-[#817B77] hover:text-[#3E3734] hover:bg-[#EAE4DF] rounded-lg transition-colors"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <FiChevronRight /> : <FiChevronLeft />}
-        </button>
       </div>
     </aside>
   );

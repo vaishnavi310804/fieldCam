@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import VendorSidebar from "../../components/vendor/VendorSidebar";
 import VendorHeader from "../../components/vendor/VendorHeader";
-import { getProjectById, addProjectNote } from "../../services/projectService";
+import {
+  getProjectById,
+  addProjectNote,
+  acceptProject,
+} from "../../services/projectService";
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -23,6 +27,7 @@ import {
   FiUsers,
   FiChevronRight,
   FiCheck,
+  FiCheckCircle,
   FiFileText,
 } from "react-icons/fi";
 import { getProjectProgress } from "../../utils/projectProgress";
@@ -39,6 +44,11 @@ const VendorProjectDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Acceptance state
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [acceptSuccess, setAcceptSuccess] = useState(null);
+  const [acceptError, setAcceptError] = useState(null);
+
   // Notes state
   const [notesList, setNotesList] = useState([]);
   const [newNoteText, setNewNoteText] = useState("");
@@ -52,6 +62,29 @@ const VendorProjectDetails = () => {
 
   // Share link feedback
   const [copied, setCopied] = useState(false);
+
+  const handleAcceptProject = async () => {
+    if (!project || isAccepting) return;
+    const targetId = project._id || project.projectId || id;
+
+    try {
+      setIsAccepting(true);
+      setAcceptError(null);
+      await acceptProject(targetId);
+      setAcceptSuccess(
+        "Project accepted successfully! It is now assigned to your organization and ready for staff assignment."
+      );
+      await fetchProjectData();
+    } catch (err) {
+      setAcceptError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to accept project. Please try again."
+      );
+    } finally {
+      setIsAccepting(false);
+    }
+  };
 
   const fetchProjectData = useCallback(async () => {
     setLoading(true);
@@ -231,8 +264,9 @@ const VendorProjectDetails = () => {
   const getStatusBadgeStyle = (status) => {
     switch (status) {
       case "New":
-      case "ASSIGNED":
         return "bg-[#3498DB] text-white";
+      case "ASSIGNED":
+        return "bg-[#2563EB] text-white";
       case "In Progress":
         return "bg-[#E67E22] text-white";
       case "Submitted":
@@ -320,6 +354,39 @@ const VendorProjectDetails = () => {
                 <span>Refresh</span>
               </button>
 
+              {project && project.status === "New" && (
+                <button
+                  type="button"
+                  disabled={isAccepting}
+                  onClick={handleAcceptProject}
+                  className="flex items-center gap-1.5 bg-[#1565C0] hover:bg-[#0D47A1] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                  title="Accept this assigned project"
+                >
+                  {isAccepting ? (
+                    <>
+                      <FiLoader className="animate-spin text-xs" />
+                      <span>Accepting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCheckCircle className="text-xs" />
+                      <span>Accept Project</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {project && project.status === "ASSIGNED" && (
+                <Link
+                  to={`/vendor/staff?projectId=${project._id || project.projectId || id}`}
+                  className="flex items-center gap-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                  title="Assign project to staff member"
+                >
+                  <FiUsers className="text-xs" />
+                  <span>Assign Staff</span>
+                </Link>
+              )}
+
               {project && project.status === "Approved" && (
                 <Link
                   to={`/vendor/invoices?projectId=${project._id || project.projectId || id}`}
@@ -361,6 +428,97 @@ const VendorProjectDetails = () => {
 
           {!loading && !error && project && (
             <div className="space-y-6">
+              {/* Acceptance Feedback Alerts */}
+              {acceptSuccess && (
+                <div className="bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <FiCheckCircle className="text-base shrink-0" />
+                    <span>{acceptSuccess}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAcceptSuccess(null)}
+                    className="text-[#2E7D32] hover:opacity-75 p-1 cursor-pointer"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+              )}
+
+              {acceptError && (
+                <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <FiAlertCircle className="text-base shrink-0" />
+                    <span>{acceptError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAcceptError(null)}
+                    className="text-[#C62828] hover:opacity-75 p-1 cursor-pointer"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Status Action Banners */}
+              {project.status === "New" && (
+                <div className="bg-[#EFF6FF] border border-[#BFDBFE] p-4.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#DBEAFE] text-[#1D4ED8] flex items-center justify-center shrink-0 mt-0.5">
+                      <FiAlertCircle size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-[#1E40AF]">Assignment Awaiting Vendor Acceptance</h3>
+                      <p className="text-xs text-[#3B82F6] mt-0.5 leading-relaxed">
+                        This project has been assigned to your organization. Accept the assignment to confirm ownership and unlock staff assignment for field operations.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isAccepting}
+                    onClick={handleAcceptProject}
+                    className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 shadow-xs cursor-pointer"
+                  >
+                    {isAccepting ? (
+                      <>
+                        <FiLoader className="animate-spin text-xs" />
+                        <span>Accepting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiCheckCircle size={15} />
+                        <span>Accept Project</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {project.status === "ASSIGNED" && (
+                <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-4.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] text-[#15803D] flex items-center justify-center shrink-0 mt-0.5">
+                      <FiCheckCircle size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-[#166534]">Project Accepted • Ready for Staff Assignment</h3>
+                      <p className="text-xs text-[#15803D] mt-0.5 leading-relaxed">
+                        Assignment confirmed. You can now select and assign a field staff member from your team to start photo capture.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to={`/vendor/staff?projectId=${project._id || project.projectId || id}`}
+                    className="bg-[#15803D] hover:bg-[#166534] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shrink-0 shadow-xs cursor-pointer"
+                  >
+                    <FiUsers size={15} />
+                    <span>Assign to Staff</span>
+                  </Link>
+                </div>
+              )}
+
               {/* 1. TOP HERO / OVERVIEW CARD */}
               <div className="bg-white border border-[#E8E2DE] rounded-2xl overflow-hidden shadow-xs">
                 {/* Hero Banner with Cover Photo & Dark Gradient Overlay */}

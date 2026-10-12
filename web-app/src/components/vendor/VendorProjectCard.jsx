@@ -6,10 +6,17 @@ import {
   FiEye,
   FiUserPlus,
   FiFileText,
+  FiCheckCircle,
+  FiLoader,
 } from "react-icons/fi";
 import { getProjectProgress } from "../../utils/projectProgress";
 
-const VendorProjectCard = ({ project, onAssignStaff }) => {
+const VendorProjectCard = ({
+  project,
+  onAssignStaff,
+  onAcceptProject,
+  isAccepting = false,
+}) => {
   const navigate = useNavigate();
 
   if (!project) return null;
@@ -34,6 +41,8 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
     statusLabel = "Approved";
   } else if (project.status === "Completed") {
     statusLabel = "Completed";
+  } else if (project.status === "ASSIGNED") {
+    statusLabel = "ASSIGNED";
   }
 
   // Status Badge Colors
@@ -253,7 +262,33 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
           <span>View Details</span>
         </button>
 
-        {project.status === "Approved" ? (
+        {project.status === "New" ? (
+          <button
+            type="button"
+            disabled={isAccepting}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onAcceptProject) {
+                onAcceptProject(project);
+              } else {
+                navigate(`/vendor/projects/${project._id || project.id}`);
+              }
+            }}
+            className="w-full h-8 rounded-xl bg-[#928880] hover:bg-[#817B77] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+          >
+            {isAccepting ? (
+              <>
+                <FiLoader className="animate-spin text-xs" />
+                <span>Accepting...</span>
+              </>
+            ) : (
+              <>
+                <FiCheckCircle size={12} />
+                <span>Accept Project</span>
+              </>
+            )}
+          </button>
+        ) : project.status === "Approved" ? (
           <button
             type="button"
             onClick={() => navigate(`/vendor/invoices?projectId=${project._id || project.id}`)}
@@ -262,14 +297,23 @@ const VendorProjectCard = ({ project, onAssignStaff }) => {
             <FiFileText size={12} />
             <span>Raise Invoice</span>
           </button>
-        ) : (
+        ) : project.status === "ASSIGNED" ? (
           <button
             type="button"
-            onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/vendor/projects/${project._id || project.id}`))}
-            className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            onClick={() => (onAssignStaff ? onAssignStaff(project) : navigate(`/vendor/staff?projectId=${project._id || project.id}`))}
+            className="w-full h-8 rounded-xl bg-white border border-[#928880] text-[#817B77] hover:bg-[#EAE4DF] text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
           >
             <FiUserPlus size={12} />
             <span>Assign Staff</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate(`/vendor/projects/${project._id || project.id}`)}
+            className="w-full h-8 rounded-xl bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#3E3734] text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <FiEye size={12} />
+            <span>Open Project</span>
           </button>
         )}
       </div>

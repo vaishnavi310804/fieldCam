@@ -32,17 +32,14 @@ const Login = () => {
 
           <div className="flex flex-wrap gap-3 mb-9">
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-xs xl:text-sm">
-              <span>◎</span>
               Geo-Tagged Photos
             </div>
 
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-xs xl:text-sm">
-              <span>◈</span>
               Secure Cloud Storage
             </div>
 
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-xs xl:text-sm">
-              <span>♙</span>
               Team Management
             </div>
           </div>
@@ -73,7 +70,7 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-10">
+      <div className="w-full lg:w-1/2 flex items-center justify-center">
         <LoginForm />
       </div>
     </div>

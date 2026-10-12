@@ -142,10 +142,6 @@ const AddStaffModal = ({ isOpen, onClose, onAddStaff }) => {
                   readOnly
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#817B77] font-medium outline-none cursor-not-allowed select-none"
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-[#817B77] bg-[#F0ECE9] px-2 py-0.5 rounded-md font-medium">
-                  <FiLock size={10} />
-                  <span>Fixed Role</span>
-                </div>
               </div>
             </div>
           </div>
@@ -217,7 +213,7 @@ const AddStaffModal = ({ isOpen, onClose, onAddStaff }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#D7A79A] to-[#C87A65] hover:from-[#C87A65] hover:to-[#B36854] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer text-center disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-[#C87A65] hover:bg-[#B36854] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer text-center disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
