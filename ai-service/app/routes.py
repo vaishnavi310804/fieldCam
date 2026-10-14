@@ -27,7 +27,7 @@ def validate_photo(
 ):
     """Analyzes photo clarity and lighting quality from a presigned image URL."""
     # 1. Service-to-Service Security Check
-    if not x_internal_service_key or x_internal_service_key != settings.AI_SERVICE_SECRET:
+    if not settings.AI_SERVICE_SECRET or not x_internal_service_key or x_internal_service_key != settings.AI_SERVICE_SECRET:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing internal service key",

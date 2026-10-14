@@ -31,7 +31,7 @@ export const VendorDashboardHeader = ({
       <View style={styles.headerRow}>
         {/* Left Side: Greeting & Vendor Name */}
         <View style={styles.nameBlock}>
-          <Text style={styles.greetingText}>Good morning</Text>
+          <Text style={styles.greetingText}>Hello !</Text>
           <Text style={styles.vendorNameText} numberOfLines={1} ellipsizeMode="tail">
             {name}
           </Text>

@@ -8,6 +8,8 @@ from app.config import settings
 from app.main import app
 
 client = TestClient(app)
+if not settings.AI_SERVICE_SECRET:
+    settings.AI_SERVICE_SECRET = "test-internal-secret"
 VALID_KEY = settings.AI_SERVICE_SECRET
 
 

@@ -17,9 +17,9 @@ if _env_file.exists():
 
 class Settings(BaseModel):
     PORT: int = int(os.getenv("PORT", "8000"))
-    AI_SERVICE_SECRET: str = os.getenv("AI_SERVICE_SECRET", "change-me")
+    AI_SERVICE_SECRET: str = os.getenv("AI_SERVICE_SECRET", "")
     VISION_API_KEY: str = os.getenv("VISION_API_KEY", "")
-    VISION_MODEL: str = os.getenv("VISION_MODEL", "gemini-flash-latest")
+    VISION_MODEL: str = os.getenv("VISION_MODEL", "gemini-flash-lite-latest")
 
 
 settings = Settings()

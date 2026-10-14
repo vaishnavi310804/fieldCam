@@ -31,7 +31,7 @@ export const validatePhotoWithAI = async (
   options = {}
 ) => {
   const aiServiceUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:8000";
-  const aiServiceSecret = process.env.AI_SERVICE_SECRET || "change-me";
+  const aiServiceSecret = process.env.AI_SERVICE_SECRET || "";
 
   const endpoint = `${aiServiceUrl.replace(/\/+$/, "")}/validate-photo`;
   const maxAttempts = options.maxAttempts || 3;

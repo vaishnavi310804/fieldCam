@@ -28,18 +28,27 @@ export const getPresignedMediaUrl = async (keyOrUrl, expiresIn = 604800) => {
   }
 };
 
-export const deleteFromS3 = async (key) => {
-  if (!key) return;
+export const deleteFromS3 = async (keyOrUrl) => {
+  if (!keyOrUrl) return;
 
   try {
+    let cleanKey = keyOrUrl;
+    if (typeof keyOrUrl === "string" && (keyOrUrl.startsWith("http://") || keyOrUrl.startsWith("https://"))) {
+      const parsedUrl = new URL(keyOrUrl);
+      cleanKey = parsedUrl.pathname.startsWith("/")
+        ? parsedUrl.pathname.substring(1)
+        : parsedUrl.pathname;
+    }
+
     const command = new DeleteObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET,
-      Key: key,
+      Key: cleanKey,
     });
 
     await s3Client.send(command);
   } catch (err) {
     console.error("S3 deletion error:", err);
+    throw err;
   }
 };
 
