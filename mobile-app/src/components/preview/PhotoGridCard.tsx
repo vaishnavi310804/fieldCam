@@ -64,7 +64,7 @@ export const PhotoGridCard: React.FC<PhotoGridCardProps> = ({
           </Pressable>
         ) : null}
 
-        {onDelete && !isBackendUploaded ? (
+        {onDelete ? (
           <Pressable
             style={[styles.actionIconButton, styles.deleteIconButton]}
             onPress={onDelete}

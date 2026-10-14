@@ -24,6 +24,7 @@ import {
 import {
   getProjectById,
   uploadProjectPhoto,
+  deleteProjectPhoto,
   VendorProjectItem,
   VendorChecklistItem,
   VendorProjectPhoto,
@@ -52,8 +53,10 @@ export interface LocalCapturedPhoto {
 }
 
 export function CaptureScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; checklistItemId?: string }>();
   const projectIdParam = params.id;
+  const initialChecklistItemId = params.checklistItemId;
+  const initialCategoryHandledRef = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
@@ -133,6 +136,22 @@ export function CaptureScreen() {
   useEffect(() => {
     fetchProjectData(true);
   }, [fetchProjectData]);
+
+  useEffect(() => {
+    if (
+      project &&
+      initialChecklistItemId &&
+      initialCategoryHandledRef.current !== initialChecklistItemId
+    ) {
+      const items = Array.isArray(project.checklistItems) ? project.checklistItems : [];
+      const matched = items.find((i) => String(i.id) === String(initialChecklistItemId));
+      if (matched) {
+        initialCategoryHandledRef.current = initialChecklistItemId;
+        setSelectedCategory({ id: matched.id, label: matched.label });
+        setViewMode("camera");
+      }
+    }
+  }, [project, initialChecklistItemId]);
 
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -237,6 +256,45 @@ export function CaptureScreen() {
   const handleDeleteSessionPhoto = (checklistItemId: string) => {
     setSessionPhotos((prev) =>
       prev.filter((p) => String(p.checklistItemId) !== String(checklistItemId))
+    );
+    setUploadProgressMap((prev) => {
+      const copy = { ...prev };
+      delete copy[checklistItemId];
+      return copy;
+    });
+  };
+
+  const handleDeleteBackendPhoto = (photo: VendorProjectPhoto) => {
+    if (!projectIdParam || !photo._id) return;
+
+    Alert.alert(
+      "Delete Photo",
+      `Are you sure you want to delete the uploaded photo for "${photo.category || "this category"}"? This will permanently remove the photo and its verification status.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              const updatedProject = await deleteProjectPhoto(
+                projectIdParam,
+                String(photo._id)
+              );
+              setProject(updatedProject);
+            } catch (err: any) {
+              console.error("Failed to delete backend photo:", err);
+              Alert.alert(
+                "Delete Error",
+                err?.response?.data?.message || err?.message || "Failed to delete photo from server."
+              );
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -712,7 +770,7 @@ export function CaptureScreen() {
           <View style={styles.previewInfoCard}>
             <View>
               <Text style={styles.previewInfoTitle}>
-                {sessionPhotos.length + photos.length} Photos Captured
+                {checklistItems.filter((item) => isCategoryCompleted(item)).length} Photos Captured
               </Text>
               <Text style={styles.previewInfoSubtext}>
                 Project: {project?.projectName || project?.projectId || "Inspection"}
@@ -731,7 +789,7 @@ export function CaptureScreen() {
               const sessionPhoto = sessionPhotos.find(
                 (p) => String(p.checklistItemId) === String(item.id)
               );
-              const backendPhoto = photos.find(
+              const backendPhoto = [...photos].reverse().find(
                 (p) => String(p.checklistItemId) === String(item.id)
               );
 
@@ -764,6 +822,7 @@ export function CaptureScreen() {
                       setSelectedCategory({ id: item.id, label: item.label });
                       setViewMode("camera");
                     }}
+                    onDelete={() => handleDeleteBackendPhoto(backendPhoto)}
                   />
                 );
               }

@@ -81,7 +81,7 @@ export function AIVerificationScreen() {
           matchedPhoto = photos.find((p) => String(p._id) === String(photoId));
         }
         if (!matchedPhoto && checklistItemId) {
-          matchedPhoto = photos.find(
+          matchedPhoto = [...photos].reverse().find(
             (p) => String(p.checklistItemId) === String(checklistItemId)
           );
         }

@@ -847,13 +847,41 @@ export const uploadVendorPhoto = async (projectIdOrId, file, body = {}, user) =>
     uploadedAt: new Date(),
   };
 
+  // One current photo per required category: replace existing photo(s) for this checklist item
+  const oldPhotosToCleanup = [];
+  if (Array.isArray(project.photos)) {
+    for (let i = project.photos.length - 1; i >= 0; i--) {
+      const existing = project.photos[i];
+      if (String(existing.checklistItemId) === targetChecklistItemId) {
+        oldPhotosToCleanup.push(existing);
+        project.photos.splice(i, 1);
+      }
+    }
+  }
+
+  project.photos.push(newPhoto);
+  checklistItem.checked = true;
+
   try {
-    project.photos.push(newPhoto);
-    checklistItem.checked = true;
     await project.save();
   } catch (saveError) {
     await deleteFromS3(uploadResult.key);
     throw saveError;
+  }
+
+  // Safely clean up old S3 storage objects after project is saved successfully
+  for (const oldPhoto of oldPhotosToCleanup) {
+    const isStillReferenced = (project.photos || []).some(
+      (p) => p._id.toString() !== oldPhoto._id.toString() && p.url === oldPhoto.url
+    ) || (project.attachments || []).some((a) => a.url === oldPhoto.url);
+
+    if (!isStillReferenced && oldPhoto.url !== uploadResult.key) {
+      try {
+        await deleteFromS3(oldPhoto.url);
+      } catch (cleanupErr) {
+        console.warn(`Failed to clean up replaced S3 object ${oldPhoto.url}:`, cleanupErr.message);
+      }
+    }
   }
 
   // Trigger AI validation via standalone ai-service
@@ -981,13 +1009,19 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
   const targetPhoto = project.photos[photoIndex];
   const s3Key = targetPhoto.url;
 
-  try {
-    await deleteFromS3(s3Key);
-  } catch (s3Err) {
-    console.error("S3 deletion failed:", s3Err);
-    const err = new Error("Failed to delete photo from S3 storage");
-    err.statusCode = 500;
-    throw err;
+  const isStillReferenced = (project.photos || []).some(
+    (p, idx) => idx !== photoIndex && p.url === s3Key
+  ) || (project.attachments || []).some((a) => a.url === s3Key);
+
+  if (!isStillReferenced) {
+    try {
+      await deleteFromS3(s3Key);
+    } catch (s3Err) {
+      console.error("S3 deletion failed:", s3Err);
+      const err = new Error("Failed to delete photo from S3 storage");
+      err.statusCode = 500;
+      throw err;
+    }
   }
 
   const checklistItemId = targetPhoto.checklistItemId;
@@ -1092,11 +1126,12 @@ export const submitVendorProject = async (projectIdOrId, user) => {
         continue;
       }
 
-      for (const photo of associatedPhotos) {
-        const photoIdStr = photo._id ? photo._id.toString() : null;
+      // Evaluate the current active photo for this checklist item
+      const currentPhoto = associatedPhotos[associatedPhotos.length - 1];
+      const photoIdStr = currentPhoto._id ? currentPhoto._id.toString() : null;
 
-        // 1. AI Validation Check
-        const aiVal = photo.aiValidation;
+      // 1. AI Validation Check
+      const aiVal = currentPhoto.aiValidation;
         if (!aiVal || !aiVal.status) {
           validationErrors.push({
             checklistItemId: String(item.id),
@@ -1122,7 +1157,7 @@ export const submitVendorProject = async (projectIdOrId, user) => {
 
         // 2. GPS Validation Check (if project.locationCoordinates exists)
         const gpsRes = validatePhotoLocation({
-          photoLocation: photo.location,
+          photoLocation: currentPhoto.location,
           projectLocationCoordinates: project.locationCoordinates,
         });
         if (gpsRes.valid === false) {
@@ -1136,8 +1171,8 @@ export const submitVendorProject = async (projectIdOrId, user) => {
 
         // 3. Timestamp Validation Check
         const tsRes = validateCaptureTimestamp({
-          capturedAt: photo.capturedAt,
-          uploadedAt: photo.uploadedAt,
+          capturedAt: currentPhoto.capturedAt,
+          uploadedAt: currentPhoto.uploadedAt,
         });
         if (tsRes.valid === false) {
           validationErrors.push({

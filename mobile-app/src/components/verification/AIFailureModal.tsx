@@ -117,7 +117,7 @@ export const AIFailureModal: React.FC<AIFailureModalProps> = ({
           </View>
 
           {/* Footer Subtext */}
-          <Text style={styles.footerText}>FIELDWORK CAM AI CORE V2.4</Text>
+          <Text style={styles.footerText}>FIELDWORK CAM AI CORE</Text>
         </View>
       </View>
     </Modal>

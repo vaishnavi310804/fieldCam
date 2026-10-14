@@ -387,6 +387,23 @@ export const revalidateProjectPhoto = async (
   return response.data.data;
 };
 
+export const deleteProjectPhoto = async (
+  projectId: string,
+  photoId: string
+): Promise<VendorProjectItem> => {
+  const response = await platformClient.delete<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/photos/${photoId}`);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to delete photo");
+  }
+
+  return response.data.data;
+};
+
 export const submitVendorProject = async (
   projectId: string
 ): Promise<VendorProjectItem> => {
@@ -457,6 +474,8 @@ export const dashboardApi = {
   getVendorSupportStats,
   getVendorDashboardData,
   uploadProjectPhoto,
+  deleteProjectPhoto,
+  revalidateProjectPhoto,
   submitVendorProject,
   getVendorStaffList,
   assignProjectToStaff,

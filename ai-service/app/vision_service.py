@@ -1,6 +1,9 @@
+import io
 import json
 import logging
-import io
+import os
+import random
+import time
 import cv2
 import httpx
 import numpy as np
@@ -145,18 +148,75 @@ def analyze_subject(image_bytes: bytes, expected_category: str) -> SubjectResult
         from google.genai import types
 
         client = genai.Client(api_key=settings.VISION_API_KEY)
-        response = client.models.generate_content(
-            model=settings.VISION_MODEL,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                prompt,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            ),
-        )
+        max_attempts = 3
+        base_delay = float(os.getenv("VISION_RETRY_DELAY", "0.5"))
+        raw_text = ""
 
-        raw_text = response.text.strip() if response.text else ""
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = client.models.generate_content(
+                    model=settings.VISION_MODEL,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                        prompt,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
+                )
+                raw_text = response.text.strip() if response.text else ""
+                break
+            except Exception as exc:
+                err_msg = str(exc)
+                err_code = getattr(exc, "code", None)
+
+                # Check if error is transient (503, 429, 500, 502, 504, timeout, rate limit)
+                is_transient = False
+                if err_code in [429, 500, 502, 503, 504]:
+                    is_transient = True
+                elif any(
+                    kw in err_msg.lower()
+                    for kw in [
+                        "503",
+                        "429",
+                        "unavailable",
+                        "high demand",
+                        "rate limit",
+                        "deadline",
+                        "timeout",
+                        "resource_exhausted",
+                    ]
+                ):
+                    is_transient = True
+
+                # Permanent errors (400, 401, 403, 404, invalid model, invalid key) must not be retried
+                if not is_transient or attempt >= max_attempts:
+                    logger.error(
+                        "Vision provider request failed (attempt %d/%d): %s",
+                        attempt,
+                        max_attempts,
+                        err_msg,
+                    )
+                    return SubjectResult(
+                        passed=False,
+                        confidence=None,
+                        expectedCategory=expected_category,
+                        detectedDescription=None,
+                        reason=f"Vision API request failed: {err_msg}",
+                        status="ERROR",
+                    )
+
+                jitter = random.uniform(0.05, 0.25)
+                delay = (base_delay * (2 ** (attempt - 1))) + jitter
+                logger.warning(
+                    "Transient vision provider error on attempt %d/%d (%s). Retrying in %.2fs...",
+                    attempt,
+                    max_attempts,
+                    err_msg,
+                    delay,
+                )
+                time.sleep(delay)
+
         if not raw_text:
             return SubjectResult(
                 passed=False,
