@@ -32,7 +32,6 @@ const companySubscriptionSchema = new mongoose.Schema(
   }
 );
 
-companySubscriptionSchema.index({ vendorId: 1 });
 companySubscriptionSchema.index({ planId: 1 });
 companySubscriptionSchema.index({ status: 1 });
 

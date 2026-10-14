@@ -1064,136 +1064,176 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
   return await getProjectById(project._id.toString(), user);
 };
 
+
 export const submitVendorProject = async (projectIdOrId, user) => {
-  if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
-    const err = new Error("Only authenticated vendors and assigned staff can submit projects");
+  if (!user || !["VENDOR", "STAFF"].includes(user.role)) {
+    const err = new Error(
+      "Only authenticated vendors and assigned staff can submit projects"
+    );
     err.statusCode = 403;
     throw err;
   }
 
   const project = await findProjectByIdOrCode(projectIdOrId);
+
   if (!project) {
     const err = new Error("Project not found");
     err.statusCode = 404;
     throw err;
   }
 
+  // Authorization
   if (user.role === "VENDOR") {
-    const vendor = await Vendor.findOne({ userId: user.id || user._id });
+    const vendor = await Vendor.findOne({
+      userId: user.id || user._id,
+    });
+
     if (!vendor) {
-      const err = new Error("Vendor profile not found for authenticated user");
+      const err = new Error(
+        "Vendor profile not found for authenticated user"
+      );
       err.statusCode = 404;
       throw err;
     }
-    if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
-      const err = new Error("You are not authorized to submit this project");
+
+    if (
+      !project.vendorId ||
+      project.vendorId.toString() !== vendor._id.toString()
+    ) {
+      const err = new Error(
+        "You are not authorized to submit this project"
+      );
       err.statusCode = 403;
       throw err;
     }
   } else if (user.role === "STAFF") {
-    const staffId = (user.id || user._id).toString();
-    const assignedStaffIdStr = project.assignedStaffId ? project.assignedStaffId.toString() : null;
-    if (!assignedStaffIdStr || assignedStaffIdStr !== staffId) {
-      const err = new Error("You are not authorized to submit this project");
+    const staffId = String(user.id || user._id);
+    const assignedStaffId = project.assignedStaffId
+      ? project.assignedStaffId.toString()
+      : null;
+
+    if (!assignedStaffId || assignedStaffId !== staffId) {
+      const err = new Error(
+        "You are not authorized to submit this project"
+      );
       err.statusCode = 403;
       throw err;
     }
   }
 
+  // Validate project status
   if (project.status !== "In Progress") {
-    const err = new Error(`Cannot submit project with current status '${project.status}'. Only 'In Progress' projects can be submitted.`);
+    const err = new Error(
+      `Cannot submit project with current status '${project.status}'. Only 'In Progress' projects can be submitted.`
+    );
     err.statusCode = 400;
     throw err;
   }
 
-  // Comprehensive Submission Gating (Phase 2C):
-  // Checks: Checklist presence, AI Validation (PASSED), GPS Validation, Timestamp Validation
+  // Submission validation: checklist, AI, GPS, and timestamp
   const checklist = project.checklistItems || [];
+  const photos = project.photos || [];
   const validationErrors = [];
 
-  if (checklist.length > 0) {
-    for (const item of checklist) {
-      const associatedPhotos = (project.photos || []).filter(
-        (p) => String(p.checklistItemId) === String(item.id)
-      );
+  for (const item of checklist) {
+    const checklistItemId = String(item.id);
 
-      if (associatedPhotos.length === 0) {
-        validationErrors.push({
-          checklistItemId: String(item.id),
-          category: item.label,
-          reason: `Missing required photo evidence for checklist item "${item.label}"`,
-        });
-        continue;
-      }
+    const associatedPhotos = photos.filter(
+      (photo) =>
+        String(photo.checklistItemId) === checklistItemId
+    );
 
-      // Evaluate the current active photo for this checklist item
-      const currentPhoto = associatedPhotos[associatedPhotos.length - 1];
-      const photoIdStr = currentPhoto._id ? currentPhoto._id.toString() : null;
+    if (associatedPhotos.length === 0) {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        reason: `Missing required photo evidence for checklist item "${item.label}"`,
+      });
+      continue;
+    }
 
-      // 1. AI Validation Check
-      const aiVal = currentPhoto.aiValidation;
-        if (!aiVal || !aiVal.status) {
-          validationErrors.push({
-            checklistItemId: String(item.id),
-            category: item.label,
-            photoId: photoIdStr,
-            reason: `AI validation missing for checklist item "${item.label}"`,
-          });
-        } else if (aiVal.status === "PENDING") {
-          validationErrors.push({
-            checklistItemId: String(item.id),
-            category: item.label,
-            photoId: photoIdStr,
-            reason: `AI validation is pending for checklist item "${item.label}"`,
-          });
-        } else if (aiVal.status === "FAILED") {
-          validationErrors.push({
-            checklistItemId: String(item.id),
-            category: item.label,
-            photoId: photoIdStr,
-            reason: `AI validation failed for checklist item "${item.label}": ${aiVal.reason || "Validation rejected by AI"}`,
-          });
-        }
+    // The latest photo is considered the current photo.
+    const currentPhoto = associatedPhotos[associatedPhotos.length - 1];
+    const photoId = currentPhoto._id
+      ? currentPhoto._id.toString()
+      : null;
 
-        // 2. GPS Validation Check (if project.locationCoordinates exists)
-        const gpsRes = validatePhotoLocation({
-          photoLocation: currentPhoto.location,
-          projectLocationCoordinates: project.locationCoordinates,
-        });
-        if (gpsRes.valid === false) {
-          validationErrors.push({
-            checklistItemId: String(item.id),
-            category: item.label,
-            photoId: photoIdStr,
-            reason: `GPS validation failed for checklist item "${item.label}": ${gpsRes.reason}`,
-          });
-        }
+    // 1. AI validation
+    const aiValidation = currentPhoto.aiValidation;
 
-        // 3. Timestamp Validation Check
-        const tsRes = validateCaptureTimestamp({
-          capturedAt: currentPhoto.capturedAt,
-          uploadedAt: currentPhoto.uploadedAt,
-        });
-        if (tsRes.valid === false) {
-          validationErrors.push({
-            checklistItemId: String(item.id),
-            category: item.label,
-            photoId: photoIdStr,
-            reason: `Timestamp validation failed for checklist item "${item.label}": ${tsRes.reason}`,
-          });
-        }
-      }
+    if (!aiValidation || !aiValidation.status) {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `AI validation missing for checklist item "${item.label}"`,
+      });
+    } else if (aiValidation.status === "PENDING") {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `AI validation is pending for checklist item "${item.label}"`,
+      });
+    } else if (aiValidation.status === "FAILED") {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `AI validation failed for checklist item "${item.label}": ${
+          aiValidation.reason || "Validation rejected by AI"
+        }`,
+      });
+    } else if (aiValidation.status !== "PASSED") {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `Unrecognized AI validation status for checklist item "${item.label}"`,
+      });
+    }
+
+    // 2. GPS validation
+    const gpsResult = validatePhotoLocation({
+      photoLocation: currentPhoto.location,
+      projectLocationCoordinates: project.locationCoordinates,
+    });
+
+    if (gpsResult.valid === false) {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `GPS validation failed for checklist item "${item.label}": ${gpsResult.reason}`,
+      });
+    }
+
+    // 3. Timestamp validation
+    const timestampResult = validateCaptureTimestamp({
+      capturedAt: currentPhoto.capturedAt,
+      uploadedAt: currentPhoto.uploadedAt,
+    });
+
+    if (timestampResult.valid === false) {
+      validationErrors.push({
+        checklistItemId,
+        category: item.label,
+        photoId,
+        reason: `Timestamp validation failed for checklist item "${item.label}": ${timestampResult.reason}`,
+      });
     }
   }
 
   if (validationErrors.length > 0) {
-    const errorMsg = `Cannot submit project: ${validationErrors.length} validation requirement(s) failed.`;
-    const err = new Error(errorMsg);
+    const err = new Error(
+      `Cannot submit project: ${validationErrors.length} validation requirement(s) failed.`
+    );
     err.statusCode = 400;
     err.errors = validationErrors;
     throw err;
   }
 
+  // Submit the project only after every required check passes.
   const previousStatus = project.status;
   project.status = "Submitted";
   await project.save();
@@ -1204,7 +1244,9 @@ export const submitVendorProject = async (projectIdOrId, user) => {
       action: "PROJECT_SUBMITTED",
       entityType: "Project",
       entityId: project.projectId || project._id.toString(),
-      description: `Vendor submitted project ${project.projectName || ""} (${project.projectId || ""}) for review`,
+      description: `Vendor submitted project ${
+        project.projectName || ""
+      } (${project.projectId || ""}) for review`,
       metadata: {
         projectId: project.projectId,
         previousStatus,
@@ -1212,11 +1254,15 @@ export const submitVendorProject = async (projectIdOrId, user) => {
       },
     });
   } catch (auditErr) {
-    console.error("Failed to log PROJECT_SUBMITTED audit event:", auditErr.message);
+    console.error(
+      "Failed to log PROJECT_SUBMITTED audit event:",
+      auditErr.message
+    );
   }
 
   return await getProjectById(project._id.toString(), user);
 };
+
 
 export const assignProjectToStaff = async (projectId, staffId, currentUser) => {
   if (!currentUser || currentUser.role !== "VENDOR") {
@@ -1524,15 +1570,6 @@ export const generateProjectReportPdf = async (projectIdOrId, currentUser) => {
   });
 };
 
-/**
- * Re-validates an existing uploaded photo with the AI microservice.
- * Allows recovery/retry when previous AI evaluation was PENDING due to transient 502/503/timeout.
- *
- * @param {string} projectIdOrId - MongoDB _id or projectId
- * @param {string} photoId - Photo _id to re-verify
- * @param {Object} user - Authenticated user object (role: VENDOR or STAFF)
- * @returns {Promise<Object>} Updated project document
- */
 export const revalidateVendorPhoto = async (projectIdOrId, photoId, user) => {
   if (!user || (user.role !== "VENDOR" && user.role !== "STAFF")) {
     const err = new Error("Only authenticated vendors and assigned staff can revalidate photos");
