@@ -34,8 +34,8 @@ export const validatePhotoWithAI = async (
   const aiServiceSecret = process.env.AI_SERVICE_SECRET || "";
 
   const endpoint = `${aiServiceUrl.replace(/\/+$/, "")}/validate-photo`;
-  const maxAttempts = options.maxAttempts || 3;
-  const timeoutMs = options.timeoutMs || 25000;
+  const maxAttempts = options.maxAttempts || 2;
+  const timeoutMs = options.timeoutMs || 12000;
 
   let lastStatus = null;
   let lastErrorText = "";

@@ -141,6 +141,28 @@ export const SubmissionConfirmModal: React.FC<
             </View>
           </View>
 
+          {/* Validation Warning Box when checks are not all passed */}
+          {aiVerifiedStatus !== "All Passed" && (
+            <View style={styles.validationWarningBox}>
+              <Ionicons
+                name="warning-outline"
+                size={18}
+                color={aiVerifiedStatus === "Failed" ? "#DC2626" : "#D97706"}
+                style={{ marginTop: 1 }}
+              />
+              <Text
+                style={[
+                  styles.validationWarningText,
+                  { color: aiVerifiedStatus === "Failed" ? "#991B1B" : "#92400E" },
+                ]}
+              >
+                {aiVerifiedStatus === "Failed"
+                  ? "One or more photos failed AI verification. Backend rules require all photos to pass validation; submitting now will be rejected by the server."
+                  : "AI verification has not completed for all photos. The server requires passing verification before accepting project submissions."}
+              </Text>
+            </View>
+          )}
+
           {/* Action Buttons Row */}
           <View style={styles.buttonRow}>
             <Pressable
@@ -154,7 +176,11 @@ export const SubmissionConfirmModal: React.FC<
             </Pressable>
 
             <Pressable
-              style={[styles.verifyButton, isLoading && styles.disabledButton]}
+              style={[
+                styles.verifyButton,
+                aiVerifiedStatus === "Failed" && styles.verifyButtonWarning,
+                isLoading && styles.disabledButton,
+              ]}
               onPress={onVerify}
               disabled={isLoading}
               accessibilityRole="button"
@@ -169,7 +195,9 @@ export const SubmissionConfirmModal: React.FC<
                     size={16}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.verifyButtonText}>Verify</Text>
+                  <Text style={styles.verifyButtonText}>
+                    {aiVerifiedStatus === "All Passed" ? "Verify" : "Submit Anyway"}
+                  </Text>
                 </>
               )}
             </Pressable>
@@ -304,5 +332,26 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  validationWarningBox: {
+    width: "100%",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 16,
+  },
+  validationWarningText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  verifyButtonWarning: {
+    backgroundColor: "#B91C1C",
   },
 });

@@ -24,6 +24,7 @@ export interface AIValidationResult {
     expectedCategory?: string;
     detectedDescription?: string;
     reason?: string;
+    status?: string;
   };
   reason?: string;
   validatedAt?: string;

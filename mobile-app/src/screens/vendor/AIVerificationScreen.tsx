@@ -29,6 +29,10 @@ import { SubmitPhotoButton } from "@/src/components/verification/SubmitPhotoButt
 import { AIFailureModal } from "@/src/components/verification/AIFailureModal";
 import { SubmissionConfirmModal } from "@/src/components/submission/SubmissionConfirmModal";
 import { WorkSubmittedModal } from "@/src/components/submission/WorkSubmittedModal";
+import {
+  SubmissionErrorsModal,
+  SubmissionErrorItem,
+} from "@/src/components/submission/SubmissionErrorsModal";
 
 export function AIVerificationScreen() {
   const params = useLocalSearchParams<{
@@ -57,6 +61,11 @@ export function AIVerificationScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [submittedProjectResult, setSubmittedProjectResult] =
     useState<VendorProjectItem | null>(null);
+
+  // Backend Rejection Errors Modal State
+  const [showErrorsModal, setShowErrorsModal] = useState<boolean>(false);
+  const [submissionErrors, setSubmissionErrors] = useState<SubmissionErrorItem[]>([]);
+  const [isRetryingSinglePhotoId, setIsRetryingSinglePhotoId] = useState<string | null>(null);
 
   const fetchProjectDetails = useCallback(
     async (showLoading = true) => {
@@ -133,16 +142,39 @@ export function AIVerificationScreen() {
       const matched = photos.find((p) => String(p._id) === activePhotoId);
       if (matched) {
         setTargetPhoto(matched);
-        if (matched.aiValidation?.status === "FAILED") {
+        if (matched.aiValidation?.status === "PASSED") {
+          setShowFailureModal(false);
+          Alert.alert(
+            "Verification Passed",
+            "Photo passed all AI quality and category checks!"
+          );
+        } else if (matched.aiValidation?.status === "FAILED") {
           setShowFailureModal(true);
+        } else {
+          // PENDING (e.g. transient 502/503)
+          setShowFailureModal(false);
+          Alert.alert(
+            "Verification In Progress",
+            matched.aiValidation?.reason ||
+              "Verification is still processing. Please try again shortly."
+          );
         }
       }
     } catch (err: any) {
       console.error("Failed to revalidate photo:", err);
-      Alert.alert(
-        "Verification Error",
-        err?.response?.data?.message || err?.message || "Failed to re-run AI verification."
-      );
+      let errMsg = err?.response?.data?.message;
+      if (!errMsg) {
+        if (err?.response?.status === 502 || err?.message?.includes("502")) {
+          errMsg =
+            "AI verification service is temporarily unavailable (HTTP 502). Please retry in a moment.";
+        } else if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+          errMsg =
+            "AI verification timed out. The service may be waking up. Please retry in a moment.";
+        } else {
+          errMsg = err?.message || "Failed to re-run AI verification.";
+        }
+      }
+      Alert.alert("Verification Notice", errMsg);
     } finally {
       setIsRevalidating(false);
     }
@@ -202,30 +234,20 @@ export function AIVerificationScreen() {
           success?: boolean;
           message?: string;
           error?: string;
-          errors?: {
-            checklistItemId?: string;
-            category?: string;
-            photoId?: string;
-            reason?: string;
-          }[];
+          errors?: SubmissionErrorItem[];
         };
 
-        const mainMessage = responseData.message || responseData.error || "";
         const errorsList = responseData.errors;
 
         if (Array.isArray(errorsList) && errorsList.length > 0) {
-          const formattedReasons = errorsList
-            .map((item) => {
-              const cat = item.category ? `• ${item.category}:\n  ` : "• ";
-              const rsn = item.reason || "Validation failed";
-              return `${cat}${rsn}`;
-            })
-            .join("\n\n");
+          setShowConfirmModal(false);
+          setSubmissionErrors(errorsList);
+          setShowErrorsModal(true);
+          return;
+        }
 
-          alertMessage = mainMessage
-            ? `${mainMessage}\n\n${formattedReasons}`
-            : formattedReasons;
-        } else if (mainMessage) {
+        const mainMessage = responseData.message || responseData.error || "";
+        if (mainMessage) {
           alertMessage = mainMessage;
         }
       } else if (err instanceof Error && err.message) {
@@ -240,6 +262,85 @@ export function AIVerificationScreen() {
     }
   };
 
+  const handleSubmissionErrorRetake = (errorItem: SubmissionErrorItem) => {
+    setShowErrorsModal(false);
+    router.push({
+      pathname: "/(app)/capture",
+      params: {
+        id: projectId,
+        checklistItemId: errorItem.checklistItemId,
+      },
+    });
+  };
+
+  const handleSubmissionErrorRetry = async (errorItem: SubmissionErrorItem) => {
+    if (!projectId || !errorItem.photoId || isRetryingSinglePhotoId) return;
+
+    try {
+      setIsRetryingSinglePhotoId(errorItem.photoId);
+      const updatedProject = await revalidateProjectPhoto(projectId, errorItem.photoId);
+      setProject(updatedProject);
+
+      const photos = updatedProject.photos || [];
+      const matched = photos.find((p) => String(p._id) === String(errorItem.photoId));
+      if (matched) {
+        if (String(targetPhoto?._id) === String(errorItem.photoId)) {
+          setTargetPhoto(matched);
+        }
+
+        if (matched.aiValidation?.status === "PASSED") {
+          const remaining = submissionErrors.filter(
+            (e) => String(e.photoId) !== String(errorItem.photoId)
+          );
+          setSubmissionErrors(remaining);
+
+          if (remaining.length === 0) {
+            setShowErrorsModal(false);
+            Alert.alert(
+              "All Requirements Passed",
+              "All checklist photos have passed verification! You can now submit your work order.",
+              [
+                { text: "Review Details", style: "cancel" },
+                {
+                  text: "Submit Work Order",
+                  onPress: () => setShowConfirmModal(true),
+                },
+              ]
+            );
+          } else {
+            Alert.alert(
+              "Verification Passed",
+              `Photo for "${errorItem.category || "category"}" successfully passed AI verification!`
+            );
+          }
+        } else {
+          Alert.alert(
+            "Verification Incomplete",
+            matched.aiValidation?.reason ||
+              "Photo did not pass AI verification. Retaking the photo is recommended."
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to revalidate photo from submission errors modal:", err);
+      let errMsg = err?.response?.data?.message;
+      if (!errMsg) {
+        if (err?.response?.status === 502 || err?.message?.includes("502")) {
+          errMsg =
+            "AI verification service is temporarily unavailable (HTTP 502). Please retry in a moment.";
+        } else if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+          errMsg =
+            "AI verification timed out. The service may be waking up. Please retry in a moment.";
+        } else {
+          errMsg = err?.message || "Failed to re-run AI verification.";
+        }
+      }
+      Alert.alert("Verification Notice", errMsg);
+    } finally {
+      setIsRetryingSinglePhotoId(null);
+    }
+  };
+
   const currentStatus: "PASSED" | "FAILED" | "PENDING" =
     targetPhoto?.aiValidation?.status || "PENDING";
   const displayImageUri = targetPhoto?.url || photoUri;
@@ -247,6 +348,14 @@ export function AIVerificationScreen() {
     (item) =>
       String(item.id) === String(checklistItemId || targetPhoto?.checklistItemId)
   );
+
+  const isSubjectMismatch =
+    targetPhoto?.aiValidation?.subject?.passed === false ||
+    targetPhoto?.aiValidation?.subject?.status === "FAILED" ||
+    (Boolean(targetPhoto?.aiValidation?.reason) &&
+      (targetPhoto!.aiValidation!.reason!.toLowerCase().includes("instead of") ||
+        targetPhoto!.aiValidation!.reason!.toLowerCase().includes("mismatch") ||
+        targetPhoto!.aiValidation!.reason!.toLowerCase().includes("does not show")));
 
   // Compute actual submission summary state for Confirmation Modal
   const uploadedPhotosList = project?.photos || [];
@@ -277,6 +386,17 @@ export function AIVerificationScreen() {
 
   const getNotesStatusSummary = (): "Added" | "None" => {
     return project?.notes && project.notes.length > 0 ? "Added" : "None";
+  };
+
+  const handleNavToCapture = () => {
+    setShowFailureModal(false);
+    router.push({
+      pathname: "/(app)/capture",
+      params: {
+        id: projectId,
+        checklistItemId: categoryItem?.id || targetPhoto?.checklistItemId,
+      },
+    });
   };
 
   return (
@@ -324,27 +444,116 @@ export function AIVerificationScreen() {
             categoryLabel={categoryItem?.label || targetPhoto?.category}
           />
 
-          {/* Retry AI Verification Action for Pending / Transient Errors */}
-          {currentStatus === "PENDING" && targetPhoto?._id && (
-            <Pressable
-              style={[styles.retryButton, isRevalidating && styles.disabledButton]}
-              onPress={handleRetryVerification}
-              disabled={isRevalidating}
-              accessibilityRole="button"
-              accessibilityLabel="Retry AI Verification"
-            >
-              {isRevalidating ? (
+          {/* Action Buttons Group for Non-Passed Photos (FAILED or PENDING) */}
+          {currentStatus !== "PASSED" && targetPhoto?._id && (
+            <View style={styles.actionButtonGroup}>
+              {/* Subject Mismatch Warning Banner */}
+              {isSubjectMismatch && (
+                <View style={styles.subjectMismatchNotice}>
+                  <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                  <Text style={styles.subjectMismatchNoticeText}>
+                    Subject mismatch detected: this photo does not match &quot;
+                    {categoryItem?.label || targetPhoto?.category}&quot;. Retaking the photo
+                    with the expected subject is strongly recommended before proceeding.
+                  </Text>
+                </View>
+              )}
+
+              {/* Transient 502/503 Notice Banner */}
+              {currentStatus === "PENDING" &&
+                Boolean(
+                  targetPhoto?.aiValidation?.reason?.includes("502") ||
+                    targetPhoto?.aiValidation?.reason?.includes("503") ||
+                    targetPhoto?.aiValidation?.reason?.includes("unavailable")
+                ) && (
+                  <View style={styles.transientNotice}>
+                    <Ionicons name="information-circle" size={18} color="#D97706" />
+                    <Text style={styles.transientNoticeText}>
+                      The AI service was temporarily busy. You can retry verification now.
+                    </Text>
+                  </View>
+                )}
+
+              {/* If FAILED: Retake is prominent, Retry is available */}
+              {currentStatus === "FAILED" ? (
                 <>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.retryButtonText}>Verifying with AI...</Text>
+                  <Pressable
+                    style={styles.retakeButtonMain}
+                    onPress={handleNavToCapture}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retake Photo"
+                  >
+                    <Ionicons name="camera-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.retakeButtonMainText}>
+                      {isSubjectMismatch ? "Retake Photo (Recommended)" : "Retake Photo"}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.secondaryRetryButton,
+                      isRevalidating && styles.disabledButton,
+                    ]}
+                    onPress={handleRetryVerification}
+                    disabled={isRevalidating}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry AI Verification"
+                  >
+                    {isRevalidating ? (
+                      <>
+                        <ActivityIndicator size="small" color="#D97706" />
+                        <Text style={styles.secondaryRetryButtonText}>
+                          Verifying with AI...
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="refresh-outline" size={18} color="#D97706" />
+                        <Text style={styles.secondaryRetryButtonText}>
+                          Retry AI Verification
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
                 </>
               ) : (
+                /* If PENDING: Retry is prominent, Retake is also available */
                 <>
-                  <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.retryButtonText}>Retry AI Verification</Text>
+                  <Pressable
+                    style={[
+                      styles.retryButton,
+                      isRevalidating && styles.disabledButton,
+                    ]}
+                    onPress={handleRetryVerification}
+                    disabled={isRevalidating}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry AI Verification"
+                  >
+                    {isRevalidating ? (
+                      <>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.retryButtonText}>Verifying with AI...</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.retryButtonText}>Retry AI Verification</Text>
+                      </>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.retakeButtonOutline}
+                    onPress={handleNavToCapture}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retake Photo"
+                  >
+                    <Ionicons name="camera-outline" size={18} color="#475569" />
+                    <Text style={styles.retakeButtonOutlineText}>Retake Photo</Text>
+                  </Pressable>
                 </>
               )}
-            </Pressable>
+            </View>
           )}
 
           {/* Detailed Verification Checks */}
@@ -369,22 +578,19 @@ export function AIVerificationScreen() {
           targetPhoto?.aiValidation?.subject?.reason
         }
         failDetailText={
-          targetPhoto?.aiValidation?.subject?.reason
+          isSubjectMismatch
+            ? "CHECK FAILED: SUBJECT MISMATCH"
+            : targetPhoto?.aiValidation?.subject?.reason
             ? `CHECK FAILED: ${targetPhoto.aiValidation.subject.reason.toUpperCase()}`
             : "CHECK FAILED: QUALITY ISSUE"
         }
-        onRetakePhoto={() => {
-          setShowFailureModal(false);
-          router.push({
-            pathname: "/(app)/capture",
-            params: {
-              id: projectId,
-              checklistItemId: categoryItem?.id || targetPhoto?.checklistItemId,
-            },
-          });
-        }}
+        isSubjectMismatch={isSubjectMismatch}
+        isRevalidating={isRevalidating}
+        onRetry={handleRetryVerification}
+        onRetakePhoto={handleNavToCapture}
         onProceedAnyway={() => {
           setShowFailureModal(false);
+          setShowConfirmModal(true);
         }}
       />
 
@@ -398,6 +604,16 @@ export function AIVerificationScreen() {
         isLoading={isSubmitting}
         onCancel={() => setShowConfirmModal(false)}
         onVerify={handleConfirmBackendSubmit}
+      />
+
+      {/* Backend Submission Validation Errors Modal */}
+      <SubmissionErrorsModal
+        visible={showErrorsModal}
+        errors={submissionErrors}
+        isRetryingPhotoId={isRetryingSinglePhotoId}
+        onClose={() => setShowErrorsModal(false)}
+        onRetake={handleSubmissionErrorRetake}
+        onRetry={handleSubmissionErrorRetry}
       />
 
       {/* Step 2: Work Submitted Success Modal */}
@@ -440,7 +656,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#F6F6F6",
-    paddingBottom:100
+    paddingBottom: 100,
   },
   centerContainer: {
     flex: 1,
@@ -463,6 +679,44 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+  actionButtonGroup: {
+    marginBottom: 16,
+    gap: 10,
+  },
+  subjectMismatchNotice: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  subjectMismatchNoticeText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: "#991B1B",
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  transientNotice: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  transientNoticeText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: "#92400E",
+    lineHeight: 17,
+    fontWeight: "600",
+  },
   retryButton: {
     height: 48,
     borderRadius: 14,
@@ -471,11 +725,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginBottom: 16,
   },
   retryButtonText: {
     color: "#FFFFFF",
     fontSize: 15,
+    fontWeight: "700",
+  },
+  secondaryRetryButton: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#F59E0B",
+    borderWidth: 1.5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  secondaryRetryButtonText: {
+    color: "#D97706",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  retakeButtonMain: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#78716C",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  retakeButtonMainText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  retakeButtonOutline: {
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#CBD5E1",
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  retakeButtonOutlineText: {
+    color: "#475569",
+    fontSize: 14,
     fontWeight: "700",
   },
   disabledButton: {

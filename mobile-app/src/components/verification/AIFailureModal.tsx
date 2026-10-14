@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
@@ -15,6 +16,9 @@ export interface AIFailureModalProps {
   categoryLabel?: string;
   reason?: string;
   failDetailText?: string;
+  isSubjectMismatch?: boolean;
+  isRevalidating?: boolean;
+  onRetry?: () => void;
   onRetakePhoto: () => void;
   onProceedAnyway: () => void;
 }
@@ -25,15 +29,27 @@ export const AIFailureModal: React.FC<AIFailureModalProps> = ({
   categoryLabel,
   reason,
   failDetailText,
+  isSubjectMismatch = false,
+  isRevalidating = false,
+  onRetry,
   onRetakePhoto,
   onProceedAnyway,
 }) => {
+  const modalTitleText = isSubjectMismatch
+    ? "Subject Mismatch Detected"
+    : "Quality Issue Detected";
+
   const detailBadgeText =
-    failDetailText || "CHECK FAILED: QUALITY ISSUE";
+    failDetailText ||
+    (isSubjectMismatch
+      ? "CHECK FAILED: SUBJECT MISMATCH"
+      : "CHECK FAILED: QUALITY ISSUE");
 
   const descriptionText =
     reason ||
-    "The image appears blurry or has lighting issues. This may lead to rejection during review. Please retake the photo for better results.";
+    (isSubjectMismatch
+      ? `The photo does not match the required category "${categoryLabel || "inspection item"}". Please retake the photo showing the expected subject.`
+      : "The image appears blurry or has lighting issues. This may lead to rejection during review. Please retake the photo for better results.");
 
   return (
     <Modal
@@ -50,7 +66,7 @@ export const AIFailureModal: React.FC<AIFailureModalProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={styles.modalTitle}>Quality Issue Detected</Text>
+          <Text style={styles.modalTitle}>{modalTitleText}</Text>
 
           {/* Failure Check Badge */}
           <View style={styles.failBadge}>
@@ -81,25 +97,62 @@ export const AIFailureModal: React.FC<AIFailureModalProps> = ({
           {/* Explanation / Subtitle */}
           <Text style={styles.descriptionText}>{descriptionText}</Text>
 
+          {/* Subject mismatch warning note */}
+          {isSubjectMismatch && (
+            <View style={styles.mismatchWarningBox}>
+              <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+              <Text style={styles.mismatchWarningText}>
+                Subject does not match the required checklist item. Retaking the photo is strongly recommended.
+              </Text>
+            </View>
+          )}
+
           {/* Primary Action: Retake Photo */}
           <Pressable
-            style={styles.retakeButton}
+            style={[styles.retakeButton, isRevalidating && styles.disabledButton]}
             onPress={onRetakePhoto}
+            disabled={isRevalidating}
             accessibilityRole="button"
             accessibilityLabel="Retake Photo"
           >
             <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.retakeButtonText}>Retake Photo</Text>
+            <Text style={styles.retakeButtonText}>
+              {isSubjectMismatch ? "Retake Photo (Recommended)" : "Retake Photo"}
+            </Text>
           </Pressable>
 
-          {/* Secondary Action: Proceed Anyway */}
+          {/* Secondary Action: Retry AI Verification */}
+          {onRetry && (
+            <Pressable
+              style={[styles.retryModalButton, isRevalidating && styles.disabledButton]}
+              onPress={onRetry}
+              disabled={isRevalidating}
+              accessibilityRole="button"
+              accessibilityLabel="Retry AI Verification"
+            >
+              {isRevalidating ? (
+                <>
+                  <ActivityIndicator size="small" color="#D97706" />
+                  <Text style={styles.retryModalButtonText}>Verifying with AI...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="refresh-outline" size={18} color="#D97706" />
+                  <Text style={styles.retryModalButtonText}>Retry AI Verification</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
+          {/* Tertiary Action: Proceed Anyway */}
           <Pressable
-            style={styles.proceedButton}
+            style={[styles.proceedButton, isRevalidating && styles.disabledButton]}
             onPress={onProceedAnyway}
+            disabled={isRevalidating}
             accessibilityRole="button"
             accessibilityLabel="Proceed Anyway"
           >
-            <Text style={styles.proceedButtonText}>Proceed Anyway</Text>
+            <Text style={styles.proceedButtonText}>Review & Proceed Anyway</Text>
           </Pressable>
 
           {/* Info Banner Box */}
@@ -111,8 +164,7 @@ export const AIFailureModal: React.FC<AIFailureModalProps> = ({
               style={{ marginTop: 1 }}
             />
             <Text style={styles.infoCalloutText}>
-              Our AI analyzes focus, lighting, and composition to ensure your
-              submissions meet enterprise standards.
+              Server validation strictly requires all photos to pass inspection checks. If you proceed, final submission will be rejected by the server until requirements are met.
             </Text>
           </View>
 
@@ -227,6 +279,25 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     paddingHorizontal: 4,
   },
+  mismatchWarningBox: {
+    width: "100%",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  mismatchWarningText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#991B1B",
+    lineHeight: 16,
+    fontWeight: "600",
+  },
   retakeButton: {
     width: "100%",
     backgroundColor: "#78716C",
@@ -243,6 +314,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  retryModalButton: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#F59E0B",
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  retryModalButtonText: {
+    color: "#D97706",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
   proceedButton: {
     width: "100%",
     paddingVertical: 8,
@@ -252,7 +344,7 @@ const styles = StyleSheet.create({
   },
   proceedButtonText: {
     color: "#2563EB",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
   },
   infoCalloutBox: {

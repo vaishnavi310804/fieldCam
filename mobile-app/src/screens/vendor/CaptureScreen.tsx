@@ -350,11 +350,15 @@ export function CaptureScreen() {
 
     // If ALL uploads succeeded, clear session and navigate to AI verification
     if (!hasFailure) {
+      const lastChecklistItemId = sessionPhotos[sessionPhotos.length - 1]?.checklistItemId;
       setSessionPhotos([]);
       await fetchProjectData(false);
       router.push({
         pathname: "/(app)/ai-verification",
-        params: { projectId: projectIdParam },
+        params: {
+          projectId: projectIdParam,
+          ...(lastChecklistItemId ? { checklistItemId: lastChecklistItemId } : {}),
+        },
       });
     }
   };
@@ -389,11 +393,15 @@ export function CaptureScreen() {
         );
 
         if (allDone) {
+          const targetChecklistItemId = photoItem.checklistItemId;
           setSessionPhotos([]);
           fetchProjectData(false).then(() => {
             router.push({
               pathname: "/(app)/ai-verification",
-              params: { projectId: projectIdParam },
+              params: {
+                projectId: projectIdParam,
+                ...(targetChecklistItemId ? { checklistItemId: targetChecklistItemId } : {}),
+              },
             });
           });
         }
