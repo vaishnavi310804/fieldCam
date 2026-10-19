@@ -21,8 +21,8 @@ const TRANSIENT_HTTP_STATUSES = new Set([502, 503, 504]);
  * @param {string} imageUrl - Short-lived presigned GET URL for the image stored in S3
  * @param {string} expectedCategory - Expected category / checklist item label
  * @param {Object} [options]
- * @param {number} [options.maxAttempts=3] - Maximum retry attempts for transient failures
- * @param {number} [options.timeoutMs=25000] - Request timeout per attempt in ms
+ * @param {number} [options.maxAttempts=1] - Maximum retry attempts for transient failures (default 1)
+ * @param {number} [options.timeoutMs=35000] - Request timeout per attempt in ms (default 35s)
  * @returns {Promise<Object>} Formatted aiValidation object for photo record
  */
 export const validatePhotoWithAI = async (
@@ -34,8 +34,8 @@ export const validatePhotoWithAI = async (
   const aiServiceSecret = process.env.AI_SERVICE_SECRET || "";
 
   const endpoint = `${aiServiceUrl.replace(/\/+$/, "")}/validate-photo`;
-  const maxAttempts = options.maxAttempts || 2;
-  const timeoutMs = options.timeoutMs || 12000;
+  const maxAttempts = options.maxAttempts || 1;
+  const timeoutMs = options.timeoutMs || 35000;
 
   let lastStatus = null;
   let lastErrorText = "";
@@ -59,8 +59,6 @@ export const validatePhotoWithAI = async (
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
         lastStatus = response.status;
         lastErrorText = await response.text().catch(() => "");
@@ -68,16 +66,22 @@ export const validatePhotoWithAI = async (
           `ai-service returned non-200 status ${response.status} (attempt ${attempt}/${maxAttempts}): ${lastErrorText}`
         );
 
-        // Only retry transient 502/503/504 gateway/service errors
+        // Only retry transient 502/503/504 gateway/service errors if retries configured
         if (TRANSIENT_HTTP_STATUSES.has(response.status) && attempt < maxAttempts) {
           const backoffMs = attempt * 1500;
           await sleep(backoffMs);
           continue;
         }
 
+        const isTransient = TRANSIENT_HTTP_STATUSES.has(response.status);
+        const reason = isTransient
+          ? `AI verification service temporarily unavailable (HTTP ${response.status}). Please retry in a moment.`
+          : `AI service returned HTTP ${response.status}`;
+
         return {
           status: "PENDING",
-          reason: `AI service returned HTTP ${response.status}`,
+          isTransient,
+          reason,
           validatedAt: new Date(),
         };
       }
@@ -128,9 +132,8 @@ export const validatePhotoWithAI = async (
         validatedAt: new Date(),
       };
     } catch (err) {
-      clearTimeout(timeoutId);
       const isTimeout = err.name === "AbortError";
-      lastExceptionMsg = isTimeout ? "AI service request timed out" : err.message;
+      lastExceptionMsg = isTimeout ? "AI verification request timed out" : err.message;
       console.warn(
         `ai-service call failed (attempt ${attempt}/${maxAttempts}):`,
         lastExceptionMsg
@@ -142,19 +145,28 @@ export const validatePhotoWithAI = async (
         continue;
       }
 
+      const reason = isTimeout
+        ? "AI verification request timed out. The service may be waking up. Please retry in a moment."
+        : `AI verification service unavailable: ${err.message}`;
+
       return {
         status: "PENDING",
-        reason: `AI service unavailable: ${lastExceptionMsg}`,
+        isTransient: true,
+        reason,
         validatedAt: new Date(),
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
+  const isTransient = lastStatus ? TRANSIENT_HTTP_STATUSES.has(lastStatus) : true;
   return {
     status: "PENDING",
+    isTransient,
     reason: lastStatus
-      ? `AI service returned HTTP ${lastStatus}`
-      : `AI service unavailable: ${lastExceptionMsg || "unknown error"}`,
+      ? `AI verification service temporarily unavailable (HTTP ${lastStatus}). Please retry in a moment.`
+      : `AI verification service unavailable: ${lastExceptionMsg || "unknown error"}`,
     validatedAt: new Date(),
   };
 };

@@ -1621,6 +1621,12 @@ export const revalidateVendorPhoto = async (projectIdOrId, photoId, user) => {
   }
 
   const targetPhoto = project.photos[photoIndex];
+  const previousAi = targetPhoto.aiValidation
+    ? (typeof targetPhoto.aiValidation.toObject === "function"
+        ? targetPhoto.aiValidation.toObject()
+        : { ...targetPhoto.aiValidation })
+    : null;
+
   const shortLivedPresignedUrl = await getPresignedMediaUrl(targetPhoto.url, 900);
   if (!shortLivedPresignedUrl) {
     const err = new Error("Failed to generate presigned URL for photo");
@@ -1633,7 +1639,24 @@ export const revalidateVendorPhoto = async (projectIdOrId, photoId, user) => {
     targetPhoto.category || "Inspection Photo"
   );
 
-  project.photos[photoIndex].aiValidation = aiResult;
+  // When a retry fails because of a transient infrastructure error (502, 503, 504, timeout, network):
+  // 1. Do not replace a previously stored substantive AI failure reason with a misleading network failure.
+  // 2. Preserve substantive failure details (clarity, lighting, subject, reason) while updating validatedAt.
+  // 3. For photos that were previously pending or unvalidated, record the transient pending status.
+  // 4. Ensure a transient error never becomes PASSED and continues to block project submission.
+  if (aiResult.isTransient) {
+    if (previousAi && previousAi.status === "FAILED") {
+      project.photos[photoIndex].aiValidation = {
+        ...previousAi,
+        validatedAt: aiResult.validatedAt || new Date(),
+      };
+    } else {
+      project.photos[photoIndex].aiValidation = aiResult;
+    }
+  } else {
+    project.photos[photoIndex].aiValidation = aiResult;
+  }
+
   await project.save();
 
   try {

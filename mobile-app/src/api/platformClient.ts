@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // eslint-disable-next-line import/no-named-as-default-member
 export const platformClient = axios.create({
   baseURL: "https://fieldcam-platform-service.onrender.com/api",
-  timeout: 30000,
+  timeout: 45000,
   headers: {
     "Content-Type": "application/json",
   },
