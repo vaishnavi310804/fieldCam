@@ -8,6 +8,8 @@ export interface SubmitPhotoButtonProps {
   isLoading?: boolean;
   disabled?: boolean;
   status?: "PASSED" | "FAILED" | "PENDING";
+  label?: string;
+  accessibilityLabel?: string;
 }
 
 export const SubmitPhotoButton: React.FC<SubmitPhotoButtonProps> = ({
@@ -15,8 +17,12 @@ export const SubmitPhotoButton: React.FC<SubmitPhotoButtonProps> = ({
   isLoading = false,
   disabled = false,
   status = "PASSED",
+  label,
+  accessibilityLabel,
 }) => {
   const isFailed = status === "FAILED";
+  const defaultLabel = isFailed ? "Submit for Review" : "Submit Photo";
+  const buttonText = label || defaultLabel;
 
   return (
     <View style={styles.container}>
@@ -29,7 +35,7 @@ export const SubmitPhotoButton: React.FC<SubmitPhotoButtonProps> = ({
         onPress={onPress}
         disabled={disabled || isLoading}
         accessibilityRole="button"
-        accessibilityLabel="Submit Photo"
+        accessibilityLabel={accessibilityLabel || buttonText}
       >
         {isLoading ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -40,9 +46,7 @@ export const SubmitPhotoButton: React.FC<SubmitPhotoButtonProps> = ({
               size={20}
               color="#FFFFFF"
             />
-            <Text style={styles.buttonText}>
-              {isFailed ? "Submit for Review" : "Submit Photo"}
-            </Text>
+            <Text style={styles.buttonText}>{buttonText}</Text>
           </>
         )}
       </Pressable>

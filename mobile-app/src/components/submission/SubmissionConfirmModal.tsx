@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ChecklistItemStatusDetail } from "@/src/utils/checklistSubmission.utils";
 
 export interface SubmissionConfirmModalProps {
   visible: boolean;
@@ -16,6 +17,10 @@ export interface SubmissionConfirmModalProps {
   locationStatus: "GPS Verified" | "Unverified";
   notesStatus: "Added" | "None";
   isLoading?: boolean;
+  checklistProgressText?: string;
+  verifiedChecklistCount?: number;
+  totalChecklistCount?: number;
+  unresolvedItems?: ChecklistItemStatusDetail[];
   onCancel: () => void;
   onVerify: () => void;
 }
@@ -29,6 +34,10 @@ export const SubmissionConfirmModal: React.FC<
   locationStatus,
   notesStatus,
   isLoading = false,
+  checklistProgressText,
+  verifiedChecklistCount,
+  totalChecklistCount,
+  unresolvedItems = [],
   onCancel,
   onVerify,
 }) => {
@@ -47,6 +56,8 @@ export const SubmissionConfirmModal: React.FC<
   const getLocationColor = () => {
     return locationStatus === "GPS Verified" ? "#16A34A" : "#64748B";
   };
+
+  const isAllPassed = aiVerifiedStatus === "All Passed";
 
   return (
     <Modal
@@ -70,24 +81,24 @@ export const SubmissionConfirmModal: React.FC<
             />
           </View>
 
-          {/* Title & Description */}
-          <Text style={styles.title}>Are you sure you want to submit?</Text>
+          {/* Title & Description: Explicitly Project / Work Order Submission */}
+          <Text style={styles.title}>Submit Work Order for Review?</Text>
           <Text style={styles.description}>
-            This will submit {photosCount} photo
-            {photosCount === 1 ? "" : "s"} for client review. Once submitted,
-            you won&apos;t be able to make changes.
+            This will submit the entire project and all checklist photos for client review. Once submitted, you won&apos;t be able to make changes.
           </Text>
 
           {/* Summary Card */}
           <View style={styles.summaryCard}>
-            {/* Row 1: Photos Uploaded */}
+            {/* Row 1: Checklist Progress */}
             <View style={styles.summaryRow}>
               <View style={styles.labelCol}>
-                <Ionicons name="camera-outline" size={18} color="#9CA3AF" />
-                <Text style={styles.labelText}>Photos Uploaded</Text>
+                <Ionicons name="checkbox-outline" size={18} color="#9CA3AF" />
+                <Text style={styles.labelText}>Checklist Verified</Text>
               </View>
               <Text style={styles.valueText}>
-                {photosCount} photo{photosCount === 1 ? "" : "s"}
+                {verifiedChecklistCount !== undefined && totalChecklistCount !== undefined
+                  ? `${verifiedChecklistCount} of ${totalChecklistCount} items`
+                  : checklistProgressText || `${photosCount} items`}
               </Text>
             </View>
 
@@ -99,7 +110,7 @@ export const SubmissionConfirmModal: React.FC<
                   size={18}
                   color="#9CA3AF"
                 />
-                <Text style={styles.labelText}>AI Verified</Text>
+                <Text style={styles.labelText}>AI Status</Text>
               </View>
               <Text
                 style={[
@@ -111,7 +122,18 @@ export const SubmissionConfirmModal: React.FC<
               </Text>
             </View>
 
-            {/* Row 3: Location */}
+            {/* Row 3: Total Photos */}
+            <View style={styles.summaryRow}>
+              <View style={styles.labelCol}>
+                <Ionicons name="camera-outline" size={18} color="#9CA3AF" />
+                <Text style={styles.labelText}>Photos Uploaded</Text>
+              </View>
+              <Text style={styles.valueText}>
+                {photosCount} photo{photosCount === 1 ? "" : "s"}
+              </Text>
+            </View>
+
+            {/* Row 4: Location */}
             <View style={styles.summaryRow}>
               <View style={styles.labelCol}>
                 <Ionicons name="location-outline" size={18} color="#9CA3AF" />
@@ -127,7 +149,7 @@ export const SubmissionConfirmModal: React.FC<
               </Text>
             </View>
 
-            {/* Row 4: Notes */}
+            {/* Row 5: Notes */}
             <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
               <View style={styles.labelCol}>
                 <Ionicons
@@ -142,24 +164,82 @@ export const SubmissionConfirmModal: React.FC<
           </View>
 
           {/* Validation Warning Box when checks are not all passed */}
-          {aiVerifiedStatus !== "All Passed" && (
-            <View style={styles.validationWarningBox}>
+          {!isAllPassed && (
+            <View
+              style={
+                aiVerifiedStatus === "Failed"
+                  ? styles.validationWarningBoxFailed
+                  : styles.validationWarningBoxPending
+              }
+            >
               <Ionicons
-                name="warning-outline"
+                name={aiVerifiedStatus === "Failed" ? "close-circle" : "warning-outline"}
                 size={18}
                 color={aiVerifiedStatus === "Failed" ? "#DC2626" : "#D97706"}
                 style={{ marginTop: 1 }}
               />
-              <Text
-                style={[
-                  styles.validationWarningText,
-                  { color: aiVerifiedStatus === "Failed" ? "#991B1B" : "#92400E" },
-                ]}
-              >
-                {aiVerifiedStatus === "Failed"
-                  ? "One or more photos failed AI verification. Backend rules require all photos to pass validation; submitting now will be rejected by the server."
-                  : "AI verification has not completed for all photos. The server requires passing verification before accepting project submissions."}
-              </Text>
+              <View style={{ flex: 1, gap: 6 }}>
+                <Text
+                  style={[
+                    styles.validationWarningText,
+                    { color: aiVerifiedStatus === "Failed" ? "#991B1B" : "#92400E" },
+                  ]}
+                >
+                  {aiVerifiedStatus === "Failed"
+                    ? "One or more checklist items failed AI verification. Backend rules require all required checklist items to pass before client submission."
+                    : "AI verification has not completed for all required checklist items. The server requires passing verification for all items before accepting project submissions."}
+                </Text>
+
+                {/* Actionable Unresolved Checklist Categories List */}
+                {unresolvedItems.length > 0 && (
+                  <View style={styles.unresolvedContainer}>
+                    <Text
+                      style={[
+                        styles.unresolvedTitle,
+                        { color: aiVerifiedStatus === "Failed" ? "#991B1B" : "#9A3412" },
+                      ]}
+                    >
+                      Checklist items requiring action ({unresolvedItems.length}):
+                    </Text>
+                    {unresolvedItems.map((item) => (
+                      <View key={item.checklistItemId} style={styles.unresolvedItemRow}>
+                        <View style={styles.unresolvedCategoryCol}>
+                          <Ionicons
+                            name={
+                              item.status === "FAILED"
+                                ? "close-circle"
+                                : item.status === "MISSING"
+                                ? "alert-circle-outline"
+                                : "time-outline"
+                            }
+                            size={13}
+                            color={item.status === "FAILED" ? "#DC2626" : "#D97706"}
+                          />
+                          <Text style={styles.unresolvedCategoryText} numberOfLines={1}>
+                            {item.category}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.unresolvedStatusBadge,
+                            item.status === "FAILED"
+                              ? styles.badgeFailed
+                              : item.status === "MISSING"
+                              ? styles.badgeMissing
+                              : styles.badgePending,
+                          ]}
+                        >
+                          {item.status === "MISSING"
+                            ? "Missing Photo"
+                            : item.status === "FAILED"
+                            ? "Failed AI"
+                            : "Pending AI"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
@@ -178,13 +258,13 @@ export const SubmissionConfirmModal: React.FC<
             <Pressable
               style={[
                 styles.verifyButton,
-                aiVerifiedStatus === "Failed" && styles.verifyButtonWarning,
+                !isAllPassed && styles.verifyButtonWarning,
                 isLoading && styles.disabledButton,
               ]}
               onPress={onVerify}
               disabled={isLoading}
               accessibilityRole="button"
-              accessibilityLabel="Verify and Submit"
+              accessibilityLabel={isAllPassed ? "Submit Work Order" : "Submit Anyway"}
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -196,7 +276,7 @@ export const SubmissionConfirmModal: React.FC<
                     color="#FFFFFF"
                   />
                   <Text style={styles.verifyButtonText}>
-                    {aiVerifiedStatus === "All Passed" ? "Verify" : "Submit Anyway"}
+                    {isAllPassed ? "Submit Work Order" : "Submit Anyway"}
                   </Text>
                 </>
               )}
@@ -345,11 +425,87 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
+  validationWarningBoxFailed: {
+    width: "100%",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 16,
+  },
+  validationWarningBoxPending: {
+    width: "100%",
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 16,
+  },
   validationWarningText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 12.5,
+    lineHeight: 18,
     fontWeight: "600",
+  },
+  unresolvedContainer: {
+    width: "100%",
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.08)",
+    gap: 6,
+  },
+  unresolvedTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  unresolvedItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  unresolvedCategoryCol: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  unresolvedCategoryText: {
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "600",
+    flex: 1,
+  },
+  unresolvedStatusBadge: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  badgeFailed: {
+    backgroundColor: "#FEE2E2",
+    color: "#991B1B",
+  },
+  badgePending: {
+    backgroundColor: "#FEF3C7",
+    color: "#92400E",
+  },
+  badgeMissing: {
+    backgroundColor: "#F3F4F6",
+    color: "#4B5563",
   },
   verifyButtonWarning: {
     backgroundColor: "#B91C1C",

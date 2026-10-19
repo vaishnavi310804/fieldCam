@@ -33,6 +33,7 @@ import {
   SubmissionErrorsModal,
   SubmissionErrorItem,
 } from "@/src/components/submission/SubmissionErrorsModal";
+import { calculateChecklistSubmissionReadiness } from "@/src/utils/checklistSubmission.utils";
 
 export function AIVerificationScreen() {
   const params = useLocalSearchParams<{
@@ -357,22 +358,22 @@ export function AIVerificationScreen() {
         targetPhoto!.aiValidation!.reason!.toLowerCase().includes("mismatch") ||
         targetPhoto!.aiValidation!.reason!.toLowerCase().includes("does not show")));
 
-  // Compute actual submission summary state for Confirmation Modal
+  // Authoritative checklist submission readiness matching backend submitVendorProject rules
+  const checklistReadiness = calculateChecklistSubmissionReadiness(
+    project?.checklistItems,
+    project?.photos
+  );
+
   const uploadedPhotosList = project?.photos || [];
   const photosCount = uploadedPhotosList.length;
 
   const getAiVerifiedStatusSummary = (): "All Passed" | "Pending" | "Failed" => {
-    if (photosCount === 0) return "Pending";
-    const hasFailed = uploadedPhotosList.some(
-      (p) => p.aiValidation?.status === "FAILED"
-    );
-    if (hasFailed) return "Failed";
-
-    const allPassed = uploadedPhotosList.every(
-      (p) => p.aiValidation?.status === "PASSED"
-    );
-    return allPassed ? "All Passed" : "Pending";
+    return checklistReadiness.aiVerifiedStatus;
   };
+
+  const submitButtonLabel = checklistReadiness.isReadyForSubmission
+    ? "Submit Work Order for Review"
+    : `Submit Work Order (${checklistReadiness.verifiedCount}/${checklistReadiness.totalCount} Verified)`;
 
   const getLocationStatusSummary = (): "GPS Verified" | "Unverified" => {
     const hasGps = uploadedPhotosList.some(
@@ -559,12 +560,44 @@ export function AIVerificationScreen() {
           {/* Detailed Verification Checks */}
           <VerificationChecks photo={targetPhoto || undefined} project={project} />
 
+          {/* Checklist Verification Progress Banner when this photo passed but overall project is still incomplete */}
+          {currentStatus === "PASSED" && !checklistReadiness.isReadyForSubmission && (
+            <View style={styles.checklistProgressBanner}>
+              <Ionicons name="information-circle" size={20} color="#0284C7" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.checklistProgressBannerTitle}>
+                  Photo passed ({checklistReadiness.verifiedCount} of {checklistReadiness.totalCount} checklist items ready)
+                </Text>
+                <Text style={styles.checklistProgressBannerSubtitle}>
+                  Submitting for client review requires all {checklistReadiness.totalCount} checklist categories to pass AI verification.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Primary Action Submit Button */}
           <SubmitPhotoButton
             onPress={handleOpenSubmissionConfirm}
             isLoading={isSubmitting}
             status={currentStatus}
+            label={submitButtonLabel}
+            accessibilityLabel={submitButtonLabel}
           />
+
+          {/* Return to Checklist / Camera Button when more items need verification */}
+          {currentStatus === "PASSED" && !checklistReadiness.isReadyForSubmission && (
+            <Pressable
+              style={styles.returnToChecklistButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Return to Camera & Checklist"
+            >
+              <Ionicons name="arrow-back-outline" size={17} color="#475569" />
+              <Text style={styles.returnToChecklistButtonText}>
+                Return to Camera & Checklist
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
       )}
 
@@ -598,9 +631,13 @@ export function AIVerificationScreen() {
       <SubmissionConfirmModal
         visible={showConfirmModal}
         photosCount={photosCount}
-        aiVerifiedStatus={getAiVerifiedStatusSummary()}
+        aiVerifiedStatus={checklistReadiness.aiVerifiedStatus}
         locationStatus={getLocationStatusSummary()}
         notesStatus={getNotesStatusSummary()}
+        checklistProgressText={checklistReadiness.progressText}
+        verifiedChecklistCount={checklistReadiness.verifiedCount}
+        totalChecklistCount={checklistReadiness.totalCount}
+        unresolvedItems={checklistReadiness.unresolvedItems}
         isLoading={isSubmitting}
         onCancel={() => setShowConfirmModal(false)}
         onVerify={handleConfirmBackendSubmit}
@@ -779,5 +816,46 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  checklistProgressBanner: {
+    backgroundColor: "#F0F9FF",
+    borderColor: "#BAE6FD",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  checklistProgressBannerTitle: {
+    fontSize: 13,
+    color: "#0369A1",
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+  checklistProgressBannerSubtitle: {
+    fontSize: 12,
+    color: "#0C4A6E",
+    lineHeight: 16,
+  },
+  returnToChecklistButton: {
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: -12,
+    marginBottom: 24,
+  },
+  returnToChecklistButtonText: {
+    color: "#475569",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

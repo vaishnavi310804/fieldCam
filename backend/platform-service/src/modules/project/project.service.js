@@ -1064,73 +1064,7 @@ export const deleteVendorPhoto = async (projectIdOrId, photoId, user) => {
   return await getProjectById(project._id.toString(), user);
 };
 
-
-export const submitVendorProject = async (projectIdOrId, user) => {
-  if (!user || !["VENDOR", "STAFF"].includes(user.role)) {
-    const err = new Error(
-      "Only authenticated vendors and assigned staff can submit projects"
-    );
-    err.statusCode = 403;
-    throw err;
-  }
-
-  const project = await findProjectByIdOrCode(projectIdOrId);
-
-  if (!project) {
-    const err = new Error("Project not found");
-    err.statusCode = 404;
-    throw err;
-  }
-
-  // Authorization
-  if (user.role === "VENDOR") {
-    const vendor = await Vendor.findOne({
-      userId: user.id || user._id,
-    });
-
-    if (!vendor) {
-      const err = new Error(
-        "Vendor profile not found for authenticated user"
-      );
-      err.statusCode = 404;
-      throw err;
-    }
-
-    if (
-      !project.vendorId ||
-      project.vendorId.toString() !== vendor._id.toString()
-    ) {
-      const err = new Error(
-        "You are not authorized to submit this project"
-      );
-      err.statusCode = 403;
-      throw err;
-    }
-  } else if (user.role === "STAFF") {
-    const staffId = String(user.id || user._id);
-    const assignedStaffId = project.assignedStaffId
-      ? project.assignedStaffId.toString()
-      : null;
-
-    if (!assignedStaffId || assignedStaffId !== staffId) {
-      const err = new Error(
-        "You are not authorized to submit this project"
-      );
-      err.statusCode = 403;
-      throw err;
-    }
-  }
-
-  // Validate project status
-  if (project.status !== "In Progress") {
-    const err = new Error(
-      `Cannot submit project with current status '${project.status}'. Only 'In Progress' projects can be submitted.`
-    );
-    err.statusCode = 400;
-    throw err;
-  }
-
-  // Submission validation: checklist, AI, GPS, and timestamp
+export const validateProjectSubmissionRequirements = (project) => {
   const checklist = project.checklistItems || [];
   const photos = project.photos || [];
   const validationErrors = [];
@@ -1223,6 +1157,77 @@ export const submitVendorProject = async (projectIdOrId, user) => {
       });
     }
   }
+
+  return validationErrors;
+};
+
+export const submitVendorProject = async (projectIdOrId, user) => {
+  if (!user || !["VENDOR", "STAFF"].includes(user.role)) {
+    const err = new Error(
+      "Only authenticated vendors and assigned staff can submit projects"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const project = await findProjectByIdOrCode(projectIdOrId);
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Authorization
+  if (user.role === "VENDOR") {
+    const vendor = await Vendor.findOne({
+      userId: user.id || user._id,
+    });
+
+    if (!vendor) {
+      const err = new Error(
+        "Vendor profile not found for authenticated user"
+      );
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (
+      !project.vendorId ||
+      project.vendorId.toString() !== vendor._id.toString()
+    ) {
+      const err = new Error(
+        "You are not authorized to submit this project"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (user.role === "STAFF") {
+    const staffId = String(user.id || user._id);
+    const assignedStaffId = project.assignedStaffId
+      ? project.assignedStaffId.toString()
+      : null;
+
+    if (!assignedStaffId || assignedStaffId !== staffId) {
+      const err = new Error(
+        "You are not authorized to submit this project"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  // Validate project status
+  if (project.status !== "In Progress") {
+    const err = new Error(
+      `Cannot submit project with current status '${project.status}'. Only 'In Progress' projects can be submitted.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Submission validation: checklist, AI, GPS, and timestamp
+  const validationErrors = validateProjectSubmissionRequirements(project);
 
   if (validationErrors.length > 0) {
     const err = new Error(
