@@ -27,6 +27,7 @@ import {
 } from "@/src/components/charts/MonthlyEarningsChart";
 import { VendorDashboardHeader } from "@/src/components/dashboard/VendorDashboardHeader";
 import { getProjectProgress } from "@/src/utils/projectProgress";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 const { width } = Dimensions.get("window");
 
@@ -158,14 +159,6 @@ const VendorDashboardScreen = () => {
     .filter((p) => Boolean(p.deadline))
     .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
     .slice(0, 3);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   const handleQuickAction = (title: string, targetRoute?: string) => {
     if (targetRoute) {

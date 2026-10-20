@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/src/constants/color";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 export type EarningsPeriod = "Week" | "Month" | "Year";
 
@@ -24,14 +25,6 @@ export const EarningsSummary: React.FC<EarningsSummaryProps> = ({
   momChange,
 }) => {
   const insets = useSafeAreaInsets();
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(val || 0);
-  };
 
   const handleNewInvoicePress = () => {
     router.push("/(app)/raise-invoice");

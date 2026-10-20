@@ -38,18 +38,27 @@ export const calculateLineItems = (rawItems = []) => {
     }
 
     const qty = Number(item.quantity);
-    if (isNaN(qty) || qty <= 0) {
+    if (!Number.isFinite(qty) || !Number.isInteger(qty) || qty < 1) {
       const err = new Error(
-        `Line item "${description}" must have quantity greater than 0`
+        `Line item "${description}" must have a positive whole-number quantity`
       );
       err.statusCode = 400;
       throw err;
     }
 
     const rate = Number(item.rate);
-    if (isNaN(rate) || rate < 0) {
+    if (!Number.isFinite(rate) || rate < 0) {
       const err = new Error(
         `Line item "${description}" must have rate greater than or equal to 0`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const rateStr = String(item.rate).trim();
+    const dotIndex = rateStr.indexOf(".");
+    if (dotIndex !== -1 && rateStr.length - dotIndex - 1 > 2) {
+      const err = new Error(
+        `Line item "${description}" rate cannot have more than 2 decimal places`
       );
       err.statusCode = 400;
       throw err;
@@ -83,15 +92,10 @@ export const calculateLineItems = (rawItems = []) => {
 };
 
 /**
- * Generates an invoice number based on the project's code.
+ * Generates a unique invoice number based on the project's code.
+ * The server is the sole authority; client overrides are ignored.
  */
-export const generateInvoiceNumber = async (project, clientProvidedId = null) => {
-  if (clientProvidedId && typeof clientProvidedId === "string" && clientProvidedId.trim()) {
-    const candidate = clientProvidedId.trim();
-    const existing = await Invoice.findOne({ invoiceId: candidate });
-    if (!existing) return candidate;
-  }
-
+export const generateInvoiceNumber = async (project) => {
   const baseCode = project.projectId || `PRJ-${project._id.toString().slice(-6).toUpperCase()}`;
   const candidate = `INV-${baseCode}`;
 
@@ -100,8 +104,13 @@ export const generateInvoiceNumber = async (project, clientProvidedId = null) =>
     return candidate;
   }
 
-  // If collision with legacy, append suffix
-  const uniqueCandidate = `${candidate}-${Date.now().toString().slice(-4)}`;
+  // If collision with legacy, append suffix and ensure uniqueness
+  let uniqueCandidate = `${candidate}-${Date.now().toString().slice(-4)}`;
+  let collision = await Invoice.findOne({ invoiceId: uniqueCandidate });
+  while (collision) {
+    uniqueCandidate = `${candidate}-${Math.floor(1000 + Math.random() * 9000)}`;
+    collision = await Invoice.findOne({ invoiceId: uniqueCandidate });
+  }
   return uniqueCandidate;
 };
 
@@ -283,8 +292,8 @@ export const createInvoice = async (invoiceData, user = {}) => {
     }
   }
 
-  // 9. Generate Unique Invoice Number
-  const invoiceId = await generateInvoiceNumber(project, invoiceData.invoiceId);
+  // 9. Generate Unique Invoice Number (Backend authoritative)
+  const invoiceId = await generateInvoiceNumber(project);
 
   // 10. Build Review History Entry
   const initialAction = initialStatus === "Submitted" ? "SUBMITTED" : "DRAFT_SAVED";
@@ -638,6 +647,33 @@ export const updateInvoice = async (id, updateData, user = {}) => {
       err.statusCode = 400;
       throw err;
     }
+    for (const item of invoice.items) {
+      const qty = Number(item.quantity);
+      if (!Number.isFinite(qty) || !Number.isInteger(qty) || qty < 1) {
+        const err = new Error(
+          `Cannot submit invoice: line item "${item.description}" has an invalid quantity (${item.quantity}). Quantity must be a positive whole number.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+      const rate = Number(item.rate);
+      if (!Number.isFinite(rate) || rate < 0) {
+        const err = new Error(
+          `Cannot submit invoice: line item "${item.description}" has an invalid rate (${item.rate}). Rate must be a non-negative number.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+      const rateStr = String(item.rate).trim();
+      const dotIdx = rateStr.indexOf(".");
+      if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+        const err = new Error(
+          `Cannot submit invoice: line item "${item.description}" has an invalid rate (${item.rate}). Rate cannot have more than 2 decimal places.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    }
     if (!invoice.dueDate) {
       const err = new Error("Due date is required when submitting an invoice");
       err.statusCode = 400;
@@ -708,6 +744,34 @@ export const submitInvoice = async (id, user = {}) => {
     const err = new Error("Cannot submit invoice without at least one line item");
     err.statusCode = 400;
     throw err;
+  }
+
+  for (const item of invoice.items) {
+    const qty = Number(item.quantity);
+    if (!Number.isFinite(qty) || !Number.isInteger(qty) || qty < 1) {
+      const err = new Error(
+        `Cannot submit invoice: line item "${item.description}" has an invalid quantity (${item.quantity}). Quantity must be a positive whole number.`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const rate = Number(item.rate);
+    if (!Number.isFinite(rate) || rate < 0) {
+      const err = new Error(
+        `Cannot submit invoice: line item "${item.description}" has an invalid rate (${item.rate}). Rate must be a non-negative number.`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const rateStr = String(item.rate).trim();
+    const dotIdx = rateStr.indexOf(".");
+    if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+      const err = new Error(
+        `Cannot submit invoice: line item "${item.description}" has an invalid rate (${item.rate}). Rate cannot have more than 2 decimal places.`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
   if (!invoice.dueDate) {

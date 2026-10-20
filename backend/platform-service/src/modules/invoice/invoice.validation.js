@@ -41,13 +41,28 @@ export const createInvoiceValidation = [
 
   body("items.*.quantity")
     .if(body("items").isArray({ min: 1 }))
-    .isFloat({ min: 0.01 })
-    .withMessage("Line item quantity must be greater than 0"),
+    .custom((val) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || !Number.isInteger(num) || num < 1) {
+        throw new Error("Line item quantity must be a positive whole number");
+      }
+      return true;
+    }),
 
   body("items.*.rate")
     .if(body("items").isArray({ min: 1 }))
-    .isFloat({ min: 0 })
-    .withMessage("Line item rate must be a non-negative number"),
+    .custom((val) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || num < 0) {
+        throw new Error("Line item rate must be a non-negative number");
+      }
+      const str = String(val).trim();
+      const dotIndex = str.indexOf(".");
+      if (dotIndex !== -1 && str.length - dotIndex - 1 > 2) {
+        throw new Error("Line item rate cannot have more than 2 decimal places");
+      }
+      return true;
+    }),
 
   body("invoiceDate")
     .optional({ nullable: true })
@@ -94,13 +109,28 @@ export const updateInvoiceValidation = [
 
   body("items.*.quantity")
     .if(body("items").isArray({ min: 1 }))
-    .isFloat({ min: 0.01 })
-    .withMessage("Line item quantity must be greater than 0"),
+    .custom((val) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || !Number.isInteger(num) || num < 1) {
+        throw new Error("Line item quantity must be a positive whole number");
+      }
+      return true;
+    }),
 
   body("items.*.rate")
     .if(body("items").isArray({ min: 1 }))
-    .isFloat({ min: 0 })
-    .withMessage("Line item rate must be a non-negative number"),
+    .custom((val) => {
+      const num = Number(val);
+      if (!Number.isFinite(num) || num < 0) {
+        throw new Error("Line item rate must be a non-negative number");
+      }
+      const str = String(val).trim();
+      const dotIndex = str.indexOf(".");
+      if (dotIndex !== -1 && str.length - dotIndex - 1 > 2) {
+        throw new Error("Line item rate cannot have more than 2 decimal places");
+      }
+      return true;
+    }),
 
   body("invoiceDate")
     .optional({ nullable: true })

@@ -292,7 +292,7 @@ const VendorProjectCard = ({
           <button
             type="button"
             onClick={() => navigate(`/vendor/invoices?projectId=${project._id || project.id}`)}
-            className="w-full h-8 rounded-xl bg-[#00B894] hover:bg-[#00A383] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            className="w-full h-8 rounded-xl bg-[#C8B5AC] hover:bg-[#4A423F] text-[#3E3734] hover:text-[#FFFF] text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
           >
             <FiFileText size={12} />
             <span>Raise Invoice</span>

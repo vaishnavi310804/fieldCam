@@ -174,7 +174,7 @@ export const getVendors = async (query = {}) => {
         },
         completed: {
           $sum: {
-            $cond: [{ $eq: ["$status", "Approved"] }, 1, 0],
+            $cond: [{ $eq: ["$status", "Completed"] }, 1, 0],
           },
         },
         waitingForApproval: {
@@ -292,7 +292,7 @@ export const getVendorById = async (id) => {
         vendorId: vendorObjectId,
         status: "In Progress",
       }),
-      Project.countDocuments({ vendorId: vendorObjectId, status: "Approved" }),
+      Project.countDocuments({ vendorId: vendorObjectId, status: "Completed" }),
       Project.countDocuments({
         vendorId: vendorObjectId,
         status: { $in: ["Submitted", "Under Review"] },

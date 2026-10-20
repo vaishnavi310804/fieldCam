@@ -390,7 +390,7 @@ const VendorProjectDetails = () => {
               {project && project.status === "Approved" && (
                 <Link
                   to={`/vendor/invoices?projectId=${project._id || project.projectId || id}`}
-                  className="flex items-center gap-1.5 bg-[#00B894] hover:bg-[#00A383] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                  className="flex items-center gap-1.5 bg-[#8A817C] hover:bg-[#6E6763] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
                   title="Raise Invoice for this approved project"
                 >
                   <FiFileText className="text-xs" />

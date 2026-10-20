@@ -6,6 +6,7 @@ export interface InvoiceLineItem {
   quantity: number;
   rate: number;
   amount: number;
+  rawRate?: string;
 }
 
 export interface InvoiceStatsData {

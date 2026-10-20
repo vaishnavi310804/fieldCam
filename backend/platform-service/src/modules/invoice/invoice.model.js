@@ -10,12 +10,27 @@ const lineItemSchema = new mongoose.Schema(
     quantity: {
       type: Number,
       required: [true, "Line item quantity is required"],
-      min: [0.01, "Quantity must be greater than 0"],
+      validate: {
+        validator: function (val) {
+          return Number.isInteger(val) && val >= 1;
+        },
+        message: "Quantity must be a positive whole number",
+      },
+      min: [1, "Quantity must be at least 1"],
     },
     rate: {
       type: Number,
       required: [true, "Line item rate is required"],
       min: [0, "Rate cannot be negative"],
+      validate: {
+        validator: function (val) {
+          if (!Number.isFinite(val) || val < 0) return false;
+          const str = String(val);
+          const dotIndex = str.indexOf(".");
+          return dotIndex === -1 || str.length - dotIndex - 1 <= 2;
+        },
+        message: "Line item rate cannot have more than 2 decimal places",
+      },
     },
     amount: {
       type: Number,

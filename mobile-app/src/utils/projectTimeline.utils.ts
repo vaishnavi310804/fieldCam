@@ -1,6 +1,7 @@
 import type { VendorProjectItem, VendorProjectPhoto } from "../api/dashboard.api";
 import type { AuditLogItem } from "../api/audit.api";
 import type { TimelineStepItem } from "../components/projects/ProjectTimelineItem";
+import { calculateChecklistSubmissionReadiness } from "./checklistSubmission.utils";
 
 /**
  * Helper to format ISO date strings into "MMM d, h:mm a" format (e.g. "Mar 9, 10:00 AM")
@@ -28,14 +29,14 @@ export const formatTimelineDate = (
 /**
  * Builds the canonical 8-milestone chronological project timeline derived
  * strictly from persisted project fields, photo metadata, and audit logs:
- * 1. Project Assigned
- * 2. Assignment Accepted
- * 3. Arrived On Site
- * 4. Photos Captured
- * 5. All Photos Submitted
- * 6. AI Verification
- * 7. Client Review
- * 8. Project Completed
+ * 1. Project Assigned — Work order received from the client.
+ * 2. Assignment Accepted — Vendor accepted the work order.
+ * 3. Staff Assigned — Vendor assigned a staff member to the project.
+ * 4. Photos Captured — Show actual checklist/photo progress, such as 3 of 5 categories completed.
+ * 5. All Photos Submitted — Indicates that the vendor submitted the work order for client review.
+ * 6. AI Verification — Reflects the actual AI verification state of the required checklist photos.
+ * 7. Client Review — Shows whether the submission is awaiting review, approved, or rejected.
+ * 8. Project Completed — Reflects the actual completion state after the required approval and payment workflow.
  */
 export const buildProjectTimeline = (
   project?: VendorProjectItem | null,
@@ -53,22 +54,27 @@ export const buildProjectTimeline = (
     statusUpper === "UNDER REVIEW" || statusUpper === "UNDERREVIEW";
   const isApproved = statusUpper === "APPROVED";
   const isCompleted = statusUpper === "COMPLETED";
+  const isRejected = statusUpper === "REJECTED";
 
   // Index relevant audit log events
   const findLog = (actions: string[]) =>
     auditLogs.find((l) => actions.includes(l.action));
 
   const createdLog = findLog(["PROJECT_CREATED", "PROJECT_ASSIGNED"]);
-  const acceptedLog = findLog([
-    "PROJECT_ACCEPTED",
-    "PROJECT_STAFF_ASSIGNED",
-  ]);
+  const acceptedLog = findLog(["PROJECT_ACCEPTED"]);
+  const staffAssignedLog = findLog(["PROJECT_STAFF_ASSIGNED"]);
   const submittedLog = findLog(["PROJECT_SUBMITTED"]);
   const approvedLog = auditLogs.find(
     (l) =>
       l.action === "PROJECT_STATUS_CHANGED" &&
       (l.metadata?.newStatus === "Approved" ||
         l.metadata?.newStatus === "APPROVED")
+  );
+  const rejectedLog = auditLogs.find(
+    (l) =>
+      l.action === "PROJECT_STATUS_CHANGED" &&
+      (l.metadata?.newStatus === "Rejected" ||
+        l.metadata?.newStatus === "REJECTED")
   );
   const completedLog = auditLogs.find(
     (l) =>
@@ -105,19 +111,31 @@ export const buildProjectTimeline = (
   const latestPhotoTime =
     photoTimestamps.length > 0 ? Math.max(...photoTimestamps) : null;
 
+  // AI validation timestamps
+  const aiValidationTimestamps = photos
+    .map((p) => p.aiValidation?.validatedAt)
+    .filter(Boolean)
+    .map((d) => new Date(d!).getTime())
+    .filter((t) => !isNaN(t));
+
+  const latestAiValidationTime =
+    aiValidationTimestamps.length > 0
+      ? Math.max(...aiValidationTimestamps)
+      : null;
+
   const hasPhotos = photos.length > 0;
   const allCategoriesCaptured =
     totalCategories > 0 && capturedCategories >= totalCategories;
 
-  // All photos passed AI verification check
-  const allPhotosAiPassed =
-    hasPhotos &&
-    photos.every((p) => p.aiValidation?.status === "PASSED");
-  const anyAiFailed = photos.some(
-    (p) => p.aiValidation?.status === "FAILED"
+  // Authoritative AI verification evaluation
+  const aiReadiness = calculateChecklistSubmissionReadiness(
+    project.checklistItems,
+    project.photos
   );
-  const anyAiPending = photos.some(
-    (p) => !p.aiValidation || p.aiValidation.status === "PENDING"
+
+  // Staff assignment state derived from persisted fields or audit log
+  const isStaffAssigned = Boolean(
+    project.assignedStaffId || staffAssignedLog
   );
 
   // -------------------------------------------------------------
@@ -130,7 +148,7 @@ export const buildProjectTimeline = (
     dateText: formatTimelineDate(assignedTimestamp),
     description: project.client
       ? `Work order received from ${project.client}`
-      : "Work order received",
+      : "Work order received from client",
     status: isNew ? "current" : "completed",
   };
 
@@ -139,24 +157,26 @@ export const buildProjectTimeline = (
   // -------------------------------------------------------------
   const isAcceptedCompleted =
     Boolean(acceptedLog) ||
-    Boolean(project.assignedStaffId) ||
+    isAssigned ||
+    isStaffAssigned ||
     isInProgress ||
     isSubmitted ||
     isUnderReview ||
     isApproved ||
     isCompleted;
 
-  const isAcceptedCurrent = !isAcceptedCompleted && isAssigned;
-  const acceptedTimestamp = acceptedLog?.createdAt || (isAcceptedCompleted ? project.createdAt : null);
+  const isAcceptedCurrent = !isAcceptedCompleted && isNew;
 
   const step2: TimelineStepItem = {
     id: "milestone-2-accepted",
     title: "Assignment Accepted",
-    dateText: isAcceptedCompleted
-      ? formatTimelineDate(acceptedTimestamp)
+    dateText: acceptedLog?.createdAt
+      ? formatTimelineDate(acceptedLog.createdAt)
+      : isAcceptedCompleted
+      ? "Completed"
       : "Pending",
     description: isAcceptedCompleted
-      ? "You accepted the work order"
+      ? "Vendor accepted the work order"
       : "Awaiting work order acceptance",
     status: isAcceptedCompleted
       ? "completed"
@@ -166,26 +186,30 @@ export const buildProjectTimeline = (
   };
 
   // -------------------------------------------------------------
-  // Milestone 3: Arrived On Site
+  // Milestone 3: Staff Assigned
   // -------------------------------------------------------------
-  const isArrivedCompleted =
-    hasPhotos || isSubmitted || isUnderReview || isApproved || isCompleted;
-  const isArrivedCurrent = !isArrivedCompleted && isInProgress;
+  const isStaffAssignedCurrent = !isStaffAssigned && isAcceptedCompleted;
+  const staffName =
+    project.assignedStaffName ||
+    staffAssignedLog?.metadata?.staffName ||
+    "";
 
   const step3: TimelineStepItem = {
-    id: "milestone-3-arrived",
-    title: "Arrived On Site",
-    dateText: isArrivedCompleted
-      ? formatTimelineDate(earliestPhotoTime || project.createdAt)
-      : isArrivedCurrent
-      ? "In Progress"
+    id: "milestone-3-staff-assigned",
+    title: "Staff Assigned",
+    dateText: staffAssignedLog?.createdAt
+      ? formatTimelineDate(staffAssignedLog.createdAt)
+      : isStaffAssigned
+      ? "Completed"
       : "Pending",
-    description: isArrivedCompleted
-      ? "GPS check-in confirmed at location"
-      : "GPS check-in pending at project location",
-    status: isArrivedCompleted
+    description: isStaffAssigned
+      ? staffName
+        ? `Assigned to ${staffName}`
+        : "Staff member assigned to project"
+      : "Vendor assigned a staff member to the project",
+    status: isStaffAssigned
       ? "completed"
-      : isArrivedCurrent
+      : isStaffAssignedCurrent
       ? "current"
       : "pending",
   };
@@ -202,22 +226,23 @@ export const buildProjectTimeline = (
 
   const isPhotosCurrent =
     !isPhotosCompleted &&
-    ((hasPhotos && isInProgress) || (isArrivedCompleted && isInProgress));
+    (isStaffAssigned || hasPhotos || isInProgress);
 
-  let photosCapturedDesc = "Complete remaining categories";
+  let photosCapturedDesc = "Checklist photos pending capture";
   if (totalCategories > 0) {
     photosCapturedDesc = `${capturedCategories} of ${totalCategories} categories completed`;
   } else if (hasPhotos) {
-    photosCapturedDesc = `${photos.length} photos captured`;
+    photosCapturedDesc = `${photos.length} photo${photos.length === 1 ? "" : "s"} captured`;
   }
 
   const step4: TimelineStepItem = {
     id: "milestone-4-photos",
     title: "Photos Captured",
-    dateText:
-      isPhotosCompleted || isPhotosCurrent
-        ? formatTimelineDate(latestPhotoTime || earliestPhotoTime || project.createdAt)
-        : "Pending",
+    dateText: latestPhotoTime
+      ? formatTimelineDate(latestPhotoTime)
+      : isPhotosCompleted
+      ? "Completed"
+      : "Pending",
     description: photosCapturedDesc,
     status: isPhotosCompleted
       ? "completed"
@@ -230,21 +255,30 @@ export const buildProjectTimeline = (
   // Milestone 5: All Photos Submitted
   // -------------------------------------------------------------
   const isSubmittedCompleted =
-    isSubmitted || isUnderReview || isApproved || isCompleted;
+    isSubmitted ||
+    isUnderReview ||
+    isApproved ||
+    isCompleted ||
+    Boolean(submittedLog);
+
   const isSubmittedCurrent =
-    !isSubmittedCompleted && allCategoriesCaptured && isInProgress;
+    !isSubmittedCompleted &&
+    allCategoriesCaptured &&
+    aiReadiness.isReadyForSubmission;
 
   const step5: TimelineStepItem = {
     id: "milestone-5-submitted",
     title: "All Photos Submitted",
-    dateText: isSubmittedCompleted
-      ? formatTimelineDate(submittedLog?.createdAt || project.updatedAt)
+    dateText: submittedLog?.createdAt
+      ? formatTimelineDate(submittedLog.createdAt)
+      : isSubmittedCompleted
+      ? "Completed"
       : "Pending",
     description: isSubmittedCompleted
-      ? "Work order and all photos submitted for review"
+      ? "Work order and all photos submitted for client review"
       : isSubmittedCurrent
       ? "Ready to submit for client review"
-      : "Complete remaining categories",
+      : "Awaiting photo capture and submission",
     status: isSubmittedCompleted
       ? "completed"
       : isSubmittedCurrent
@@ -256,29 +290,43 @@ export const buildProjectTimeline = (
   // Milestone 6: AI Verification
   // -------------------------------------------------------------
   const isAiCompleted =
-    isApproved ||
-    isCompleted ||
+    aiReadiness.aiVerifiedStatus === "All Passed" ||
     isSubmitted ||
     isUnderReview ||
-    (allCategoriesCaptured && allPhotosAiPassed);
+    isApproved ||
+    isCompleted;
+
+  const isAiFailed =
+    !isAiCompleted && aiReadiness.aiVerifiedStatus === "Failed";
 
   const isAiCurrent =
     !isAiCompleted &&
-    hasPhotos &&
-    (anyAiPending || anyAiFailed) &&
-    isInProgress;
+    (isAiFailed || (hasPhotos && isInProgress));
+
+  let aiDesc = "Automated quality check";
+  if (isAiCompleted) {
+    aiDesc = "Automated quality check passed";
+  } else if (isAiFailed) {
+    aiDesc = "Automated quality check failed — retake required";
+  } else if (isAiCurrent) {
+    aiDesc = aiReadiness.progressText || "Automated quality check in progress";
+  }
 
   const step6: TimelineStepItem = {
     id: "milestone-6-ai",
     title: "AI Verification",
     dateText: isAiCompleted
-      ? formatTimelineDate(latestPhotoTime || project.updatedAt)
+      ? latestAiValidationTime
+        ? formatTimelineDate(latestAiValidationTime)
+        : latestPhotoTime
+        ? formatTimelineDate(latestPhotoTime)
+        : "Completed"
+      : isAiFailed
+      ? "Failed"
       : isAiCurrent
       ? "In Progress"
       : "Pending",
-    description: isAiCompleted
-      ? "Automated quality check passed"
-      : "Automated quality check",
+    description: aiDesc,
     status: isAiCompleted
       ? "completed"
       : isAiCurrent
@@ -289,21 +337,41 @@ export const buildProjectTimeline = (
   // -------------------------------------------------------------
   // Milestone 7: Client Review
   // -------------------------------------------------------------
-  const isReviewCompleted = isApproved || isCompleted;
+  const isReviewApproved =
+    isApproved || isCompleted || Boolean(approvedLog);
+  const isReviewRejected =
+    statusUpper === "REJECTED" || Boolean(rejectedLog);
   const isReviewCurrent = isSubmitted || isUnderReview;
+
+  let reviewDesc = "Awaiting client review";
+  if (isReviewApproved) {
+    reviewDesc = "Work approved by client";
+  } else if (isReviewRejected) {
+    reviewDesc = project.rejectionReason
+      ? `Submission rejected: ${project.rejectionReason}`
+      : "Submission rejected by client";
+  } else if (isReviewCurrent) {
+    reviewDesc = "Awaiting client review and approval";
+  }
 
   const step7: TimelineStepItem = {
     id: "milestone-7-review",
     title: "Client Review",
-    dateText: isReviewCompleted
-      ? formatTimelineDate(approvedLog?.createdAt || project.updatedAt)
-      : "Pending",
-    description: isReviewCompleted
-      ? "Work approved by client"
-      : "Awaiting client approval",
-    status: isReviewCompleted
-      ? "completed"
+    dateText: isReviewApproved
+      ? approvedLog?.createdAt
+        ? formatTimelineDate(approvedLog.createdAt)
+        : "Completed"
+      : isReviewRejected
+      ? rejectedLog?.createdAt
+        ? formatTimelineDate(rejectedLog.createdAt)
+        : "Rejected"
       : isReviewCurrent
+      ? "In Review"
+      : "Pending",
+    description: reviewDesc,
+    status: isReviewApproved
+      ? "completed"
+      : (isReviewCurrent || isReviewRejected)
       ? "current"
       : "pending",
   };
@@ -311,20 +379,23 @@ export const buildProjectTimeline = (
   // -------------------------------------------------------------
   // Milestone 8: Project Completed
   // -------------------------------------------------------------
-  const isProjectCompleted = isCompleted;
-  const isProjectCompletedCurrent = !isProjectCompleted && isApproved;
+  const isProjectCompleted = isCompleted || Boolean(completedLog);
+  const isProjectCompletedCurrent =
+    !isProjectCompleted && isReviewApproved;
 
   const step8: TimelineStepItem = {
     id: "milestone-8-completed",
     title: "Project Completed",
     dateText: isProjectCompleted
-      ? formatTimelineDate(completedLog?.createdAt || project.updatedAt)
+      ? completedLog?.createdAt
+        ? formatTimelineDate(completedLog.createdAt)
+        : "Completed"
       : "Pending",
     description: isProjectCompleted
       ? "Project completed and payment processed"
       : isProjectCompletedCurrent
-      ? "Approved - ready for invoice & payment"
-      : "Payment processed",
+      ? "Approved — ready for invoice & payment"
+      : "Payment processed upon completion",
     status: isProjectCompleted
       ? "completed"
       : isProjectCompletedCurrent

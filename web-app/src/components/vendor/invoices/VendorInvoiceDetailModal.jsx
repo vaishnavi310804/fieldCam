@@ -245,14 +245,32 @@ const VendorInvoiceDetailModal = ({
           </div>
 
           {/* Notes if present */}
-          {invoice.notes && (
+          {invoice.notes && invoice.notes.trim() ? (
             <div className="bg-white rounded-2xl border border-[#E8E2DE] p-4 shadow-xs text-xs">
               <span className="font-bold text-[#817B77]">Notes & Payment Reference:</span>
               <p className="text-[#2D3436] bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 mt-1.5 font-medium whitespace-pre-wrap">
-                {invoice.notes}
+                {invoice.notes.trim()}
               </p>
             </div>
-          )}
+          ) : null}
+
+          {/* Company Authorization Section */}
+          <div className="bg-white rounded-2xl border border-[#E8E2DE] p-4 shadow-xs text-xs space-y-1">
+            <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block mb-1">
+              Digitally Signed By
+            </span>
+            <div className="bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70 space-y-1">
+              <p className="font-bold text-[#2D3436]">
+                {invoice.vendorId?.companyName || invoice.vendorName || "Authorized Vendor"}
+              </p>
+              <p className="text-[#6E6763] text-[11px]">
+                Authorized company representative
+              </p>
+              <p className="text-[#817B77] text-[10px] italic pt-0.5">
+                Digitally authorized through the authenticated FieldCam account.
+              </p>
+            </div>
+          </div>
 
           {/* Activity Timeline */}
           {Array.isArray(invoice.reviewHistory) && invoice.reviewHistory.length > 0 && (
@@ -328,7 +346,7 @@ const VendorInvoiceDetailModal = ({
                     type="button"
                     onClick={() => onSubmitDraft(invoice._id)}
                     disabled={isSubmitting}
-                    className="bg-[#00B894] hover:bg-[#00A383] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
+                    className="bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
                   >
                     <FiSend size={13} />
                     <span>{isSubmitting ? "Submitting..." : "Submit for Review"}</span>

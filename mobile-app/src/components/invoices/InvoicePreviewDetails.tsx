@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { InvoiceListItem } from "@/src/api/invoices.api";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 interface InvoicePreviewDetailsProps {
   invoice: InvoiceListItem;
@@ -10,15 +11,6 @@ interface InvoicePreviewDetailsProps {
 export const InvoicePreviewDetails: React.FC<InvoicePreviewDetailsProps> = ({
   invoice,
 }) => {
-  const formatCurrency = (val?: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val || 0);
-  };
-
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "—";
     const d = new Date(dateStr);
@@ -30,6 +22,10 @@ export const InvoicePreviewDetails: React.FC<InvoicePreviewDetailsProps> = ({
     });
   };
 
+  const companyName =
+    invoice.vendorId?.companyName ||
+    invoice.vendorName ||
+    "Authorized Vendor";
   const vendorName =
     invoice.vendorId?.companyName ||
     invoice.vendorName ||
@@ -198,17 +194,30 @@ export const InvoicePreviewDetails: React.FC<InvoicePreviewDetailsProps> = ({
           </View>
         </View>
 
+        {/* Notes / Payment Instructions */}
+        {invoice.notes && invoice.notes.trim() ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.notesContainer}>
+              <Text style={styles.notesHeader}>NOTES / PAYMENT INSTRUCTIONS</Text>
+              <Text style={styles.notesContent}>{invoice.notes.trim()}</Text>
+            </View>
+          </>
+        ) : null}
+
         <View style={styles.divider} />
 
-        {/* Vendor Signature Block */}
-        <View style={styles.signatureBlock}>
-          <Text style={styles.sigHeader}>VENDOR SIGNATURE</Text>
-          <View style={styles.signatureContentRow}>
-            <Text style={styles.signatureName}>{vendorName}</Text>
-            <View style={styles.sigVerifiedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#00B894" />
-              <Text style={styles.sigVerifiedText}>Digitally Signed</Text>
-            </View>
+        {/* Company Authorization Block */}
+        <View style={styles.authorizationBlock}>
+          <Text style={styles.authHeader}>DIGITALLY SIGNED BY</Text>
+          <View style={styles.authContentBox}>
+            <Text style={styles.authCompanyName}>{companyName}</Text>
+            <Text style={styles.authRepresentativeText}>
+              Authorized company representative
+            </Text>
+            <Text style={styles.authSecondaryText}>
+              Digitally authorized through the authenticated FieldCam account.
+            </Text>
           </View>
         </View>
       </View>
@@ -472,39 +481,63 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1F1D1B",
   },
-  signatureBlock: {
+  notesContainer: {
+    backgroundColor: "#FAF7F5",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#EAE5E1",
     marginTop: 4,
+    marginBottom: 4,
   },
-  sigHeader: {
+  notesHeader: {
     fontSize: 10,
     fontWeight: "800",
     color: "#8C827A",
     letterSpacing: 0.5,
     marginBottom: 6,
+    textTransform: "uppercase",
   },
-  signatureContentRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#D6CCC5",
-    paddingBottom: 6,
+  notesContent: {
+    fontSize: 12,
+    color: "#3E3734",
+    lineHeight: 18,
   },
-  signatureName: {
-    fontSize: 15,
-    fontStyle: "italic",
+  authorizationBlock: {
+    marginTop: 4,
+  },
+  authHeader: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#8C827A",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  authContentBox: {
+    backgroundColor: "#FAF7F5",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#EAE5E1",
+    gap: 3,
+  },
+  authCompanyName: {
+    fontSize: 14,
     fontWeight: "700",
     color: "#1F1D1B",
   },
-  sigVerifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  sigVerifiedText: {
+  authRepresentativeText: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "#00B894",
+    color: "#6E655F",
+    fontWeight: "500",
+  },
+  authSecondaryText: {
+    fontSize: 10,
+    color: "#8C827A",
+    fontStyle: "italic",
+    marginTop: 2,
+    lineHeight: 14,
   },
   metaCardsContainer: {
     gap: 10,

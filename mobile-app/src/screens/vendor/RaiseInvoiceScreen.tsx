@@ -53,7 +53,7 @@ export const RaiseInvoiceScreen: React.FC = () => {
   const [dueDate, setDueDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([
-    { description: "", quantity: 1, rate: 0, amount: 0 },
+    { description: "", quantity: 1, rate: 0, rawRate: "", amount: 0 },
   ]);
 
   // Submit / Save state
@@ -94,7 +94,8 @@ export const RaiseInvoiceScreen: React.FC = () => {
               description: it.description || "",
               quantity: Number(it.quantity) || 1,
               rate: Number(it.rate) || 0,
-              amount: (Number(it.quantity) || 1) * (Number(it.rate) || 0),
+              rawRate: it.rate !== undefined && it.rate !== null ? String(it.rate) : "",
+              amount: Math.round((Number(it.quantity) || 1) * (Number(it.rate) || 0) * 100) / 100,
             }))
           );
         }
@@ -123,7 +124,8 @@ export const RaiseInvoiceScreen: React.FC = () => {
               description: it.description || "",
               quantity: Number(it.quantity) || 1,
               rate: Number(it.rate) || 0,
-              amount: (Number(it.quantity) || 1) * (Number(it.rate) || 0),
+              rawRate: it.rate !== undefined && it.rate !== null ? String(it.rate) : "",
+              amount: Math.round((Number(it.quantity) || 1) * (Number(it.rate) || 0) * 100) / 100,
             }))
           );
         }
@@ -190,7 +192,7 @@ export const RaiseInvoiceScreen: React.FC = () => {
   const handleAddItem = () => {
     setLineItems((prev) => [
       ...prev,
-      { description: "", quantity: 1, rate: 0, amount: 0 },
+      { description: "", quantity: 1, rate: 0, rawRate: "", amount: 0 },
     ]);
   };
 
@@ -211,9 +213,32 @@ export const RaiseInvoiceScreen: React.FC = () => {
       if (field === "description") {
         item.description = value;
       } else if (field === "quantity") {
-        item.quantity = value === "" ? 0 : Number(value);
+        if (value === "") {
+          item.quantity = 0;
+        } else {
+          const cleanDigits = value.replace(/[^\d]/g, "");
+          item.quantity = cleanDigits === "" ? 0 : parseInt(cleanDigits, 10);
+        }
       } else if (field === "rate") {
-        item.rate = value === "" ? 0 : Number(value);
+        if (value === "") {
+          item.rawRate = "";
+          item.rate = 0;
+        } else {
+          const normalized = value.replace(",", ".");
+          if (/[^\d.]/.test(normalized)) {
+            return prev;
+          }
+          const parts = normalized.split(".");
+          if (parts.length > 2) {
+            return prev;
+          }
+          if (parts.length === 2 && parts[1].length > 2) {
+            return prev;
+          }
+          item.rawRate = normalized;
+          const parsed = parseFloat(normalized);
+          item.rate = isNaN(parsed) ? 0 : parsed;
+        }
       }
 
       const q = Number(item.quantity) || 0;
@@ -248,11 +273,18 @@ export const RaiseInvoiceScreen: React.FC = () => {
       if (!it.description.trim()) {
         return `Line item #${i + 1} requires a valid description.`;
       }
-      if (Number(it.quantity) <= 0) {
-        return `Line item #${i + 1} quantity must be greater than 0.`;
+      const q = Number(it.quantity);
+      if (isNaN(q) || !Number.isInteger(q) || q < 1) {
+        return `Line item #${i + 1} quantity must be a positive whole number.`;
       }
-      if (Number(it.rate) < 0) {
+      const r = Number(it.rate);
+      if (isNaN(r) || r < 0) {
         return `Line item #${i + 1} rate cannot be negative.`;
+      }
+      const rateStr = it.rawRate !== undefined && it.rawRate !== "" ? it.rawRate : String(it.rate);
+      const dotIdx = rateStr.indexOf(".");
+      if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+        return `Line item #${i + 1} rate cannot have more than 2 decimal places.`;
       }
     }
 
@@ -289,7 +321,7 @@ export const RaiseInvoiceScreen: React.FC = () => {
     const payloadItems = lineItems.map((it) => ({
       description: it.description.trim(),
       quantity: Number(it.quantity) || 1,
-      rate: Number(it.rate) || 0,
+      rate: Math.round(Number(it.rate) * 100) / 100,
       amount: Math.round((Number(it.quantity) || 1) * (Number(it.rate) || 0) * 100) / 100,
     }));
 
@@ -338,7 +370,7 @@ export const RaiseInvoiceScreen: React.FC = () => {
     const payloadItems = lineItems.map((it) => ({
       description: it.description.trim(),
       quantity: Number(it.quantity) || 1,
-      rate: Number(it.rate) || 0,
+      rate: Math.round(Number(it.rate) * 100) / 100,
       amount: Math.round((Number(it.quantity) || 1) * (Number(it.rate) || 0) * 100) / 100,
     }));
 
@@ -358,7 +390,6 @@ export const RaiseInvoiceScreen: React.FC = () => {
       } else {
         result = await invoicesApi.createInvoice({
           projectId: selectedProjectId,
-          invoiceId: invoiceNumber.trim() || undefined,
           items: payloadItems,
           invoiceDate: invoiceDate || undefined,
           dueDate: dueDate || undefined,
@@ -627,12 +658,12 @@ export const RaiseInvoiceScreen: React.FC = () => {
         {/* 6. Upload Custom Invoice Notice (UI-only) */}
         <InvoiceUploadNotice />
 
-        {/* 7. Digital Signature Notice */}
+        {/* 7. Company Authorization Notice */}
         <InvoiceSignatureNotice
-          signerName={
-            previewInfo?.previewData?.vendor?.contactName ||
-            user?.name ||
-            "Vendor Partner"
+          companyName={
+            previewInfo?.previewData?.vendor?.companyName ||
+            existingInv?.vendorName ||
+            "Authorized Vendor"
           }
         />
 
@@ -687,6 +718,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#FAF8F6",
+    paddingBottom: 100,
   },
   scrollView: {
     flex: 1,

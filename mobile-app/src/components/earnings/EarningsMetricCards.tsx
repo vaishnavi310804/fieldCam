@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 interface EarningsMetricCardsProps {
   paidAmount: number;
@@ -11,14 +12,6 @@ export const EarningsMetricCards: React.FC<EarningsMetricCardsProps> = ({
   paidAmount,
   pendingAmount,
 }) => {
-  const formatAmount = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(val || 0);
-  };
-
   return (
     <View style={styles.container}>
       {/* Paid Card */}
@@ -26,7 +19,7 @@ export const EarningsMetricCards: React.FC<EarningsMetricCardsProps> = ({
         <View style={[styles.iconCircle, styles.paidIconBg]}>
           <Ionicons name="checkmark-circle-outline" size={20} color="#3B82F6" />
         </View>
-        <Text style={styles.amount}>{formatAmount(paidAmount)}</Text>
+        <Text style={styles.amount}>{formatCurrency(paidAmount)}</Text>
         <Text style={styles.label}>Paid</Text>
       </View>
 
@@ -35,7 +28,7 @@ export const EarningsMetricCards: React.FC<EarningsMetricCardsProps> = ({
         <View style={[styles.iconCircle, styles.pendingIconBg]}>
           <Ionicons name="time-outline" size={20} color="#F59E0B" />
         </View>
-        <Text style={styles.amount}>{formatAmount(pendingAmount)}</Text>
+        <Text style={styles.amount}>{formatCurrency(pendingAmount)}</Text>
         <Text style={styles.label}>Pending</Text>
       </View>
     </View>

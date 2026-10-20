@@ -783,7 +783,7 @@ export const ProjectDetailsScreen = () => {
                     style={[
                       styles.primaryActionButton,
                       styles.primaryActionFlex,
-                      { backgroundColor: "#166534", opacity: 0.95 },
+                      { backgroundColor: Colors.primary, opacity: 0.95 },
                     ]}
                   >
                     <Ionicons name="checkmark-done-circle-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />

@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { InvoiceListItem } from "@/src/api/invoices.api";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 interface TransactionCardProps {
   transaction: InvoiceListItem;
@@ -10,15 +11,6 @@ interface TransactionCardProps {
 export const TransactionCard: React.FC<TransactionCardProps> = ({
   transaction,
 }) => {
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
-
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Recent";
     const d = new Date(dateStr);

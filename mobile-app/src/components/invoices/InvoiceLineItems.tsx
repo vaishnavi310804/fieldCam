@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { InvoiceLineItem } from "@/src/api/invoices.api";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 interface InvoiceLineItemsProps {
   items: InvoiceLineItem[];
@@ -28,15 +29,6 @@ export const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
   onUpdateItem,
   editable = true,
 }) => {
-  const formatAmount = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val || 0);
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
@@ -66,7 +58,7 @@ export const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
 
                 <View style={styles.amountAndDeleteRow}>
                   <Text style={styles.amountText}>
-                    {formatAmount(itemAmount)}
+                    {formatCurrency(itemAmount)}
                   </Text>
                   {editable && items.length > 1 && (
                     <Pressable
@@ -87,11 +79,12 @@ export const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
                   <Text style={styles.metaLabel}>Qty:</Text>
                   <TextInput
                     value={String(item.quantity !== undefined ? item.quantity : 1)}
-                    onChangeText={(val) =>
-                      onUpdateItem(index, "quantity", val)
-                    }
+                    onChangeText={(val) => {
+                      const digitsOnly = val.replace(/[^\d]/g, "");
+                      onUpdateItem(index, "quantity", digitsOnly);
+                    }}
                     editable={editable}
-                    keyboardType="numeric"
+                    keyboardType="number-pad"
                     placeholder="1"
                     placeholderTextColor="#A8A29E"
                     style={styles.numInput}
@@ -103,12 +96,29 @@ export const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
                 <View style={styles.qtyRateGroup}>
                   <Text style={styles.metaLabel}>Rate ($):</Text>
                   <TextInput
-                    value={String(item.rate !== undefined ? item.rate : 0)}
-                    onChangeText={(val) =>
-                      onUpdateItem(index, "rate", val)
+                    value={
+                      item.rawRate !== undefined
+                        ? item.rawRate
+                        : item.rate !== undefined && item.rate !== 0
+                        ? String(item.rate)
+                        : ""
                     }
+                    onChangeText={(val) => {
+                      const normalized = val.replace(",", ".");
+                      if (/[^\d.]/.test(normalized)) {
+                        return;
+                      }
+                      const parts = normalized.split(".");
+                      if (parts.length > 2) {
+                        return;
+                      }
+                      if (parts.length === 2 && parts[1].length > 2) {
+                        return;
+                      }
+                      onUpdateItem(index, "rate", normalized);
+                    }}
                     editable={editable}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     placeholder="0.00"
                     placeholderTextColor="#A8A29E"
                     style={styles.numInput}

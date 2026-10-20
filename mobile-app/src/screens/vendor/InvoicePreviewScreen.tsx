@@ -155,12 +155,50 @@ export const InvoicePreviewScreen: React.FC = () => {
         return;
       }
 
+      if (Array.isArray(draft.lineItems)) {
+        for (let i = 0; i < draft.lineItems.length; i++) {
+          const it = draft.lineItems[i];
+          const q = Number(it.quantity);
+          if (isNaN(q) || !Number.isInteger(q) || q < 1) {
+            Alert.alert(
+              "Validation Error",
+              `Line item #${i + 1} ("${it.description}") has an invalid quantity (${it.quantity}). Quantity must be a positive whole number. Please edit the invoice before submitting.`
+            );
+            return;
+          }
+          const r = Number(it.rate);
+          if (isNaN(r) || r < 0) {
+            Alert.alert(
+              "Validation Error",
+              `Line item #${i + 1} ("${it.description}") has an invalid rate. Rate cannot be negative. Please edit the invoice before submitting.`
+            );
+            return;
+          }
+          const rateStr = it.rawRate !== undefined && it.rawRate !== "" ? it.rawRate : String(it.rate);
+          const dotIdx = rateStr.indexOf(".");
+          if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+            Alert.alert(
+              "Validation Error",
+              `Line item #${i + 1} ("${it.description}") has a rate with more than 2 decimal places (${rateStr}). Please edit the invoice before submitting.`
+            );
+            return;
+          }
+        }
+      }
+
+      const cleanPayloadItems = (draft.lineItems || []).map((it) => ({
+        description: it.description.trim(),
+        quantity: Number(it.quantity) || 1,
+        rate: Math.round(Number(it.rate) * 100) / 100,
+        amount: Math.round((Number(it.quantity) || 1) * (Number(it.rate) || 0) * 100) / 100,
+      }));
+
       try {
         setIsSubmitting(true);
         let result: InvoiceListItem;
         if (draft.existingInvoiceId) {
           result = await invoicesApi.updateInvoice(draft.existingInvoiceId, {
-            items: draft.lineItems,
+            items: cleanPayloadItems,
             invoiceDate: draft.invoiceDate || undefined,
             dueDate: draft.dueDate || undefined,
             notes: draft.notes?.trim() || undefined,
@@ -169,8 +207,7 @@ export const InvoicePreviewScreen: React.FC = () => {
         } else {
           result = await invoicesApi.createInvoice({
             projectId: draft.projectId,
-            invoiceId: draft.invoiceNumber.trim() || undefined,
-            items: draft.lineItems,
+            items: cleanPayloadItems,
             invoiceDate: draft.invoiceDate || undefined,
             dueDate: draft.dueDate || undefined,
             notes: draft.notes?.trim() || undefined,
@@ -201,6 +238,38 @@ export const InvoicePreviewScreen: React.FC = () => {
     }
 
     if (!invoice) return;
+
+    // Validate quantities and rates before submitting persisted invoice
+    if (Array.isArray(invoice.items)) {
+      for (let i = 0; i < invoice.items.length; i++) {
+        const it = invoice.items[i];
+        const q = Number(it.quantity);
+        if (isNaN(q) || !Number.isInteger(q) || q < 1) {
+          Alert.alert(
+            "Validation Error",
+            `Line item #${i + 1} ("${it.description}") has an invalid quantity (${it.quantity}). Quantity must be a positive whole number. Please edit the invoice before submitting.`
+          );
+          return;
+        }
+        const r = Number(it.rate);
+        if (isNaN(r) || r < 0) {
+          Alert.alert(
+            "Validation Error",
+            `Line item #${i + 1} ("${it.description}") has an invalid rate. Rate cannot be negative. Please edit the invoice before submitting.`
+          );
+          return;
+        }
+        const rateStr = it.rawRate !== undefined && it.rawRate !== "" ? it.rawRate : String(it.rate);
+        const dotIdx = rateStr.indexOf(".");
+        if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+          Alert.alert(
+            "Validation Error",
+            `Line item #${i + 1} ("${it.description}") has a rate with more than 2 decimal places (${rateStr}). Please edit the invoice before submitting.`
+          );
+          return;
+        }
+      }
+    }
 
     try {
       setIsSubmitting(true);
@@ -401,6 +470,7 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: "#FAF8F6",
+    paddingBottom: 80,
   },
   scrollView: {
     flex: 1,

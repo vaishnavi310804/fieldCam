@@ -205,13 +205,39 @@ const RaiseInvoiceModal = ({
       if (field === "description") {
         item.description = value;
       } else if (field === "quantity") {
-        item.quantity = value === "" ? "" : Number(value);
+        if (value === "") {
+          item.quantity = "";
+        } else {
+          // Strictly accept positive whole numbers only
+          const cleanDigits = String(value).replace(/[^\d]/g, "");
+          item.quantity = cleanDigits === "" ? "" : parseInt(cleanDigits, 10);
+        }
       } else if (field === "rate") {
-        item.rate = value === "" ? "" : Number(value);
+        if (value === "") {
+          item.rate = "";
+        } else {
+          // Normalize comma to dot if pasted or typed
+          const normalized = String(value).replace(",", ".");
+          // Reject characters that are not digits or a decimal point
+          if (/[^\d.]/.test(normalized)) {
+            return [...prev];
+          }
+          const parts = normalized.split(".");
+          // Reject multiple decimal points
+          if (parts.length > 2) {
+            return [...prev];
+          }
+          // Reject more than two decimal places
+          if (parts.length === 2 && parts[1].length > 2) {
+            return [...prev];
+          }
+          item.rate = normalized;
+        }
       }
 
       const q = typeof item.quantity === "number" && !isNaN(item.quantity) ? item.quantity : 0;
-      const r = typeof item.rate === "number" && !isNaN(item.rate) ? item.rate : 0;
+      const numRate = parseFloat(item.rate);
+      const r = !isNaN(numRate) && numRate >= 0 ? numRate : 0;
       item.amount = Math.round(q * r * 100) / 100;
 
       updated[index] = item;
@@ -261,12 +287,17 @@ const RaiseInvoiceModal = ({
         return `Line item #${i + 1} requires a valid description.`;
       }
       const q = Number(it.quantity);
-      if (isNaN(q) || q <= 0) {
-        return `Line item #${i + 1} must have a quantity greater than 0.`;
+      if (isNaN(q) || !Number.isInteger(q) || q < 1) {
+        return `Line item #${i + 1} quantity must be a positive whole number.`;
       }
       const r = Number(it.rate);
-      if (isNaN(r) || r < 0) {
-        return `Line item #${i + 1} cannot have a negative rate.`;
+      if (it.rate === "" || it.rate === null || it.rate === undefined || isNaN(r) || r < 0) {
+        return `Line item #${i + 1} requires a valid, non-negative unit rate.`;
+      }
+      const rateStr = String(it.rate);
+      const dotIdx = rateStr.indexOf(".");
+      if (dotIdx !== -1 && rateStr.length - dotIdx - 1 > 2) {
+        return `Line item #${i + 1} rate cannot have more than 2 decimal places.`;
       }
     }
 
@@ -331,10 +362,9 @@ const RaiseInvoiceModal = ({
           submit: submitForReview,
         });
       } else {
-        // Creating New invoice
+        // Creating New invoice (backend generates invoiceId authoritatively)
         await createInvoice({
           projectId: selectedProjectId,
-          invoiceId: invoiceId.trim() || undefined,
           items: payloadItems,
           invoiceDate: invoiceDate || undefined,
           dueDate: dueDate || undefined,
@@ -364,6 +394,12 @@ const RaiseInvoiceModal = ({
     previewInfo?.previewData?.project ||
     existingInvoice?.projectId ||
     vendorProjects.find((p) => (p._id || p.id) === selectedProjectId);
+
+  const authoritativeCompanyName =
+    previewInfo?.previewData?.vendor?.companyName ||
+    existingInvoice?.vendorId?.companyName ||
+    existingInvoice?.vendorName ||
+    "Authorized Vendor";
 
   const isEligible = isEditing ? true : previewInfo ? previewInfo.eligible : true;
   const hasExistingInvoice = isEditing ? false : previewInfo ? previewInfo.hasExistingInvoice : false;
@@ -557,23 +593,33 @@ const RaiseInvoiceModal = ({
                 </div>
 
                 {/* Notes / Payment Instructions */}
-                {notes ? (
+                {notes && notes.trim() ? (
                   <div className="text-xs bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70">
                     <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block mb-1">
                       NOTES / PAYMENT INSTRUCTIONS
                     </span>
                     <p className="text-[#3E3734] leading-relaxed whitespace-pre-wrap">
-                      {notes}
+                      {notes.trim()}
                     </p>
                   </div>
                 ) : null}
 
-                {/* Authorized Digital Representation Disclaimer */}
-                <div className="border-t border-[#F2EBE5] pt-3 text-[11px] text-[#817B77] flex items-center justify-between">
-                  <span>Authorized Vendor Representation</span>
-                  <span className="font-semibold text-[#2D3436]">
-                    Digital Verification on Submission
+                {/* Company Authorization Section */}
+                <div className="border-t border-[#F2EBE5] pt-3">
+                  <span className="text-[10px] font-extrabold text-[#817B77] uppercase tracking-wider block mb-1">
+                    Digitally Signed By
                   </span>
+                  <div className="bg-[#FAF7F5] rounded-xl p-3 border border-[#E8E2DE]/70 space-y-1 text-xs">
+                    <p className="font-bold text-[#2D3436]">
+                      {authoritativeCompanyName}
+                    </p>
+                    <p className="text-[#6E6763] text-[11px]">
+                      Authorized company representative
+                    </p>
+                    <p className="text-[#817B77] text-[10px] italic pt-0.5">
+                      Digitally authorized through the authenticated FieldCam account.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -821,12 +867,23 @@ const RaiseInvoiceModal = ({
                         </label>
                         <input
                           type="number"
-                          min="0.01"
-                          step="0.01"
+                          min="1"
+                          step="1"
                           value={item.quantity}
                           onChange={(e) =>
                             handleItemChange(index, "quantity", e.target.value)
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === "." || e.key === "," || e.key === "e" || e.key === "E" || e.key === "-") {
+                              e.preventDefault();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            const pasteData = e.clipboardData?.getData("text");
+                            if (pasteData && !/^\d+$/.test(pasteData.trim())) {
+                              e.preventDefault();
+                            }
+                          }}
                           disabled={disableForm}
                           className="w-full bg-white border border-[#E8E2DE] rounded-lg px-2 py-1.5 text-xs text-[#2D3436] outline-none focus:border-[#C8B5AC] disabled:opacity-50 text-right"
                         />
@@ -845,6 +902,25 @@ const RaiseInvoiceModal = ({
                           onChange={(e) =>
                             handleItemChange(index, "rate", e.target.value)
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === "e" || e.key === "E" || e.key === "+" || e.key === "-") {
+                              e.preventDefault();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            const pasteData = e.clipboardData?.getData("text")?.trim().replace(",", ".");
+                            if (pasteData) {
+                              if (/[^\d.]/.test(pasteData)) {
+                                e.preventDefault();
+                                return;
+                              }
+                              const parts = pasteData.split(".");
+                              if (parts.length > 2 || (parts.length === 2 && parts[1].length > 2)) {
+                                e.preventDefault();
+                                return;
+                              }
+                            }
+                          }}
                           disabled={disableForm}
                           className="w-full bg-white border border-[#E8E2DE] rounded-lg px-2 py-1.5 text-xs text-[#2D3436] outline-none focus:border-[#C8B5AC] disabled:opacity-50 text-right"
                         />
@@ -926,7 +1002,7 @@ const RaiseInvoiceModal = ({
                   <span>Document Upload Notice</span>
                 </div>
                 <p className="leading-relaxed pl-6">
-                  Custom document upload and automated parsing is currently in scheduled development. To ensure immediate review and avoid payment processing delays, please generate your invoice using the <strong>Generate Digital Invoice</strong> tab.
+                  Custom document upload is not available. <strong>Generate Digital Invoice</strong> tab.
                 </p>
               </div>
 
@@ -948,7 +1024,7 @@ const RaiseInvoiceModal = ({
                   onClick={() => setActiveTab("GENERATE")}
                   className="bg-[#6C5CE7] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#5B4BC4] transition-colors cursor-pointer"
                 >
-                  Switch to Digital Invoice Generator
+                  Go to Digital Invoice Generator
                 </button>
               </div>
             </div>
@@ -986,7 +1062,7 @@ const RaiseInvoiceModal = ({
                 type="button"
                 onClick={() => handleSave(true)}
                 disabled={isSubmitting}
-                className="bg-[#00B894] hover:bg-[#00A383] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="bg-[#8A817C] hover:bg-[#6E6763] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 {isSubmitting && submittingAction === "submit" ? (
                   <FiLoader size={14} className="animate-spin" />
@@ -1033,7 +1109,7 @@ const RaiseInvoiceModal = ({
                   type="button"
                   onClick={handleOpenPreview}
                   disabled={isSubmitting || disableForm}
-                  className="bg-white border-2 border-[#6C5CE7] hover:bg-[#6C5CE7]/10 text-[#6C5CE7] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="bg-white border-2 border-[#3E3734] hover:bg-[#4A423F]/10 text-[#3E3734] font-bold text-xs px-4 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   <FiEye size={14} />
                   <span>Preview Invoice</span>
@@ -1044,7 +1120,7 @@ const RaiseInvoiceModal = ({
                   type="button"
                   onClick={() => handleSave(true)}
                   disabled={isSubmitting || disableForm}
-                  className="bg-[#00B894] hover:bg-[#00A383] text-white font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="bg-[#C8B5AC] hover:bg-[#4A423F] text-[#3E3734] hover:text-[#FFFF] font-bold text-xs px-5 py-2 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   <FiCheck size={14} />
                   <span>

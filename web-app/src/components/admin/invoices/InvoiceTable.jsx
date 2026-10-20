@@ -1,13 +1,14 @@
 import { useState } from "react";
 import InvoiceStatusBadge from "./InvoiceStatusBadge";
 import {
-  FiMoreHorizontal,
   FiEye,
+  FiEdit2,
+  FiDownload,
+  FiLoader,
   FiCheckCircle,
   FiXCircle,
   FiSend,
   FiDollarSign,
-  FiDownload,
   FiX,
   FiAlertCircle,
   FiCheck,
@@ -27,9 +28,6 @@ const InvoiceTable = ({
   onDownloadPdf,
   isReadOnly = false,
 }) => {
-  // Action Menu State per row
-  const [activeMenuId, setActiveMenuId] = useState(null);
-
   // View Details Modal State
   const [viewInvoice, setViewInvoice] = useState(null);
 
@@ -56,14 +54,6 @@ const InvoiceTable = ({
 
   // PDF Downloading indicator
   const [downloadingId, setDownloadingId] = useState(null);
-
-  const toggleMenu = (id) => {
-    setActiveMenuId(activeMenuId === id ? null : id);
-  };
-
-  const closeAllMenus = () => {
-    setActiveMenuId(null);
-  };
 
   // Helper date formatter
   const formatDate = (dateStr) => {
@@ -100,13 +90,11 @@ const InvoiceTable = ({
 
   // Handler: Open View Details
   const handleOpenView = (invoice) => {
-    closeAllMenus();
     setViewInvoice(invoice);
   };
 
   // Handler: Open Review Modal
   const handleOpenReview = (invoice, defaultAction = "APPROVE") => {
-    closeAllMenus();
     setReviewModalInvoice(invoice);
     setReviewAction(defaultAction);
     setRejectionReason("");
@@ -147,7 +135,6 @@ const InvoiceTable = ({
 
   // Handler: Open Send Modal
   const handleOpenSend = (invoice) => {
-    closeAllMenus();
     setSendModalInvoice(invoice);
 
     // Resolve client email from project data or previously sent address
@@ -200,7 +187,6 @@ const InvoiceTable = ({
 
   // Handler: Open Payment Modal
   const handleOpenPayment = (invoice) => {
-    closeAllMenus();
     setPaymentModalInvoice(invoice);
 
     // Default to today's date in YYYY-MM-DD
@@ -241,7 +227,6 @@ const InvoiceTable = ({
   // Handler: Download PDF
   const handleDownloadPdfClick = async (invoice) => {
     if (!onDownloadPdf) return;
-    closeAllMenus();
     setDownloadingId(invoice._id);
     try {
       await onDownloadPdf(invoice);
@@ -265,7 +250,7 @@ const InvoiceTable = ({
               <th className="py-3.5 px-6 font-semibold">DUE DATE</th>
               <th className="py-3.5 px-6 font-semibold">TOTAL AMOUNT</th>
               <th className="py-3.5 px-6 font-semibold">STATUS</th>
-              <th className="py-3.5 px-6 w-12 text-right"></th>
+              <th className="py-3.5 px-6 text-right font-semibold">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F7F4F2] text-xs">
@@ -293,10 +278,11 @@ const InvoiceTable = ({
                     ? row.amount
                     : Number(row.totalAmount || row.amount || 0);
 
-                const isReviewable = ["Submitted", "Pending"].includes(row.status);
-                const isSendable = row.status === "Approved";
-                const isPayable = ["Sent", "Pending"].includes(row.status);
-                const isPdfEligible = ["Approved", "Sent", "Paid", "Submitted"].includes(row.status);
+                const isReviewable = !isReadOnly && ["Submitted", "Pending"].includes(row.status);
+                const isPdfEligible = Boolean(
+                  onDownloadPdf &&
+                    ["Submitted", "Pending", "Approved", "Sent", "Paid", "Rejected"].includes(row.status)
+                );
 
                 return (
                   <tr
@@ -345,89 +331,69 @@ const InvoiceTable = ({
                       <InvoiceStatusBadge status={row.status} />
                     </td>
 
-                    {/* Actions Menu */}
-                    <td className="py-3.5 px-6 text-right relative">
-                      <button
-                        onClick={() => toggleMenu(row._id || invId)}
-                        className="text-[#A39A94] hover:text-[#3E3734] p-1.5 rounded-lg hover:bg-[#EAE4DF]/60 transition-colors"
-                        title="Actions"
-                      >
-                        <FiMoreHorizontal className="text-base" />
-                      </button>
+                    {/* Actions Column */}
+                    <td className="py-3.5 px-6 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* 1. View Invoice */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenView(row);
+                          }}
+                          aria-label="View invoice"
+                          title="View invoice"
+                          className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#2D3436] hover:bg-[#FAF7F5] focus:outline-none focus:ring-2 focus:ring-[#817B77]/30 transition-colors cursor-pointer"
+                        >
+                          <FiEye className="text-sm shrink-0" />
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {activeMenuId === (row._id || invId) && (
-                        <div className="absolute right-6 top-10 z-30 bg-white border border-[#E8E2DE] rounded-xl shadow-lg py-1 w-44 text-left text-xs font-semibold animate-fade-in divide-y divide-[#F2EBE5]">
-                          <div className="py-1">
-                            <button
-                              onClick={() => handleOpenView(row)}
-                              className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
-                            >
-                              <FiEye className="text-xs text-[#817B77]" />
-                              <span>View Details</span>
-                            </button>
-
-                            {isPdfEligible && (
-                              <button
-                                onClick={() => handleDownloadPdfClick(row)}
-                                disabled={downloadingId === row._id}
-                                className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
-                              >
-                                <FiDownload className="text-xs text-[#817B77]" />
-                                <span>
-                                  {downloadingId === row._id ? "Downloading..." : "Download PDF"}
-                                </span>
-                              </button>
+                        {/* 2. Download Invoice */}
+                        {isPdfEligible && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPdfClick(row);
+                            }}
+                            disabled={downloadingId === row._id}
+                            aria-label={
+                              downloadingId === row._id
+                                ? "Downloading invoice..."
+                                : "Download invoice"
+                            }
+                            aria-busy={downloadingId === row._id}
+                            title={
+                              downloadingId === row._id
+                                ? "Downloading invoice..."
+                                : "Download invoice"
+                            }
+                            className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#1565C0] hover:bg-[#E3F2FD]/60 focus:outline-none focus:ring-2 focus:ring-[#1565C0]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {downloadingId === row._id ? (
+                              <FiLoader className="text-sm shrink-0 animate-spin text-[#1565C0]" />
+                            ) : (
+                              <FiDownload className="text-sm shrink-0" />
                             )}
-                          </div>
+                          </button>
+                        )}
 
-                          {!isReadOnly && (
-                            <div className="py-1">
-                              {/* If awaiting review: Review action */}
-                              {isReviewable && (
-                                <>
-                                  <button
-                                    onClick={() => handleOpenReview(row, "APPROVE")}
-                                    className="w-full px-3.5 py-2 text-[#2E7D32] hover:bg-[#E8F5E9]/50 flex items-center gap-2"
-                                  >
-                                    <FiCheckCircle className="text-xs text-[#2E7D32]" />
-                                    <span>Approve Invoice</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenReview(row, "REJECT")}
-                                    className="w-full px-3.5 py-2 text-[#C62828] hover:bg-[#FFEBEE]/50 flex items-center gap-2"
-                                  >
-                                    <FiXCircle className="text-xs text-[#C62828]" />
-                                    <span>Reject Invoice</span>
-                                  </button>
-                                </>
-                              )}
-
-                              {/* If Approved: Send to client */}
-                              {isSendable && (
-                                <button
-                                  onClick={() => handleOpenSend(row)}
-                                  className="w-full px-3.5 py-2 text-[#1565C0] hover:bg-[#E3F2FD]/50 flex items-center gap-2"
-                                >
-                                  <FiSend className="text-xs text-[#1565C0]" />
-                                  <span>Send to Client</span>
-                                </button>
-                              )}
-
-                              {/* If Approved or Sent: Record payment */}
-                              {isPayable && (
-                                <button
-                                  onClick={() => handleOpenPayment(row)}
-                                  className="w-full px-3.5 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
-                                >
-                                  <FiDollarSign className="text-xs text-[#2E7D32]" />
-                                  <span>Record Payment</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        {/* 3. Review / Edit Invoice */}
+                        {isReviewable && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReview(row, "APPROVE");
+                            }}
+                            aria-label="Review invoice"
+                            title="Review invoice"
+                            className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#D97706] hover:bg-[#FEF3C7]/60 focus:outline-none focus:ring-2 focus:ring-[#D97706]/30 transition-colors cursor-pointer"
+                          >
+                            <FiEdit2 className="text-sm shrink-0" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

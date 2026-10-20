@@ -55,7 +55,7 @@ export const previewDraftStore = {
   toInvoiceListItem: (draft: UnsavedInvoiceDraft, user?: any): InvoiceListItem => {
     const defaultDateStr = new Date().toISOString();
     const vendorCompanyName =
-      draft.vendorObj?.companyName || user?.companyName || user?.name || "Vendor Partner";
+      draft.vendorObj?.companyName || user?.companyName || "Authorized Vendor";
     const vendorContactName =
       draft.vendorObj?.contactName || user?.name || "Vendor Contact";
     const vendorLoc = draft.vendorObj?.location || "FieldCam Network";

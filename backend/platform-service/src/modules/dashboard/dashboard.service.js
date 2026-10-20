@@ -25,7 +25,7 @@ export const getAdminDashboardData = async () => {
   const underReviewCount = allProjects.filter(
     (p) => p.status === "Submitted" || p.status === "Under Review"
   ).length;
-  const completedCount = allProjects.filter((p) => p.status === "Approved").length;
+  const completedCount = allProjects.filter((p) => p.status === "Completed").length;
 
   // Current Month vs Last Month projects for Month-over-Month trends
   const newThisMonth = allProjects.filter(
@@ -63,11 +63,11 @@ export const getAdminDashboardData = async () => {
   ).length;
 
   const compThisMonth = allProjects.filter(
-    (p) => p.status === "Approved" && new Date(p.updatedAt || p.createdAt) >= startOfCurrentMonth
+    (p) => p.status === "Completed" && new Date(p.updatedAt || p.createdAt) >= startOfCurrentMonth
   ).length;
   const compLastMonth = allProjects.filter(
     (p) =>
-      p.status === "Approved" &&
+      p.status === "Completed" &&
       new Date(p.updatedAt || p.createdAt) >= startOfLastMonth &&
       new Date(p.updatedAt || p.createdAt) <= endOfLastMonth
   ).length;
@@ -153,14 +153,19 @@ export const getAdminDashboardData = async () => {
       const vProjects = allProjects.filter(
         (p) => p.vendorId && p.vendorId.toString() === v._id.toString()
       );
-      const approved = vProjects.filter((p) => p.status === "Approved").length;
+      const successful = vProjects.filter(
+        (p) => p.status === "Approved" || p.status === "Completed"
+      ).length;
       const evaluated = vProjects.filter(
-        (p) => p.status === "Approved" || p.status === "Rejected"
+        (p) =>
+          p.status === "Approved" ||
+          p.status === "Completed" ||
+          p.status === "Rejected"
       ).length;
 
       let score = 0;
       if (evaluated > 0) {
-        score = Math.round((approved / evaluated) * 100);
+        score = Math.round((successful / evaluated) * 100);
       } else if (v.rating) {
         score = Math.round(v.rating * 20);
       }

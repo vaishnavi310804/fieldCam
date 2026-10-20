@@ -326,7 +326,7 @@ const PaymentHistoryTable = ({
                           <button
                             type="button"
                             onClick={() => onSubmitDraft(inv._id)}
-                            className="p-1.5 rounded-lg text-[#00B894] hover:bg-[#00B894]/10 transition-colors"
+                            className="p-1.5 rounded-lg text-[#C8B5AC] hover:bg-[#00B894]/10 transition-colors"
                             title="Submit for Review"
                           >
                             <FiSend size={13} />

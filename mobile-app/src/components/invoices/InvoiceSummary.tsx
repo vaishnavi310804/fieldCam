@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatCurrency } from "@/src/utils/currency.utils";
 
 interface InvoiceSummaryProps {
   subtotal: number;
@@ -11,15 +12,6 @@ export const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
   subtotal,
   total,
 }) => {
-  const formatAmount = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val || 0);
-  };
-
   return (
     <View style={styles.card}>
       <View style={styles.sectionHeader}>
@@ -31,7 +23,7 @@ export const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
         {/* Subtotal */}
         <View style={styles.row}>
           <Text style={styles.label}>Subtotal</Text>
-          <Text style={styles.value}>{formatAmount(subtotal)}</Text>
+          <Text style={styles.value}>{formatCurrency(subtotal)}</Text>
         </View>
 
         {/* Tax (Fixed 0% per business rules) */}
@@ -46,7 +38,7 @@ export const InvoiceSummary: React.FC<InvoiceSummaryProps> = ({
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total Due</Text>
           <View style={styles.totalBadge}>
-            <Text style={styles.totalValue}>{formatAmount(total)}</Text>
+            <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
           </View>
         </View>
       </View>

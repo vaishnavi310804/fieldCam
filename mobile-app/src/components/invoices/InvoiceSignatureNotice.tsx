@@ -3,39 +3,32 @@ import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface InvoiceSignatureNoticeProps {
+  companyName?: string;
+  /** @deprecated preserved for backward compatibility */
   signerName?: string;
 }
 
 export const InvoiceSignatureNotice: React.FC<InvoiceSignatureNoticeProps> = ({
-  signerName = "Vendor Partner",
+  companyName,
+  signerName,
 }) => {
+  const authoritativeName =
+    companyName || signerName || "Authorized Vendor";
+
   return (
     <View style={styles.card}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleWithIcon}>
-          <Ionicons name="pencil-outline" size={17} color="#6E655F" />
-          <Text style={styles.sectionTitle}>Digital Signature</Text>
-        </View>
-        <View style={styles.authBadge}>
-          <Text style={styles.authBadgeText}>Session Verified</Text>
+          <Ionicons name="shield-checkmark-outline" size={17} color="#6E655F" />
+          <Text style={styles.sectionTitle}>Digitally Signed By</Text>
         </View>
       </View>
 
-      <View style={styles.signatureBox}>
-        <View style={styles.signLineContainer}>
-          <Text style={styles.signerName}>{signerName}</Text>
-          <View style={styles.signLine} />
-        </View>
-        <View style={styles.verifiedRow}>
-          <Ionicons name="checkmark-circle" size={14} color="#00B894" />
-          <Text style={styles.verifiedText}>Digitally authorized via vendor credentials</Text>
-        </View>
-      </View>
-
-      <View style={styles.disclaimerBox}>
-        <Ionicons name="information-circle-outline" size={14} color="#8C827A" />
-        <Text style={styles.disclaimerText}>
-          Direct signature canvas capture is not integrated on the platform service; submissions are authenticated through your JWT session.
+      <View style={styles.authorizationBox}>
+        <Text style={styles.companyNameText}>{authoritativeName}</Text>
+        <Text style={styles.representativeText}>Authorized company representative</Text>
+        <Text style={styles.secondaryText}>
+          Digitally authorized through the authenticated FieldCam account.
         </Text>
       </View>
     </View>
@@ -62,7 +55,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   titleWithIcon: {
     flexDirection: "row",
@@ -74,61 +67,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1F1D1B",
   },
-  authBadge: {
-    backgroundColor: "#E6FBF5",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  authBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#00B894",
-  },
-  signatureBox: {
+  authorizationBox: {
     backgroundColor: "#FAF7F5",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#ECE6E1",
+    gap: 4,
   },
-  signLineContainer: {
-    marginBottom: 10,
-  },
-  signerName: {
-    fontSize: 16,
+  companyNameText: {
+    fontSize: 15,
     fontWeight: "700",
-    fontStyle: "italic",
     color: "#1F1D1B",
-    marginBottom: 4,
-    letterSpacing: 0.5,
   },
-  signLine: {
-    height: 1,
-    backgroundColor: "#D6CCC5",
-    width: "70%",
+  representativeText: {
+    fontSize: 12,
+    color: "#6E655F",
+    fontWeight: "500",
   },
-  verifiedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  verifiedText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#00B894",
-  },
-  disclaimerBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    paddingHorizontal: 2,
-  },
-  disclaimerText: {
-    flex: 1,
+  secondaryText: {
     fontSize: 11,
     color: "#8C827A",
+    fontStyle: "italic",
+    marginTop: 4,
     lineHeight: 15,
   },
 });

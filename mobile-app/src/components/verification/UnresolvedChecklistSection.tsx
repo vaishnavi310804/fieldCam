@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ChecklistItemStatusDetail } from "@/src/utils/checklistSubmission.utils";
+import Colors from "@/src/constants/color";
 
 export interface UnresolvedChecklistSectionProps {
   unresolvedItems: ChecklistItemStatusDetail[];
@@ -18,12 +19,7 @@ export interface UnresolvedChecklistSectionProps {
 
 export const UnresolvedChecklistSection: React.FC<
   UnresolvedChecklistSectionProps
-> = ({
-  unresolvedItems,
-  isRetryingPhotoId,
-  onRetry,
-  onRetake,
-}) => {
+> = ({ unresolvedItems, isRetryingPhotoId, onRetry, onRetake }) => {
   if (!unresolvedItems || unresolvedItems.length === 0) {
     return null;
   }
@@ -38,7 +34,8 @@ export const UnresolvedChecklistSection: React.FC<
           </Text>
         </View>
         <Text style={styles.sectionSubtitle}>
-          The following items require action before submitting the work order for review:
+          The following items require action before submitting the work order
+          for review:
         </Text>
       </View>
 
@@ -60,20 +57,20 @@ export const UnresolvedChecklistSection: React.FC<
                 icon: "close-circle" as const,
               }
             : isMissing
-            ? {
-                bg: "#F1F5F9",
-                border: "#CBD5E1",
-                color: "#475569",
-                text: "Missing Photo",
-                icon: "camera-outline" as const,
-              }
-            : {
-                bg: "#FEF3C7",
-                border: "#FDE68A",
-                color: "#D97706",
-                text: "Pending AI",
-                icon: "time-outline" as const,
-              };
+              ? {
+                  bg: "#F1F5F9",
+                  border: "#CBD5E1",
+                  color: "#475569",
+                  text: "Missing Photo",
+                  icon: "camera-outline" as const,
+                }
+              : {
+                  bg: "#FEF3C7",
+                  border: "#FDE68A",
+                  color: "#D97706",
+                  text: "Pending AI",
+                  icon: "time-outline" as const,
+                };
 
           return (
             <View
@@ -83,8 +80,8 @@ export const UnresolvedChecklistSection: React.FC<
                 isFailed
                   ? styles.itemCardFailed
                   : isMissing
-                  ? styles.itemCardMissing
-                  : styles.itemCardPending,
+                    ? styles.itemCardMissing
+                    : styles.itemCardPending,
               ]}
             >
               {/* Category Header Row */}
@@ -107,7 +104,10 @@ export const UnresolvedChecklistSection: React.FC<
                     color={badgeConfig.color}
                   />
                   <Text
-                    style={[styles.statusBadgeText, { color: badgeConfig.color }]}
+                    style={[
+                      styles.statusBadgeText,
+                      { color: badgeConfig.color },
+                    ]}
                   >
                     {badgeConfig.text}
                   </Text>
@@ -121,8 +121,8 @@ export const UnresolvedChecklistSection: React.FC<
                     isFailed
                       ? "alert-circle"
                       : isMissing
-                      ? "information-circle"
-                      : "hourglass-outline"
+                        ? "information-circle"
+                        : "hourglass-outline"
                   }
                   size={14}
                   color={badgeConfig.color}
@@ -133,8 +133,8 @@ export const UnresolvedChecklistSection: React.FC<
                     (isFailed
                       ? "AI could not confirm required checklist item in photo"
                       : isMissing
-                      ? "Photo evidence has not been captured yet"
-                      : "AI verification is processing")}
+                        ? "Photo evidence has not been captured yet"
+                        : "AI verification is processing")}
                 </Text>
               </View>
 
@@ -160,7 +160,11 @@ export const UnresolvedChecklistSection: React.FC<
                       accessibilityRole="button"
                       accessibilityLabel={`Retake photo for ${item.category}`}
                     >
-                      <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
+                      <Ionicons
+                        name="camera-outline"
+                        size={15}
+                        color="#FFFFFF"
+                      />
                       <Text style={styles.retakeBtnText}>Retake Photo</Text>
                     </Pressable>
 
@@ -168,7 +172,8 @@ export const UnresolvedChecklistSection: React.FC<
                       <Pressable
                         style={[
                           styles.retryBtn,
-                          (isRetryingThis || isAnyRetrying) && styles.disabledBtn,
+                          (isRetryingThis || isAnyRetrying) &&
+                            styles.disabledBtn,
                         ]}
                         onPress={() => onRetry(item)}
                         disabled={isRetryingThis || isAnyRetrying}
@@ -177,15 +182,17 @@ export const UnresolvedChecklistSection: React.FC<
                       >
                         {isRetryingThis ? (
                           <>
-                            <ActivityIndicator size="small" color="#D97706" />
-                            <Text style={styles.retryBtnText}>Verifying...</Text>
+                            <ActivityIndicator size="small" color="#928880" />
+                            <Text style={styles.retryBtnText}>
+                              Verifying...
+                            </Text>
                           </>
                         ) : (
                           <>
                             <Ionicons
                               name="refresh-outline"
                               size={15}
-                              color="#D97706"
+                              color="#928880"
                             />
                             <Text style={styles.retryBtnText}>Retry AI</Text>
                           </>
@@ -247,16 +254,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   itemCardFailed: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FECACA",
+    backgroundColor: Colors.light,
+    borderColor: Colors.primary,
   },
   itemCardPending: {
-    backgroundColor: "#FFFBEB",
-    borderColor: "#FDE68A",
+    backgroundColor: Colors.light,
+    borderColor: Colors.primary,
   },
   itemCardMissing: {
-    backgroundColor: "#F8FAFC",
-    borderColor: "#E2E8F0",
+    backgroundColor: Colors.light,
+    borderColor: Colors.primary,
   },
   cardHeaderRow: {
     flexDirection: "row",
@@ -336,7 +343,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    borderColor: "#F59E0B",
+    borderColor: Colors.primary,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -344,7 +351,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   retryBtnText: {
-    color: "#D97706",
+    color: Colors.primary,
     fontSize: 13,
     fontWeight: "700",
   },
