@@ -28,6 +28,7 @@ const SuperAdminDashboard = () => {
         setDashboardData(null);
       }
     } catch (err) {
+      if (err?.response?.status === 401) return;
       console.error("Failed to fetch Super Admin dashboard statistics:", err);
       setError(
         err?.response?.data?.message ||

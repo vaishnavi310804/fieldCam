@@ -27,13 +27,17 @@ import { VerificationChecks } from "@/src/components/verification/VerificationCh
 import { SubmitPhotoButton } from "@/src/components/verification/SubmitPhotoButton";
 
 import { AIFailureModal } from "@/src/components/verification/AIFailureModal";
+import { UnresolvedChecklistSection } from "@/src/components/verification/UnresolvedChecklistSection";
 import { SubmissionConfirmModal } from "@/src/components/submission/SubmissionConfirmModal";
 import { WorkSubmittedModal } from "@/src/components/submission/WorkSubmittedModal";
 import {
   SubmissionErrorsModal,
   SubmissionErrorItem,
 } from "@/src/components/submission/SubmissionErrorsModal";
-import { calculateChecklistSubmissionReadiness } from "@/src/utils/checklistSubmission.utils";
+import {
+  calculateChecklistSubmissionReadiness,
+  ChecklistItemStatusDetail,
+} from "@/src/utils/checklistSubmission.utils";
 
 export function AIVerificationScreen() {
   const params = useLocalSearchParams<{
@@ -303,7 +307,7 @@ export function AIVerificationScreen() {
               [
                 { text: "Review Details", style: "cancel" },
                 {
-                  text: "Submit Work Order",
+                  text: "Submit Work",
                   onPress: () => setShowConfirmModal(true),
                 },
               ]
@@ -364,16 +368,87 @@ export function AIVerificationScreen() {
     project?.photos
   );
 
+  // Map authoritative checklist readiness across all required checklist items:
+  // - "PASSED": Only when all five required checklist items have active photos and all five have aiValidation.status === "PASSED"
+  // - "INCOMPLETE": When one or more required items are missing a photo or have pending AI verification (with 0 failed items)
+  // - "FAILED": When one or more checklist photos have genuinely failed AI verification
+  const overallStatus: "PASSED" | "INCOMPLETE" | "FAILED" =
+    checklistReadiness.aiVerifiedStatus === "All Passed"
+      ? "PASSED"
+      : checklistReadiness.aiVerifiedStatus === "Failed"
+      ? "FAILED"
+      : "INCOMPLETE";
+
   const uploadedPhotosList = project?.photos || [];
   const photosCount = uploadedPhotosList.length;
 
-  const getAiVerifiedStatusSummary = (): "All Passed" | "Pending" | "Failed" => {
-    return checklistReadiness.aiVerifiedStatus;
+  const submitButtonLabel = checklistReadiness.isReadyForSubmission
+    ? "Submit Work for Review"
+    : `Submit Work (${checklistReadiness.verifiedCount}/${checklistReadiness.totalCount} Verified)`;
+
+  const handleInlineRetake = (item: ChecklistItemStatusDetail) => {
+    router.push({
+      pathname: "/(app)/capture",
+      params: {
+        id: projectId,
+        checklistItemId: item.checklistItemId,
+      },
+    });
   };
 
-  const submitButtonLabel = checklistReadiness.isReadyForSubmission
-    ? "Submit Work Order for Review"
-    : `Submit Work Order (${checklistReadiness.verifiedCount}/${checklistReadiness.totalCount} Verified)`;
+  const handleInlineRetry = async (item: ChecklistItemStatusDetail) => {
+    if (!projectId || !item.photoId || isRetryingSinglePhotoId) return;
+
+    try {
+      setIsRetryingSinglePhotoId(item.photoId);
+      const updatedProject = await revalidateProjectPhoto(projectId, item.photoId);
+      setProject(updatedProject);
+
+      const photos = updatedProject.photos || [];
+      const matched = photos.find((p) => String(p._id) === String(item.photoId));
+      if (matched) {
+        if (String(targetPhoto?._id) === String(item.photoId)) {
+          setTargetPhoto(matched);
+        }
+
+        if (matched.aiValidation?.status === "PASSED") {
+          Alert.alert(
+            "Verification Passed",
+            `Photo for "${item.category}" successfully passed AI verification!`
+          );
+        } else if (matched.aiValidation?.status === "FAILED") {
+          Alert.alert(
+            "Verification Failed",
+            matched.aiValidation?.reason ||
+              `AI validation failed for "${item.category}". Retaking the photo is recommended.`
+          );
+        } else {
+          Alert.alert(
+            "Verification In Progress",
+            matched.aiValidation?.reason ||
+              "Verification is still processing. Please try again shortly."
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to revalidate photo from inline recovery:", err);
+      let errMsg = err?.response?.data?.message;
+      if (!errMsg) {
+        if (err?.response?.status === 502 || err?.message?.includes("502")) {
+          errMsg =
+            "AI verification service is temporarily unavailable (HTTP 502). Please retry in a moment.";
+        } else if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
+          errMsg =
+            "AI verification timed out. The service may be waking up. Please retry in a moment.";
+        } else {
+          errMsg = err?.message || "Failed to re-run AI verification.";
+        }
+      }
+      Alert.alert("Verification Notice", errMsg);
+    } finally {
+      setIsRetryingSinglePhotoId(null);
+    }
+  };
 
   const getLocationStatusSummary = (): "GPS Verified" | "Unverified" => {
     const hasGps = uploadedPhotosList.some(
@@ -438,11 +513,21 @@ export function AIVerificationScreen() {
             categoryLabel={categoryItem?.label || targetPhoto?.category}
           />
 
-          {/* Verification Summary Card */}
+          {/* Main Verification Status Card reflecting overall project checklist readiness */}
           <VerificationSummary
-            status={currentStatus}
-            reason={targetPhoto?.aiValidation?.reason || targetPhoto?.aiValidation?.subject?.reason}
-            categoryLabel={categoryItem?.label || targetPhoto?.category}
+            status={overallStatus}
+            verifiedCount={checklistReadiness.verifiedCount}
+            totalCount={checklistReadiness.totalCount}
+            progressText={checklistReadiness.progressText}
+            currentPhotoCategory={categoryItem?.label || targetPhoto?.category}
+            currentPhotoStatus={currentStatus}
+            reason={
+              overallStatus === "FAILED"
+                ? targetPhoto?.aiValidation?.status === "FAILED"
+                  ? targetPhoto?.aiValidation?.reason
+                  : undefined
+                : undefined
+            }
           />
 
           {/* Action Buttons Group for Non-Passed Photos (FAILED or PENDING) */}
@@ -560,32 +645,27 @@ export function AIVerificationScreen() {
           {/* Detailed Verification Checks */}
           <VerificationChecks photo={targetPhoto || undefined} project={project} />
 
-          {/* Checklist Verification Progress Banner when this photo passed but overall project is still incomplete */}
-          {currentStatus === "PASSED" && !checklistReadiness.isReadyForSubmission && (
-            <View style={styles.checklistProgressBanner}>
-              <Ionicons name="information-circle" size={20} color="#0284C7" />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.checklistProgressBannerTitle}>
-                  Photo passed ({checklistReadiness.verifiedCount} of {checklistReadiness.totalCount} checklist items ready)
-                </Text>
-                <Text style={styles.checklistProgressBannerSubtitle}>
-                  Submitting for client review requires all {checklistReadiness.totalCount} checklist categories to pass AI verification.
-                </Text>
-              </View>
-            </View>
+          {/* Inline Recovery Guidance Section when verification is incomplete or failed */}
+          {!checklistReadiness.isReadyForSubmission && (
+            <UnresolvedChecklistSection
+              unresolvedItems={checklistReadiness.unresolvedItems}
+              isRetryingPhotoId={isRetryingSinglePhotoId}
+              onRetry={handleInlineRetry}
+              onRetake={handleInlineRetake}
+            />
           )}
 
-          {/* Primary Action Submit Button */}
+          {/* Primary Action Submit Button: always enabled and visible */}
           <SubmitPhotoButton
             onPress={handleOpenSubmissionConfirm}
             isLoading={isSubmitting}
-            status={currentStatus}
+            status={overallStatus === "FAILED" ? "FAILED" : "PASSED"}
             label={submitButtonLabel}
             accessibilityLabel={submitButtonLabel}
           />
 
-          {/* Return to Checklist / Camera Button when more items need verification */}
-          {currentStatus === "PASSED" && !checklistReadiness.isReadyForSubmission && (
+          {/* Return to Checklist / Camera Button when items still need action */}
+          {!checklistReadiness.isReadyForSubmission && (
             <Pressable
               style={styles.returnToChecklistButton}
               onPress={() => router.back()}
@@ -816,29 +896,6 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
-  },
-  checklistProgressBanner: {
-    backgroundColor: "#F0F9FF",
-    borderColor: "#BAE6FD",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  checklistProgressBannerTitle: {
-    fontSize: 13,
-    color: "#0369A1",
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-  checklistProgressBannerSubtitle: {
-    fontSize: 12,
-    color: "#0C4A6E",
-    lineHeight: 16,
   },
   returnToChecklistButton: {
     height: 46,

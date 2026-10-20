@@ -82,7 +82,7 @@ export const SubmissionConfirmModal: React.FC<
           </View>
 
           {/* Title & Description: Explicitly Project / Work Order Submission */}
-          <Text style={styles.title}>Submit Work Order for Review?</Text>
+          <Text style={styles.title}>Submit Work for Review?</Text>
           <Text style={styles.description}>
             This will submit the entire project and all checklist photos for client review. Once submitted, you won&apos;t be able to make changes.
           </Text>
@@ -264,7 +264,7 @@ export const SubmissionConfirmModal: React.FC<
               onPress={onVerify}
               disabled={isLoading}
               accessibilityRole="button"
-              accessibilityLabel={isAllPassed ? "Submit Work Order" : "Submit Anyway"}
+              accessibilityLabel={isAllPassed ? "Submit Work" : "Submit Anyway"}
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -276,7 +276,7 @@ export const SubmissionConfirmModal: React.FC<
                     color="#FFFFFF"
                   />
                   <Text style={styles.verifyButtonText}>
-                    {isAllPassed ? "Submit Work Order" : "Submit Anyway"}
+                    {isAllPassed ? "Submit Work" : "Submit Anyway"}
                   </Text>
                 </>
               )}

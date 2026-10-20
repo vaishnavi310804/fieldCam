@@ -56,6 +56,15 @@ export const VerificationPhotoCard: React.FC<VerificationPhotoCardProps> = ({
         </View>
       )}
 
+      {/* Category Tag Overlay */}
+      {categoryLabel && (
+        <View style={styles.categoryPill}>
+          <Text style={styles.categoryPillText} numberOfLines={1}>
+            {categoryLabel}
+          </Text>
+        </View>
+      )}
+
       {/* Top Right Status Badge Overlay */}
       <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
         <Ionicons name={badge.icon as any} size={14} color="#FFFFFF" />
@@ -97,6 +106,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#817B77",
     fontWeight: "600",
+  },
+  categoryPill: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    maxWidth: "80%",
+  },
+  categoryPillText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   statusBadge: {
     position: "absolute",

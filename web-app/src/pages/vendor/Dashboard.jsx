@@ -55,6 +55,9 @@ const VendorDashboard = () => {
       setProjects(projRes.data || projRes || []);
       setInvoices(invRes.data || invRes || []);
     } catch (err) {
+      if (err?.response?.status === 401) {
+        return;
+      }
       setError(
         err.response?.data?.message || err.message || "Failed to load vendor dashboard from backend"
       );

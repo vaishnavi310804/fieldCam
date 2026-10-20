@@ -8,11 +8,12 @@ import {
   FiEye,
   FiEyeOff,
   FiShield,
+  FiLoader,
 } from "react-icons/fi";
 
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, login, logout, isAuthenticated, loading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -22,6 +23,16 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // If initial authentication resolution is still in flight, show loading state
+  if (authLoading) {
+    return (
+      <div className="w-full max-w-[395px] bg-white rounded-xl shadow p-12 text-center text-xs text-[#817B77] space-y-3">
+        <FiLoader className="animate-spin text-3xl mx-auto text-[#5141F5]" />
+        <p className="font-semibold">Checking session...</p>
+      </div>
+    );
+  }
 
   if (isAuthenticated && user?.role) {
     switch (user.role) {
@@ -41,6 +52,7 @@ const LoginForm = () => {
         break;
     }
   }
+
 
   const handleChange = (e) => {
     setFormData((prev) => ({

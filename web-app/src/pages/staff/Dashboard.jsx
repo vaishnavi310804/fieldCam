@@ -31,6 +31,7 @@ const StaffDashboard = () => {
       const assigned = Array.isArray(res) ? res : res?.data || [];
       setAssignedProjects(assigned);
     } catch (err) {
+      if (err?.response?.status === 401) return;
       setError(
         err.response?.data?.message ||
           err.message ||
