@@ -116,9 +116,10 @@ export const updateProjectController = async (req, res) => {
     });
   } catch (error) {
     const statusCode =
-      error.message === "Project not found" || error.message.includes("Invalid project ID")
+      error.statusCode ||
+      (error.message === "Project not found" || error.message.includes("Invalid project ID")
         ? 404
-        : 400;
+        : 400);
 
     return res.status(statusCode).json({
       success: false,
@@ -158,9 +159,10 @@ export const updateProjectStatusController = async (req, res) => {
     });
   } catch (error) {
     const statusCode =
-      error.message === "Project not found" || error.message.includes("Invalid project ID")
+      error.statusCode ||
+      (error.message === "Project not found" || error.message.includes("Invalid project ID")
         ? 404
-        : 400;
+        : 400);
 
     return res.status(statusCode).json({
       success: false,

@@ -25,10 +25,16 @@ import { ReportWorkSummary } from "@/src/components/reports/ReportWorkSummary";
 import { ReportPhotoEvidence } from "@/src/components/reports/ReportPhotoEvidence";
 import { ReportNotesSection } from "@/src/components/reports/ReportNotesSection";
 
-export const ProjectReportScreen = () => {
+interface ProjectReportScreenProps {
+  projectId?: string;
+}
+
+export const ProjectReportScreen: React.FC<ProjectReportScreenProps> = ({
+  projectId: propProjectId,
+}) => {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const projectId = params.id;
+  const params = useLocalSearchParams<{ id?: string; projectId?: string }>();
+  const projectId = propProjectId || params.id || params.projectId;
 
   const [project, setProject] = useState<VendorProjectItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);

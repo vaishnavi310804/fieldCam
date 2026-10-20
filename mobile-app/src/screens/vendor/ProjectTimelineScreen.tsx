@@ -8,24 +8,34 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PageHeader } from "../../components/navigation/PageHeader";
 import {
   ProjectTimelineItem,
   TimelineStepItem,
 } from "../../components/projects/ProjectTimelineItem";
-import { getProjectById, VendorProjectItem } from "../../api/dashboard.api";
+import {
+  getProjectById,
+  getVendorProjects,
+  VendorProjectItem,
+} from "../../api/dashboard.api";
 import { AuditLogItem, getProjectAuditLogs } from "../../api/audit.api";
+import { buildProjectTimeline } from "../../utils/projectTimeline.utils";
 
 interface ProjectTimelineScreenProps {
   projectId?: string;
 }
 
 export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
-  projectId,
+  projectId: propProjectId,
 }) => {
   const router = useRouter();
+  const routeParams = useLocalSearchParams<{ id?: string; projectId?: string }>();
+  const effectiveProjectId =
+    propProjectId ||
+    (typeof routeParams.id === "string" ? routeParams.id : undefined) ||
+    (typeof routeParams.projectId === "string" ? routeParams.projectId : undefined);
 
   const [project, setProject] = useState<VendorProjectItem | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
@@ -35,7 +45,7 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
 
   const fetchTimelineData = useCallback(
     async (showLoadingIndicator = true) => {
-      if (!projectId) {
+      if (!effectiveProjectId) {
         setErrorMessage("No project ID provided.");
         setIsLoading(false);
         return;
@@ -47,13 +57,44 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
       setErrorMessage(null);
 
       try {
-        const [projectData, logsData] = await Promise.all([
-          getProjectById(projectId),
-          getProjectAuditLogs(projectId),
-        ]);
+        let projectData: VendorProjectItem | null = null;
+        try {
+          projectData = await getProjectById(effectiveProjectId);
+        } catch {
+          // Fallback search in vendor projects list if direct ID lookup fails
+          const allProjects = await getVendorProjects();
+          projectData =
+            allProjects.find(
+              (p) =>
+                p._id === effectiveProjectId ||
+                p.projectId === effectiveProjectId
+            ) || null;
+        }
+
+        if (!projectData) {
+          throw new Error("Project not found.");
+        }
 
         setProject(projectData);
-        setAuditLogs(logsData || []);
+
+        // Fetch audit logs by MongoDB ID and Project Number to ensure full log history
+        const idToSearch = projectData._id || effectiveProjectId;
+        const numberToSearch = projectData.projectId;
+
+        let logs = await getProjectAuditLogs(idToSearch);
+        if (numberToSearch && numberToSearch !== idToSearch) {
+          const numberLogs = await getProjectAuditLogs(numberToSearch);
+          if (Array.isArray(numberLogs) && numberLogs.length > 0) {
+            const existingIds = new Set(logs.map((l) => l._id));
+            for (const nl of numberLogs) {
+              if (!existingIds.has(nl._id)) {
+                logs.push(nl);
+              }
+            }
+          }
+        }
+
+        setAuditLogs(logs || []);
       } catch (err: any) {
         console.error("Failed to load project timeline data:", err);
         setErrorMessage(
@@ -64,7 +105,7 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
         setIsRefreshing(false);
       }
     },
-    [projectId]
+    [effectiveProjectId]
   );
 
   useEffect(() => {
@@ -84,79 +125,13 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
     }
   };
 
-  // Helper to format ISO date strings into "MMM d, h:mm a" format (e.g. "Mar 9, 10:00 AM")
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return "Pending";
-    try {
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return "Pending";
+  // Build the authoritative 8 lifecycle milestones matching the design target
+  const timelineSteps: TimelineStepItem[] = buildProjectTimeline(
+    project,
+    auditLogs
+  );
 
-      return d.toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return "Pending";
-    }
-  };
-
-  // Helper to format action codes into human-friendly event titles
-  const formatAuditActionTitle = (
-    action: string,
-    metadata?: Record<string, any>
-  ): string => {
-    switch (action) {
-      case "PROJECT_CREATED":
-        return "Project Created";
-      case "PROJECT_ASSIGNED":
-        return "Project Assigned";
-      case "PROJECT_ACCEPTED":
-        return "Assignment Accepted";
-      case "PROJECT_STATUS_CHANGED":
-        return metadata?.newStatus
-          ? `Status Changed to ${metadata.newStatus}`
-          : "Status Changed";
-      case "PROJECT_UPDATED":
-        return "Project Updated";
-      case "PHOTO_UPLOADED":
-        return "Photo Uploaded";
-      default:
-        if (!action) return "Audit Event";
-        return action
-          .split("_")
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-          .join(" ");
-    }
-  };
-
-  // Build timeline items derived EXCLUSIVELY from actual backend AuditLog records
-  const buildTimelineSteps = (): TimelineStepItem[] => {
-    if (!Array.isArray(auditLogs) || auditLogs.length === 0) {
-      return [];
-    }
-
-    // Sort audit logs chronologically (oldest first) for top-to-bottom timeline flow
-    const sortedLogs = [...auditLogs].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-    return sortedLogs.map((log, index) => {
-      const isLatest = index === sortedLogs.length - 1;
-      return {
-        id: log._id || `log-${index}`,
-        title: formatAuditActionTitle(log.action, log.metadata),
-        description: log.description || "",
-        dateText: formatDate(log.createdAt),
-        status: isLatest ? "current" : "completed",
-      };
-    });
-  };
-
-  const timelineSteps = buildTimelineSteps();
-  const displayProjectId = project?.projectId || projectId || "";
+  const displayProjectId = project?.projectId || effectiveProjectId || "";
 
   return (
     <View style={styles.screen}>
@@ -167,11 +142,13 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
           <ActivityIndicator size="large" color="#6B5E54" />
           <Text style={styles.loadingText}>Loading timeline...</Text>
         </View>
-      ) : errorMessage ? (
+      ) : errorMessage || !project ? (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={48} color="#DC2626" />
           <Text style={styles.errorTitle}>Unable to load timeline</Text>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Text style={styles.errorText}>
+            {errorMessage || "Project data unavailable"}
+          </Text>
           <Pressable
             style={styles.retryButton}
             onPress={() => fetchTimelineData(true)}
@@ -192,7 +169,7 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
             />
           }
         >
-          {/* Real Project Identifier Heading */}
+          {/* Project Identifier Heading matching reference design */}
           <View style={styles.headerIdContainer}>
             <Text style={styles.headerIdText}>{displayProjectId}</Text>
           </View>
@@ -203,8 +180,11 @@ export const ProjectTimelineScreen: React.FC<ProjectTimelineScreenProps> = ({
               {timelineSteps.map((step, index) => {
                 const isFirst = index === 0;
                 const isLast = index === timelineSteps.length - 1;
-                const prevStep = index > 0 ? timelineSteps[index - 1] : null;
-                const prevCompleted = prevStep?.status === "completed" || prevStep?.status === "current";
+                const prevStep =
+                  index > 0 ? timelineSteps[index - 1] : null;
+                const prevCompleted =
+                  prevStep?.status === "completed" ||
+                  prevStep?.status === "current";
 
                 return (
                   <ProjectTimelineItem
@@ -237,6 +217,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F8F6F4",
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -284,21 +265,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   headerIdContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   headerIdText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1F2937",
-    letterSpacing: 0.2,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: 0.3,
   },
   timelineList: {
-    paddingLeft: 4,
+    paddingLeft: 2,
   },
   emptyContainer: {
     padding: 32,

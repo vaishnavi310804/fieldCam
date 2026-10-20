@@ -500,8 +500,10 @@ export const updateProject = async (id, updateData) => {
 
 
 export const updateProjectStatus = async (id, status, rejectionReason, reviewComments) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new Error("Invalid project ID format");
+  if (!id) {
+    const err = new Error("Project ID is required");
+    err.statusCode = 400;
+    throw err;
   }
 
   if (status === "Completed") {
@@ -523,7 +525,48 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
   ];
 
   if (!ALLOWED_STATUSES.includes(status)) {
-    throw new Error("Invalid project status");
+    const err = new Error("Invalid project status");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    project = await Project.findById(id);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: id });
+  }
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Disallow invalid review/status transitions on already terminal or finalized projects
+  if (project.status === "Completed") {
+    const err = new Error(
+      `Cannot change status of an already completed project. Current status is '${project.status}'.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (project.status === "Approved") {
+    const err = new Error(
+      `Cannot change status of an already approved project. Current status is '${project.status}'.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (project.status === status) {
+    const err = new Error(
+      `Project is already in '${status}' status.`
+    );
+    err.statusCode = 400;
+    throw err;
   }
 
   const updateFields = { status };
@@ -535,7 +578,9 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
   if (status === "Rejected") {
     const finalReason = (rejectionReason || reviewComments || "").trim();
     if (!finalReason) {
-      throw new Error("Rejection reason is required when rejecting a project");
+      const err = new Error("Rejection reason is required when rejecting a project");
+      err.statusCode = 400;
+      throw err;
     }
     updateFields.rejectionReason = finalReason;
   } else if (status === "Approved") {
@@ -544,7 +589,7 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
     updateFields.rejectionReason = null;
   }
 
-  const updatedProject = await Project.findByIdAndUpdate(id, updateFields, {
+  const updatedProject = await Project.findByIdAndUpdate(project._id, updateFields, {
     new: true,
     runValidators: true,
   })

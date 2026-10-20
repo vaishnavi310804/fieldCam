@@ -28,6 +28,13 @@ export default function AppLayout() {
       <Tabs.Screen name="performance-dashboard" options={{ href: null }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen name="project-report" options={{ href: null }} />
+      <Tabs.Screen name="project-timeline" options={{ href: null }} />
+      <Tabs.Screen name="project-details" options={{ href: null }} />
+      <Tabs.Screen name="ai-verification" options={{ href: null }} />
+      <Tabs.Screen name="new-ticket" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="raise-invoice" options={{ href: null }} />
       <Tabs.Screen name="invoice-preview" options={{ href: null }} />
     </Tabs>

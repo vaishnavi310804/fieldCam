@@ -74,6 +74,8 @@ export interface VendorProjectItem {
   serviceTypeName?: string;
   client?: string;
   vendorName?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
   location?: string;
   deadline?: string;
   description?: string;

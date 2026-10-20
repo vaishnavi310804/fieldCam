@@ -186,6 +186,16 @@ const ReviewSubmission = () => {
   const totalChecklist = project?.checklistItems?.length || 0;
   const completedChecklist = project?.checklistItems?.filter((c) => c.checked)?.length || 0;
 
+  // Authoritative project status & review state
+  const rawStatus = (project?.status || "").trim();
+  const normalizedStatus = rawStatus.toUpperCase().replace(/\s+/g, "");
+  const isApproved = normalizedStatus === "APPROVED";
+  const isCompleted = normalizedStatus === "COMPLETED";
+  const isRejected = normalizedStatus === "REJECTED";
+  const isInProgress = normalizedStatus === "INPROGRESS";
+  const isNewOrAssigned = normalizedStatus === "NEW" || normalizedStatus === "ASSIGNED";
+  const isTerminalOrLocked = isApproved || isCompleted || isRejected;
+
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
       {/* Fixed Sidebar */}
@@ -501,11 +511,249 @@ const ReviewSubmission = () => {
               {/* Right Column (1/3): Action Panel & Quality / Metadata Summary */}
               <div className="space-y-5">
                 {/* 1. Review Action Panel (Admin / Vendor only) */}
-                {!isStaff && (
+                {!isStaff && isApproved && (
                   <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
-                    <h2 className="text-sm font-bold text-[#3E3734] border-b border-[#F2EBE5] pb-3">
-                      Review Action Panel
-                    </h2>
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                        <FiCheckCircle className="text-[#2E7D32] text-base shrink-0" />
+                        <span>Submission Approved</span>
+                      </h2>
+                      <ProjectStatusBadge status="Approved" />
+                    </div>
+
+                    {/* Feedback Notification Box */}
+                    {actionMessage && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                          actionMessage.type === "success"
+                            ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+                        }`}
+                      >
+                        {actionMessage.type === "success" ? (
+                          <FiCheckCircle className="text-base shrink-0" />
+                        ) : (
+                          <FiAlertCircle className="text-base shrink-0" />
+                        )}
+                        <span>{actionMessage.text}</span>
+                      </div>
+                    )}
+
+                    {/* Read-Only Status Banner */}
+                    <div className="bg-[#E8F5E9] border border-[#2E7D32]/20 rounded-xl p-4 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 font-bold text-[#2E7D32]">
+                        <FiCheckCircle className="text-base shrink-0" />
+                        <span>Submission Approved</span>
+                      </div>
+                      <p className="text-[#3E3734] leading-relaxed">
+                        This project submission has been approved. Review actions are locked and no further retakes or status changes can be performed from this panel.
+                      </p>
+                    </div>
+
+                    {/* Admin Comments / Review Notes Display */}
+                    {(project.reviewComments || adminComments) && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#3E3734]">
+                          Admin Comments / Review Notes
+                        </label>
+                        <div className="p-3 bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl text-xs text-[#3E3734] font-medium leading-relaxed whitespace-pre-wrap">
+                          {project.reviewComments || adminComments}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Step Info */}
+                    <div className="bg-[#FAF7F5] border border-[#F2EBE5] p-3 rounded-xl text-[11px] text-[#817B77] flex items-center gap-2">
+                      <FiInfo className="text-sm text-[#8A817C] shrink-0" />
+                      <span>This project is approved and eligible for invoice generation and completion.</span>
+                    </div>
+                  </div>
+                )}
+
+                {!isStaff && isCompleted && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                        <FiCheckCircle className="text-[#2E7D32] text-base shrink-0" />
+                        <span>Project Completed</span>
+                      </h2>
+                      <ProjectStatusBadge status="Completed" />
+                    </div>
+
+                    {actionMessage && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                          actionMessage.type === "success"
+                            ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+                        }`}
+                      >
+                        {actionMessage.type === "success" ? (
+                          <FiCheckCircle className="text-base shrink-0" />
+                        ) : (
+                          <FiAlertCircle className="text-base shrink-0" />
+                        )}
+                        <span>{actionMessage.text}</span>
+                      </div>
+                    )}
+
+                    {/* Read-Only Status Banner */}
+                    <div className="bg-[#E8F5E9] border border-[#2E7D32]/20 rounded-xl p-4 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 font-bold text-[#2E7D32]">
+                        <FiCheckCircle className="text-base shrink-0" />
+                        <span>Project Completed</span>
+                      </div>
+                      <p className="text-[#3E3734] leading-relaxed">
+                        This project is marked as Completed. All field deliverables, quality reviews, and invoice payments have finalized.
+                      </p>
+                    </div>
+
+                    {(project.reviewComments || adminComments) && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#3E3734]">
+                          Admin Comments / Review Notes
+                        </label>
+                        <div className="p-3 bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl text-xs text-[#3E3734] font-medium leading-relaxed whitespace-pre-wrap">
+                          {project.reviewComments || adminComments}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!isStaff && isRejected && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                        <FiXCircle className="text-[#C62828] text-base shrink-0" />
+                        <span>Submission Rejected</span>
+                      </h2>
+                      <ProjectStatusBadge status="Rejected" />
+                    </div>
+
+                    {actionMessage && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                          actionMessage.type === "success"
+                            ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+                        }`}
+                      >
+                        {actionMessage.type === "success" ? (
+                          <FiCheckCircle className="text-base shrink-0" />
+                        ) : (
+                          <FiAlertCircle className="text-base shrink-0" />
+                        )}
+                        <span>{actionMessage.text}</span>
+                      </div>
+                    )}
+
+                    {/* Read-Only Status Banner */}
+                    <div className="bg-[#FFEBEE] border border-[#C62828]/20 rounded-xl p-4 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 font-bold text-[#C62828]">
+                        <FiXCircle className="text-base shrink-0" />
+                        <span>Submission Rejected</span>
+                      </div>
+                      <p className="text-[#3E3734] leading-relaxed">
+                        This project submission was rejected. Review actions are locked.
+                      </p>
+                    </div>
+
+                    {/* Rejection Reason */}
+                    {(project.rejectionReason || project.reviewComments || adminComments) && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#C62828]">
+                          Rejection Reason & Review Notes
+                        </label>
+                        <div className="p-3 bg-[#FFEBEE] border border-[#C62828]/20 rounded-xl text-xs text-[#C62828] font-medium leading-relaxed whitespace-pre-wrap">
+                          {project.rejectionReason || project.reviewComments || adminComments}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!isStaff && isInProgress && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                        <FiRefreshCw className="text-[#E65100] text-base shrink-0" />
+                        <span>Review Action Panel</span>
+                      </h2>
+                      <ProjectStatusBadge status="In Progress" />
+                    </div>
+
+                    {actionMessage && (
+                      <div
+                        className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                          actionMessage.type === "success"
+                            ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
+                        }`}
+                      >
+                        {actionMessage.type === "success" ? (
+                          <FiCheckCircle className="text-base shrink-0" />
+                        ) : (
+                          <FiAlertCircle className="text-base shrink-0" />
+                        )}
+                        <span>{actionMessage.text}</span>
+                      </div>
+                    )}
+
+                    <div className="bg-[#FFF3E0] border border-[#E65100]/20 rounded-xl p-4 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 font-bold text-[#E65100]">
+                        <FiRefreshCw className="text-base shrink-0" />
+                        <span>Retake In Progress</span>
+                      </div>
+                      <p className="text-[#3E3734] leading-relaxed">
+                        A photo retake has been requested or work is currently in progress. Review actions will be re-enabled once the vendor resubmits the project.
+                      </p>
+                    </div>
+
+                    {(project.reviewComments || adminComments) && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#3E3734]">
+                          Previous Review Instructions
+                        </label>
+                        <div className="p-3 bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl text-xs text-[#3E3734] font-medium leading-relaxed whitespace-pre-wrap">
+                          {project.reviewComments || adminComments}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!isStaff && isNewOrAssigned && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                        <FiClock className="text-[#817B77] text-base shrink-0" />
+                        <span>Review Action Panel</span>
+                      </h2>
+                      <ProjectStatusBadge status={project.status} />
+                    </div>
+
+                    <div className="bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-4 text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 font-bold text-[#817B77]">
+                        <FiClock className="text-base shrink-0" />
+                        <span>Not Submitted Yet</span>
+                      </div>
+                      <p className="text-[#817B77] leading-relaxed">
+                        This project has not yet been submitted by the vendor. Review actions will become available once the vendor completes and submits the checklist photos.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Review Action Panel (For Submitted / Under Review / Reviewable states) */}
+                {!isStaff && !isTerminalOrLocked && !isInProgress && !isNewOrAssigned && (
+                  <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
+                      <h2 className="text-sm font-bold text-[#3E3734]">
+                        Review Action Panel
+                      </h2>
+                      <ProjectStatusBadge status={project.status} />
+                    </div>
 
                     {/* Feedback Notification Box */}
                     {actionMessage && (
@@ -653,6 +901,11 @@ const ReviewSubmission = () => {
                     <div className="flex justify-between py-1 border-b border-[#F2EBE5]">
                       <span className="text-[#817B77]">Project Code:</span>
                       <span className="font-bold text-[#3E3734]">{project.projectId}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-1 border-b border-[#F2EBE5]">
+                      <span className="text-[#817B77]">Current Status:</span>
+                      <ProjectStatusBadge status={project.status} />
                     </div>
 
                     <div className="flex justify-between py-1 border-b border-[#F2EBE5]">

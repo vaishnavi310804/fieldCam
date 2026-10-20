@@ -280,11 +280,26 @@ export const ProjectDetailsScreen = () => {
     }
   };
 
+  const handleOpenReport = () => {
+    if (!project && !projectIdParam) return;
+    const targetId = project?._id || project?.projectId || projectIdParam;
+    if (targetId) {
+      router.push({
+        pathname: "/(app)/project-report",
+        params: { id: targetId },
+      } as any);
+    }
+  };
+
   // Status & Progress calculations
   const statusUpper = (project?.status || "").toUpperCase();
   const isNew = statusUpper === "NEW";
   const isAssigned = statusUpper === "ASSIGNED";
   const isInProgress = statusUpper === "IN PROGRESS";
+  const isSubmitted =
+    statusUpper === "SUBMITTED" ||
+    statusUpper === "UNDER REVIEW" ||
+    statusUpper === "UNDERREVIEW";
   const isApproved = statusUpper === "APPROVED";
   const isCompleted = statusUpper === "COMPLETED";
 
@@ -378,6 +393,29 @@ export const ProjectDetailsScreen = () => {
                 </Text>
               </View>
             </View>
+          </View>
+
+          {/* Quick Action Navigation Strip: Timeline & Project Report */}
+          <View style={styles.quickActionsRow}>
+            <Pressable
+              style={styles.quickActionButton}
+              onPress={handleOpenTimeline}
+              accessibilityRole="button"
+              accessibilityLabel="Project Timeline"
+            >
+              <Ionicons name="time-outline" size={18} color="#4A423F" />
+              <Text style={styles.quickActionButtonText}>Timeline</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.quickActionButton}
+              onPress={handleOpenReport}
+              accessibilityRole="button"
+              accessibilityLabel="Project Report"
+            >
+              <Ionicons name="document-text-outline" size={18} color="#4A423F" />
+              <Text style={styles.quickActionButtonText}>Project Report</Text>
+            </Pressable>
           </View>
 
           {/* Navigation Tabs (Overview / Photos / Notes) */}
@@ -619,7 +657,7 @@ export const ProjectDetailsScreen = () => {
           ) : null}
 
           {/* BOTTOM PRIMARY ACTION AREA (Only visible in Overview tab) */}
-          {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress || isApproved || isCompleted) ? (
+          {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress || isSubmitted || isApproved || isCompleted) ? (
             <View style={styles.actionContainer}>
               {isNew ? (
                 <Pressable
@@ -665,26 +703,101 @@ export const ProjectDetailsScreen = () => {
                   >
                     <Ionicons name="time-outline" size={22} color="#4A423F" />
                   </Pressable>
+
+                  <Pressable
+                    style={styles.timelineIconButton}
+                    onPress={handleOpenReport}
+                    accessibilityRole="button"
+                    accessibilityLabel="Project Report"
+                  >
+                    <Ionicons name="document-text-outline" size={22} color="#4A423F" />
+                  </Pressable>
+                </View>
+              ) : isSubmitted ? (
+                <View style={styles.actionRow}>
+                  <View
+                    style={[
+                      styles.primaryActionButton,
+                      styles.primaryActionFlex,
+                      { backgroundColor: Colors.primary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={18}
+                      color="#FFFFFF"
+                      style={styles.btnIcon}
+                    />
+                    <Text style={styles.primaryActionText}>
+                      Submitted & Under Review
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.timelineIconButton}
+                    onPress={handleOpenReport}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Project Report"
+                  >
+                    <Ionicons name="document-text-outline" size={22} color="#4A423F" />
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.timelineIconButton}
+                    onPress={handleOpenTimeline}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Project Timeline"
+                  >
+                    <Ionicons name="time-outline" size={22} color="#4A423F" />
+                  </Pressable>
                 </View>
               ) : isApproved ? (
-                <Pressable
-                  style={styles.primaryActionButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(app)/raise-invoice",
-                      params: { projectId: project?._id },
-                    })
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel="Raise Invoice"
-                >
-                  <Ionicons name="document-text-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
-                  <Text style={styles.primaryActionText}>Raise Invoice</Text>
-                </Pressable>
+                <View style={styles.actionRow}>
+                  <Pressable
+                    style={[styles.primaryActionButton, styles.primaryActionFlex]}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(app)/raise-invoice",
+                        params: { projectId: project?._id },
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="Raise Invoice"
+                  >
+                    <Ionicons name="document-text-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                    <Text style={styles.primaryActionText}>Raise Invoice</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.timelineIconButton}
+                    onPress={handleOpenReport}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Project Report"
+                  >
+                    <Ionicons name="document-text-outline" size={22} color="#4A423F" />
+                  </Pressable>
+                </View>
               ) : isCompleted ? (
-                <View style={[styles.primaryActionButton, { backgroundColor: "#166534", opacity: 0.95 }]}>
-                  <Ionicons name="checkmark-done-circle-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
-                  <Text style={styles.primaryActionText}>Project Completed & Paid</Text>
+                <View style={styles.actionRow}>
+                  <View
+                    style={[
+                      styles.primaryActionButton,
+                      styles.primaryActionFlex,
+                      { backgroundColor: "#166534", opacity: 0.95 },
+                    ]}
+                  >
+                    <Ionicons name="checkmark-done-circle-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                    <Text style={styles.primaryActionText}>Project Completed & Paid</Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.timelineIconButton}
+                    onPress={handleOpenReport}
+                    accessibilityRole="button"
+                    accessibilityLabel="View Project Report"
+                  >
+                    <Ionicons name="document-text-outline" size={22} color="#4A423F" />
+                  </Pressable>
                 </View>
               ) : null}
             </View>
@@ -1078,6 +1191,35 @@ const styles = StyleSheet.create({
     color: "#2C2724",
     lineHeight: 20,
   },
+  quickActionsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 14,
+  },
+  quickActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#EAE4DF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  quickActionButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#4A423F",
+  },
   actionContainer: {
     paddingHorizontal: 16,
     marginTop: 16,
@@ -1091,7 +1233,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryActionButton: {
-    backgroundColor: "#928880",
+    backgroundColor: Colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     flexDirection: "row",
