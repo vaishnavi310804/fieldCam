@@ -3,7 +3,6 @@ import TicketPriorityBadge from "./TicketPriorityBadge";
 import TicketStatusBadge from "./TicketStatusBadge";
 import {
   FiChevronDown,
-  FiMoreHorizontal,
   FiEye,
   FiEdit2,
   FiCheckCircle,
@@ -20,9 +19,6 @@ const SupportTable = ({
   onEditTicket,
   isReadOnly = false,
 }) => {
-  // Action Menu State per row
-  const [activeMenuId, setActiveMenuId] = useState(null);
-
   // View Modal State
   const [viewTicket, setViewTicket] = useState(null);
 
@@ -34,34 +30,25 @@ const SupportTable = ({
 
   // Edit Modal State
   const [editTicket, setEditTicket] = useState(null);
-  const [editSubject, setEditSubject] = useState("");
-  const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState("Medium");
+  const [editStatus, setEditStatus] = useState("Open");
   const [editError, setEditError] = useState("");
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
-  const toggleMenu = (id) => {
-    setActiveMenuId(activeMenuId === id ? null : id);
-  };
-
   const handleOpenView = (ticket) => {
-    setActiveMenuId(null);
     setViewTicket(ticket);
   };
 
   const handleOpenStatus = (ticket) => {
-    setActiveMenuId(null);
     setStatusTicket(ticket);
     setNewStatus(ticket.status || "Open");
     setStatusError("");
   };
 
   const handleOpenEdit = (ticket) => {
-    setActiveMenuId(null);
     setEditTicket(ticket);
-    setEditSubject(ticket.subject || "");
-    setEditDescription(ticket.description || "");
     setEditPriority(ticket.priority || "Medium");
+    setEditStatus(ticket.status || "Open");
     setEditError("");
   };
 
@@ -85,17 +72,11 @@ const SupportTable = ({
     e.preventDefault();
     setEditError("");
 
-    if (!editSubject.trim()) {
-      setEditError("Please enter a subject.");
-      return;
-    }
-
     try {
       setIsSubmittingEdit(true);
       await onEditTicket(editTicket._id, {
-        subject: editSubject.trim(),
-        description: editDescription.trim(),
         priority: editPriority,
+        status: editStatus,
       });
       setEditTicket(null);
     } catch (err) {
@@ -176,7 +157,7 @@ const SupportTable = ({
                   <FiChevronDown className="text-xs text-[#A39A94]" />
                 </div>
               </th>
-              <th className="py-3.5 px-6 w-12 text-right"></th>
+              <th className="py-3.5 px-6 text-right font-semibold">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F7F4F2] text-xs">
@@ -242,45 +223,55 @@ const SupportTable = ({
                       {formatDate(row.createdAt || row.created)}
                     </td>
 
-                    {/* Actions Menu */}
-                    <td className="py-4 px-6 text-right relative">
-                      <button
-                        onClick={() => toggleMenu(row._id || tId)}
-                        className="text-[#A39A94] hover:text-[#3E3734] p-1.5 rounded-lg hover:bg-[#EAE4DF]/60 transition-colors"
-                      >
-                        <FiMoreHorizontal className="text-base" />
-                      </button>
+                    {/* Actions Column */}
+                    <td className="py-4 px-6 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* 1. View Details */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenView(row);
+                          }}
+                          aria-label="View details"
+                          title="View details"
+                          className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#2D3436] hover:bg-[#FAF7F5] focus:outline-none focus:ring-2 focus:ring-[#817B77]/30 transition-colors cursor-pointer"
+                        >
+                          <FiEye className="text-sm shrink-0" />
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {activeMenuId === (row._id || tId) && (
-                        <div className="absolute right-6 top-12 z-30 bg-white border border-[#E8E2DE] rounded-xl shadow-lg py-1 w-36 text-left text-xs font-semibold animate-fade-in">
-                          <button
-                            onClick={() => handleOpenView(row)}
-                            className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2"
-                          >
-                            <FiEye className="text-xs text-[#817B77]" />
-                            <span>View Details</span>
-                          </button>
-                          {!isReadOnly && (
-                            <>
-                              <button
-                                onClick={() => handleOpenStatus(row)}
-                                className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2 border-t border-[#F2EBE5]"
-                              >
-                                <FiCheckCircle className="text-xs text-[#817B77]" />
-                                <span>Change Status</span>
-                              </button>
-                              <button
-                                onClick={() => handleOpenEdit(row)}
-                                className="w-full px-3 py-2 text-[#3E3734] hover:bg-[#FAF7F5] flex items-center gap-2 border-t border-[#F2EBE5]"
-                              >
-                                <FiEdit2 className="text-xs text-[#817B77]" />
-                                <span>Edit Ticket</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
+                        {!isReadOnly && (
+                          <>
+                            {/* 2. Change Status */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenStatus(row);
+                              }}
+                              aria-label="Change status"
+                              title="Change status"
+                              className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#2E7D32] hover:bg-[#E8F5E9]/60 focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 transition-colors cursor-pointer"
+                            >
+                              <FiCheckCircle className="text-sm shrink-0" />
+                            </button>
+
+                            {/* 3. Edit Ticket */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEdit(row);
+                              }}
+                              aria-label="Edit ticket"
+                              title="Edit ticket"
+                              className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#D97706] hover:bg-[#FEF3C7]/60 focus:outline-none focus:ring-2 focus:ring-[#D97706]/30 transition-colors cursor-pointer"
+                            >
+                              <FiEdit2 className="text-sm shrink-0" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -456,24 +447,35 @@ const SupportTable = ({
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveEdit}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#E8E2DE] space-y-4"
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-[#E8E2DE] space-y-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
-              <h3 className="text-sm font-bold text-[#3E3734]">
-                Edit Support Ticket
-              </h3>
+              <div>
+                <h3 className="text-sm font-bold text-[#3E3734]">
+                  Edit Support Ticket
+                </h3>
+                <p className="text-xs text-[#817B77] mt-0.5">
+                  Update priority and status for this ticket.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditTicket(null)}
-                className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg"
+                className="text-[#817B77] hover:text-[#3E3734] p-1 rounded-lg hover:bg-[#FAF7F5] transition-colors cursor-pointer"
+                aria-label="Close"
               >
                 <FiX className="text-base" />
               </button>
             </div>
 
-            <p className="text-xs text-[#817B77]">
-              Ticket: <span className="font-semibold text-[#3E3734]">{editTicket.ticketId}</span>
-            </p>
+            <div className="flex items-center justify-between text-xs text-[#817B77] bg-[#FAF7F5] p-2.5 rounded-xl border border-[#E8E2DE]">
+              <span>
+                Ticket ID: <span className="font-semibold text-[#3E3734]">{editTicket.ticketId || editTicket.id || editTicket._id}</span>
+              </span>
+              <span>
+                Vendor: <span className="font-semibold text-[#3E3734]">{editTicket.vendorName || editTicket.vendorId?.companyName || "Vendor"}</span>
+              </span>
+            </div>
 
             {editError && (
               <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
@@ -482,18 +484,29 @@ const SupportTable = ({
               </div>
             )}
 
+            {/* Read-Only Subject */}
             <div>
-              <label className="block text-xs font-bold text-[#3E3734] mb-1">
-                Subject <span className="text-[#C62828]">*</span>
+              <label className="block text-xs font-bold text-[#817B77] mb-1">
+                Subject <span className="text-[10px] font-normal text-[#A39A94]">(Read-only)</span>
               </label>
-              <input
-                type="text"
-                value={editSubject}
-                onChange={(e) => setEditSubject(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC]"
-              />
+              <div className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium select-text">
+                {editTicket.subject || "—"}
+              </div>
             </div>
 
+            {/* Read-Only Description */}
+            {editTicket.description ? (
+              <div>
+                <label className="block text-xs font-bold text-[#817B77] mb-1">
+                  Description <span className="text-[10px] font-normal text-[#A39A94]">(Read-only)</span>
+                </label>
+                <div className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#6E6763] max-h-24 overflow-y-auto leading-relaxed select-text whitespace-pre-wrap">
+                  {editTicket.description}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Priority Select */}
             <div>
               <label className="block text-xs font-bold text-[#3E3734] mb-1">
                 Priority
@@ -501,7 +514,7 @@ const SupportTable = ({
               <select
                 value={editPriority}
                 onChange={(e) => setEditPriority(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC]"
+                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] cursor-pointer"
               >
                 {ALLOWED_PRIORITIES.map((p) => (
                   <option key={p} value={p}>
@@ -511,31 +524,38 @@ const SupportTable = ({
               </select>
             </div>
 
+            {/* Status Select */}
             <div>
               <label className="block text-xs font-bold text-[#3E3734] mb-1">
-                Description
+                Status
               </label>
-              <textarea
-                rows={3}
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#3E3734] outline-none focus:border-[#C8B5AC]"
-              />
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+                className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] cursor-pointer"
+              >
+                {ALLOWED_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            {/* Modal Actions */}
             <div className="pt-3 border-t border-[#F2EBE5] flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setEditTicket(null)}
                 disabled={isSubmittingEdit}
-                className="bg-white border border-[#E8E2DE] text-[#6E6763] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5]"
+                className="bg-white border border-[#E8E2DE] text-[#6E6763] font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#F2EBE5] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmittingEdit}
-                className="bg-[#8A817C] text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#6E6763] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="bg-[#8A817C] text-white font-semibold text-xs px-4 py-2 rounded-xl hover:bg-[#6E6763] transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 <FiCheckCircle className="text-xs" />
                 <span>{isSubmittingEdit ? "Saving..." : "Save Changes"}</span>

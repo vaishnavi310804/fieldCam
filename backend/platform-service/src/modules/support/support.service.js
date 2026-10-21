@@ -204,6 +204,28 @@ export const updateTicket = async (id, updateData) => {
     throw new Error("Ticket not found");
   }
 
+  // Reject attempts by administrators to modify vendor-submitted subject or description
+  if (
+    updateData.subject !== undefined &&
+    updateData.subject.trim() !== ticket.subject
+  ) {
+    const err = new Error("Ticket subject cannot be modified by administrators");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (
+    updateData.description !== undefined &&
+    updateData.description.trim() !== (ticket.description || "")
+  ) {
+    const err = new Error("Ticket description cannot be modified by administrators");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Ensure subject and description can never be overwritten by update payloads
+  delete updateData.subject;
+  delete updateData.description;
+
   // Prevent duplicate ticketId if changed
   if (updateData.ticketId && updateData.ticketId.trim() !== ticket.ticketId) {
     const existing = await Support.findOne({ ticketId: updateData.ticketId.trim() });

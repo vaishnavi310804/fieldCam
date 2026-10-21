@@ -934,7 +934,24 @@ export const sendInvoice = async (id, options = {}, user = {}) => {
     throw err;
   }
 
-  const project = await Project.findById(invoice.projectId);
+  const project = await Project.findById(invoice.projectId?._id || invoice.projectId);
+  const vendor = await Vendor.findById(invoice.vendorId?._id || invoice.vendorId);
+
+  // Generate authoritative invoice PDF buffer
+  let pdfBuffer;
+  try {
+    pdfBuffer = await generateInvoicePdf(invoice, project || {}, vendor || {});
+  } catch (pdfErr) {
+    const err = new Error(`Failed to generate invoice PDF: ${pdfErr.message}`);
+    err.statusCode = 500;
+    throw err;
+  }
+
+  if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+    const err = new Error("Failed to generate invoice PDF: generated buffer is empty");
+    err.statusCode = 500;
+    throw err;
+  }
 
   // Attempt send via email service
   // If this throws, status remains Approved and retryable!
@@ -942,6 +959,8 @@ export const sendInvoice = async (id, options = {}, user = {}) => {
     to: options.recipientEmail,
     invoice,
     project,
+    vendor,
+    pdfBuffer,
     simulateFailure: options.simulateFailure === true,
   });
 
@@ -954,7 +973,9 @@ export const sendInvoice = async (id, options = {}, user = {}) => {
     actorId: user.id || null,
     actorRole: user.role || "ADMIN",
     actorEmail: user.email || null,
-    reason: `Delivered to ${sendResult.recipient}`,
+    reason: `Delivered to ${sendResult.recipient}${
+      sendResult.messageId ? ` (Message ID: ${sendResult.messageId})` : ""
+    }`,
     timestamp: new Date(),
   });
 
