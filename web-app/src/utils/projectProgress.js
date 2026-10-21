@@ -1,19 +1,4 @@
-/**
- * Calculates the FieldCam Project Workflow Progress Percentage.
- *
- * CORE BUSINESS RULES:
- * 1. 100% progress is ONLY granted when project status is "Approved" (or "Completed").
- * 2. "In Progress" projects MUST NEVER display 100%, even if 100% of checklist items are completed,
- *    because vendor submission, admin review, and admin approval are still required.
- *    Capped at 90%.
- * 3. "Submitted" / "Under Review" / "In Review" / "Rejected" projects display 95%.
- * 4. "New" / "ASSIGNED" projects display 0%.
- *
- * @param {string} [statusRaw]
- * @param {Array} [checklistItems]
- * @param {number|null} [rawProgress]
- * @returns {number}
- */
+
 export function getProjectProgress(statusRaw, checklistItems, rawProgress) {
   const status = (statusRaw || "").trim().toUpperCase();
 
