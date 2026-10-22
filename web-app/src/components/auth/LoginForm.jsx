@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { loginUser } from "../../services/authService";
@@ -24,12 +24,24 @@ const LoginForm = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  useEffect(() => {
+    try {
+      const suspensionMessage = sessionStorage.getItem("fieldcam_suspension_message");
+      if (suspensionMessage) {
+        setError(suspensionMessage);
+        sessionStorage.removeItem("fieldcam_suspension_message");
+      }
+    } catch {
+      // Non-blocking
+    }
+  }, []);
+
   // If initial authentication resolution is still in flight, show loading state
   if (authLoading) {
     return (
       <div className="w-full max-w-[395px] bg-white rounded-xl shadow p-12 text-center text-xs text-[#817B77] space-y-3">
         <FiLoader className="animate-spin text-3xl mx-auto text-[#5141F5]" />
-        <p className="font-semibold">Checking session...</p>
+        <p className="font-semibold">Checking previous session...</p>
       </div>
     );
   }

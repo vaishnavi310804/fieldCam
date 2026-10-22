@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, FieldCamUser, MobileLoginPayload } from "../api/auth.api";
-import { setAuthToken } from "../api/authClient";
+import { setAuthToken, setOnUnauthorizedCallback } from "../api/authClient";
 import {
   getFcmToken,
   unregisterDeviceTokenWithBackend,
@@ -48,6 +48,12 @@ export const AuthProvider = ({
 
   useEffect(() => {
     checkAuth();
+    setOnUnauthorizedCallback(() => {
+      setUser(null);
+    });
+    return () => {
+      setOnUnauthorizedCallback(null);
+    };
   }, []);
 
   const login = async (credentials: MobileLoginPayload) => {

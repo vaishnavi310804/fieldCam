@@ -10,14 +10,34 @@ export const setOnUnauthorizedCallback = (callback) => {
 export const handleResponseError = (error) => {
   const status = error?.response?.status;
   const url = error?.config?.url || "";
+  const errorCode = error?.response?.data?.code;
+  const errorMessage = error?.response?.data?.message || "";
 
-  // 401 Unauthorized caused by invalid or expired token
-  if (status === 401) {
+  const isCompanySuspended =
+    status === 403 &&
+    (errorCode === "COMPANY_SUSPENDED" ||
+      errorMessage.toLowerCase().includes("company has been suspended") ||
+      errorMessage.toLowerCase().includes("company account has been suspended") ||
+      errorMessage.toLowerCase().includes("company account is suspended"));
+
+  // 401 Unauthorized or 403 Company Suspended
+  if (status === 401 || isCompanySuspended) {
     // Do not intercept login endpoint failures (e.g. invalid password during login)
-    if (!url.includes("/auth/login")) {
-      // Prevent multiple simultaneous 401 failures from triggering duplicate logout operations
+    if (!url.includes("/auth/login") && !url.includes("/auth/mobile/login")) {
+      // Prevent multiple simultaneous failures from triggering duplicate logout operations
       if (!isHandlingUnauthorized) {
         isHandlingUnauthorized = true;
+
+        if (isCompanySuspended) {
+          try {
+            sessionStorage.setItem(
+              "fieldcam_suspension_message",
+              errorMessage || "Your company has been suspended. Access has been disabled."
+            );
+          } catch {
+            // Non-blocking
+          }
+        }
 
         // Clear stored authentication state immediately
         localStorage.removeItem("fieldcam_access_token");

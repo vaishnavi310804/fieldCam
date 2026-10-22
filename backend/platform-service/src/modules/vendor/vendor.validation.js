@@ -135,6 +135,15 @@ export const updateVendorStatusValidation = [
   body("status")
     .notEmpty()
     .withMessage("Status is required")
+    .customSanitizer((val) => {
+      if (typeof val === "string") {
+        const lower = val.toLowerCase();
+        if (lower === "active") return "Active";
+        if (lower === "suspended") return "Suspended";
+        if (lower === "inactive") return "Inactive";
+      }
+      return val;
+    })
     .isIn(ALLOWED_STATUSES)
     .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
 ];

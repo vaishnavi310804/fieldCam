@@ -909,7 +909,7 @@ const InvoiceTable = ({
                 />
               </div>
               <p className="text-[11px] text-[#817B77] mt-1.5 leading-relaxed">
-                The approved invoice PDF will be dispatched to this client address. If delivery fails, the invoice remains Approved and retryable.
+                The approved invoice PDF will be sent to this client address.
               </p>
             </div>
 
@@ -1006,9 +1006,7 @@ const InvoiceTable = ({
               >
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="Check">Check</option>
-                <option value="ACH">ACH</option>
                 <option value="Credit Card">Credit Card</option>
-                <option value="Wire Transfer">Wire Transfer</option>
                 <option value="Cash">Cash</option>
                 <option value="Other">Other</option>
               </select>

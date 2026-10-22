@@ -349,13 +349,18 @@ export const updateVendorStatus = async (id, status) => {
     throw new Error("Invalid vendor ID format");
   }
 
-  if (!["Active", "Suspended", "Inactive"].includes(status)) {
+  const formattedStatus =
+    typeof status === "string"
+      ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+      : status;
+
+  if (!["Active", "Suspended", "Inactive"].includes(formattedStatus)) {
     throw new Error("Status must be Active, Suspended, or Inactive");
   }
 
   const updatedVendor = await Vendor.findByIdAndUpdate(
     id,
-    { status },
+    { status: formattedStatus },
     { new: true, runValidators: true }
   ).populate("userId", "name email phone role status");
 

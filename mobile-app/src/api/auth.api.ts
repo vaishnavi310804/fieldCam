@@ -165,6 +165,73 @@ export const resetPassword = async (
   };
 };
 
+export interface VerifyRegistrationOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyRegistrationOtpResponseData {
+  user: FieldCamUser;
+  setupToken: string;
+}
+
+export interface CompleteProfilePayload {
+  password: string;
+  setupToken: string;
+  profileImage?: string;
+}
+
+export interface CompleteProfileResponseData {
+  user: FieldCamUser;
+  accessToken: string;
+}
+
+export const verifyRegistrationOTP = async (
+  payload: VerifyRegistrationOtpPayload
+): Promise<VerifyRegistrationOtpResponseData> => {
+  const response = await authClient.post<
+    ApiResponse<VerifyRegistrationOtpResponseData>
+  >("/auth/verify-registration-otp", {
+    email: payload.email.trim().toLowerCase(),
+    otp: payload.otp.trim(),
+  });
+
+  if (!response.data.success || !response.data.data?.setupToken) {
+    throw new Error(response.data.message || "OTP verification failed");
+  }
+
+  return response.data.data;
+};
+
+export const completeProfile = async (
+  payload: CompleteProfilePayload
+): Promise<CompleteProfileResponseData> => {
+  const { password, setupToken, profileImage } = payload;
+  const response = await authClient.post<
+    ApiResponse<CompleteProfileResponseData>
+  >(
+    "/auth/complete-profile",
+    {
+      password,
+      setupToken,
+      ...(profileImage ? { profileImage } : {}),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${setupToken}`,
+      },
+    }
+  );
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(
+      response.data.message || "Failed to complete account activation"
+    );
+  }
+
+  return response.data.data;
+};
+
 export const authApi = {
   login,
   getCurrentUser,
@@ -173,6 +240,8 @@ export const authApi = {
   forgotPassword,
   verifyResetOTP,
   resetPassword,
+  verifyRegistrationOTP,
+  completeProfile,
 };
 
 export default authApi;

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../modules/auth/auth.model.js";
+import { checkUserAndCompanyStatus } from "../modules/auth/companyStatus.js";
 
 export const protect = async (req, res, next) => {
   try {
@@ -14,7 +15,29 @@ export const protect = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized. Token missing.",
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtErr) {
+      return res.status(401).json({
+        success: false,
+        message: jwtErr.message || "Invalid or expired token.",
+      });
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token payload identity.",
+      });
+    }
 
     const user = await User.findById(decoded.id).select("-password");
 
@@ -25,10 +48,18 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    if (user.status !== "ACTIVE") {
-      return res.status(403).json({
+    // Centrally enforce account and company status
+    try {
+      const companyVerification = await checkUserAndCompanyStatus(user);
+      if (companyVerification.company?._id && !user.companyId) {
+        user.companyId = companyVerification.company._id;
+      }
+    } catch (statusError) {
+      const statusCode = statusError.statusCode || 403;
+      return res.status(statusCode).json({
         success: false,
-        message: "Your account is not active.",
+        code: statusError.code,
+        message: statusError.message,
       });
     }
 
@@ -38,9 +69,9 @@ export const protect = async (req, res, next) => {
   } catch (error) {
     console.error("Protect Middleware Error:", error);
 
-    return res.status(401).json({
+    return res.status(500).json({
       success: false,
-      message: error.message || "Invalid or expired token.",
+      message: "Internal authentication error.",
     });
   }
 };

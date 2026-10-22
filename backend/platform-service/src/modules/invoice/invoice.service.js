@@ -14,10 +14,7 @@ const getVendorUserId = async (vendorId) => {
   return vendor ? vendor.userId : null;
 };
 
-/**
- * Calculates line item amounts, subtotal, and ensures tax is fixed at 0.
- * Server strictly calculates all figures; client values are not trusted.
- */
+
 export const calculateLineItems = (rawItems = []) => {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     return {
@@ -91,10 +88,6 @@ export const calculateLineItems = (rawItems = []) => {
   };
 };
 
-/**
- * Generates a unique invoice number based on the project's code.
- * The server is the sole authority; client overrides are ignored.
- */
 export const generateInvoiceNumber = async (project) => {
   const baseCode = project.projectId || `PRJ-${project._id.toString().slice(-6).toUpperCase()}`;
   const candidate = `INV-${baseCode}`;
@@ -114,9 +107,6 @@ export const generateInvoiceNumber = async (project) => {
   return uniqueCandidate;
 };
 
-/**
- * Creates a new invoice (Vendor Draft / Submission, or Admin Creation).
- */
 export const createInvoice = async (invoiceData, user = {}) => {
   const { projectId, items = [], invoiceDate, dueDate, notes, status: requestedStatus } = invoiceData;
 

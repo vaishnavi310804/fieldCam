@@ -102,7 +102,7 @@ export const sendRegistrationOTP = async (email, otp) => {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin:auto;">
-      <h2>Welcome to FIELDcam 🎉</h2>
+      <h2>Welcome to FIELDcam</h2>
       <p>Hello,</p>
       <p>Your Vendor Account has been registered on the FIELDcam platform.</p>
 

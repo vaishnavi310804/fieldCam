@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -23,6 +24,21 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkSuspensionMessage = async () => {
+      try {
+        const msg = await AsyncStorage.getItem("fieldcam_suspension_message");
+        if (msg) {
+          setErrorMessage(msg);
+          await AsyncStorage.removeItem("fieldcam_suspension_message");
+        }
+      } catch {
+        // Non-blocking
+      }
+    };
+    checkSuspensionMessage();
+  }, []);
 
   const handleSignIn = async () => {
     setErrorMessage(null);
@@ -173,12 +189,10 @@ const LoginScreen = () => {
 
           {/* Contact Admin */}
           <View style={styles.contactContainer}>
-            <Text style={styles.contactText}>
-              {"Don't have an account? "}
-            </Text>
-
-            <Pressable onPress={() => {}}>
-              <Text style={styles.contactLink}>Contact Admin</Text>
+            <Pressable
+              onPress={() => router.push("/(auth)/activate-account" as any)}
+            >
+              <Text style={styles.contactLink}>Invited as a Vendor/Staff? Activate Account</Text>
             </Pressable>
           </View>
         </View>

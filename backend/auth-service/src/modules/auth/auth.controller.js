@@ -97,8 +97,10 @@ export const webLoginController = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    return res.status(400).json({
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
       success: false,
+      code: error.code,
       message: error.message || "Something went wrong",
     });
   }
@@ -113,8 +115,10 @@ export const mobileLoginController = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    return res.status(400).json({
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
       success: false,
+      code: error.code,
       message: error.message || "Something went wrong",
     });
   }

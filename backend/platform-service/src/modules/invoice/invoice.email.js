@@ -1,10 +1,5 @@
 import brevo from "@getbrevo/brevo";
 
-/**
- * Masks an email address for privacy-safe logging (e.g. "j***e@domain.com").
- * @param {string} email
- * @returns {string}
- */
 export const maskEmail = (email) => {
   if (!email || typeof email !== "string") return "***";
   const parts = email.trim().split("@");
@@ -16,11 +11,6 @@ export const maskEmail = (email) => {
   return `${user[0]}***${user[user.length - 1]}@${domain}`;
 };
 
-/**
- * Escapes dynamic string values to prevent HTML injection in emails.
- * @param {string|number|null|undefined} str
- * @returns {string}
- */
 export const escapeHtml = (str) => {
   if (str == null) return "";
   return String(str)
@@ -31,11 +21,6 @@ export const escapeHtml = (str) => {
     .replace(/'/g, "&#039;");
 };
 
-/**
- * Builds the responsive HTML body for the invoice transactional email.
- * @param {Object} params
- * @returns {string}
- */
 export const buildInvoiceEmailHtml = ({
   invoice,
   project,
@@ -158,19 +143,6 @@ export const buildInvoiceEmailHtml = ({
   `.trim();
 };
 
-/**
- * Dispatches an approved invoice to a client recipient using Brevo Transactional Email API.
- * Attaches the generated PDF buffer as an itemized attachment.
- *
- * @param {Object} params
- * @param {string} [params.to] - Optional explicit recipient override entered by admin
- * @param {Object} params.invoice - Invoice document
- * @param {Object} [params.project] - Associated project document
- * @param {Object} [params.vendor] - Associated vendor document
- * @param {Buffer} params.pdfBuffer - Generated PDF buffer
- * @param {boolean} [params.simulateFailure=false] - For testing failure paths
- * @returns {Promise<{success: boolean, messageId: string, recipient: string, subject: string, sentAt: Date}>}
- */
 export const sendInvoiceEmail = async ({
   to,
   invoice,

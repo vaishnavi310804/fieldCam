@@ -14,6 +14,7 @@ import {
   sendRegistrationOTP,
   sendForgotPasswordOTP,
 } from "../../services/email.service.js";
+import { checkUserAndCompanyStatus } from "./companyStatus.js";
 
 export const createUserByAdmin = async (userData, currentUser = null) => {
   let { name, email, phone, role, companyId } = userData;
@@ -222,10 +223,16 @@ export const webLoginUser = async (credentials) => {
     throw new Error("Access denied. Invalid credentials for web login");
   }
 
+  // Enforce company status for VENDOR and STAFF accounts
+  const companyVerification = await checkUserAndCompanyStatus(user);
+
   const accessToken = generateAccessToken(user);
 
   const userObject = user.toObject();
   delete userObject.password;
+  if (companyVerification.company?._id && !userObject.companyId) {
+    userObject.companyId = companyVerification.company._id;
+  }
 
   return {
     user: userObject,
@@ -255,10 +262,16 @@ export const mobileLoginUser = async (credentials) => {
     throw new Error("Access denied. Invalid credentials for mobile login");
   }
 
+  // Enforce company status for VENDOR and STAFF accounts
+  const companyVerification = await checkUserAndCompanyStatus(user);
+
   const accessToken = generateAccessToken(user);
 
   const userObject = user.toObject();
   delete userObject.password;
+  if (companyVerification.company?._id && !userObject.companyId) {
+    userObject.companyId = companyVerification.company._id;
+  }
 
   return {
     user: userObject,
