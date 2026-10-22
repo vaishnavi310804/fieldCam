@@ -2,13 +2,11 @@ import { useState } from "react";
 import {
   FiFilter,
   FiDownload,
-  FiMoreVertical,
+  FiEdit2,
   FiChevronLeft,
   FiChevronRight,
-  FiCheckCircle,
-  FiAlertCircle,
-  FiXCircle,
 } from "react-icons/fi";
+import EditSubscriptionStatusModal from "./EditSubscriptionStatusModal";
 
 const RecentSubscriptionsTable = ({
   subscriptions = [],
@@ -22,7 +20,7 @@ const RecentSubscriptionsTable = ({
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [planFilter, setPlanFilter] = useState("ALL");
-  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [selectedSubForEdit, setSelectedSubForEdit] = useState(null);
 
   const { currentPage = 1, totalPages = 1, totalRecords = 0, pageSize = 10 } = pagination;
 
@@ -265,62 +263,24 @@ const RecentSubscriptionsTable = ({
                   </td>
 
                   {/* Actions */}
-                  <td className="py-3.5 px-6 text-right relative">
+                  <td className="py-3.5 px-6 text-right">
                     {!sub.subscriptionId ? (
-                      <span className="text-[11px] text-[#A8A29E] italic">No actions</span>
+                      <span
+                        className="text-[11px] text-[#A8A29E] italic"
+                        title="No active subscription assigned"
+                      >
+                        No actions
+                      </span>
                     ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveMenuId(
-                              activeMenuId === sub._id ? null : sub._id
-                            )
-                          }
-                          className="p-1.5 rounded-lg text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] transition-colors cursor-pointer"
-                          title="Actions"
-                        >
-                          <FiMoreVertical size={16} />
-                        </button>
-
-                        {activeMenuId === sub._id && (
-                          <div className="absolute right-6 top-10 z-20 w-40 bg-white rounded-xl shadow-lg border border-[#EBE6E3] py-1 text-left">
-                            <p className="px-3 py-1 text-[10px] font-bold text-[#817B77] uppercase tracking-wider">
-                              Update Status
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onStatusUpdate(sub._id, "Active");
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-left text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                            >
-                              Set Active
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onStatusUpdate(sub._id, "Past Due");
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-left text-amber-600 hover:bg-amber-50 cursor-pointer"
-                            >
-                              Set Past Due
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onStatusUpdate(sub._id, "Cancelled");
-                                setActiveMenuId(null);
-                              }}
-                              className="w-full px-3 py-1.5 text-xs text-left text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            >
-                              Set Cancelled
-                            </button>
-                          </div>
-                        )}
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubForEdit(sub)}
+                        className="p-1.5 rounded-lg text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] transition-colors cursor-pointer inline-flex items-center justify-center"
+                        title="Edit subscription status"
+                        aria-label="Edit subscription status"
+                      >
+                        <FiEdit2 size={16} />
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -373,6 +333,18 @@ const RecentSubscriptionsTable = ({
           </button>
         </div>
       </div>
+
+      {/* Edit Subscription Status Modal */}
+      <EditSubscriptionStatusModal
+        isOpen={Boolean(selectedSubForEdit)}
+        subscription={selectedSubForEdit}
+        onClose={() => setSelectedSubForEdit(null)}
+        onSuccess={async () => {
+          if (typeof onStatusUpdate === "function") {
+            await onStatusUpdate();
+          }
+        }}
+      />
     </div>
   );
 };

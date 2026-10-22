@@ -1,9 +1,9 @@
-import { FiEdit2, FiPower, FiMoreVertical, FiBriefcase, FiCheckCircle, FiAlertCircle, FiClock } from "react-icons/fi";
+import { FiEdit2, FiPower, FiBriefcase, FiCheckCircle, FiAlertCircle, FiClock } from "react-icons/fi";
 
 const formatActivityTime = (dateString) => {
-  if (!dateString) return "N/A";
+  if (!dateString) return "—";
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "N/A";
+  if (isNaN(date.getTime())) return "—";
 
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -47,7 +47,7 @@ const CompaniesTable = ({
                 <th className="py-3.5 px-6">Status</th>
                 <th className="py-3.5 px-6">Plan / Services</th>
                 <th className="py-3.5 px-6">Users</th>
-                <th className="py-3.5 px-6">Last Activity</th>
+                <th className="py-3.5 px-6">Last Updated</th>
                 <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -67,21 +67,21 @@ const CompaniesTable = ({
                         .toUpperCase()
                     : "CO");
 
-                const planText =
+                const servicesText =
                   Array.isArray(company.services) && company.services.length > 0
                     ? company.services.join(", ")
-                    : "N/A";
+                    : "—";
 
                 const associatedUsers =
-                  typeof company.userCount === "number" && company.userCount > 0
+                  typeof company.userCount === "number"
                     ? company.userCount
                     : company.userId?.name
                     ? 1
-                    : "N/A";
+                    : "—";
 
-                const lastActivityText = formatActivityTime(
-                  company.updatedAt || company.joinedDate || company.createdAt
-                );
+                const lastUpdatedText = company.updatedAt
+                  ? formatActivityTime(company.updatedAt)
+                  : "—";
 
                 return (
                   <tr
@@ -132,11 +132,19 @@ const CompaniesTable = ({
 
                     {/* Plan / Services */}
                     <td className="py-4 px-6 max-w-[200px]">
-                      <p className="font-semibold text-[#2D3436] truncate">
-                        {planText}
-                      </p>
-                      <p className="text-[10px] text-[#817B77] truncate">
-                        {company.rating ? `Rating: ${company.rating}/5` : "Registered Vendor"}
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {company.subscription?.planName ? (
+                          <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-[#F5F2F0] text-[#2D3436] border border-[#EBE6E3]">
+                            {company.subscription.planName}
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                            Unassigned
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[#817B77] truncate" title={servicesText}>
+                        {servicesText}
                       </p>
                     </td>
 
@@ -145,11 +153,11 @@ const CompaniesTable = ({
                       {associatedUsers}
                     </td>
 
-                    {/* Last Activity */}
+                    {/* Last Updated */}
                     <td className="py-4 px-6 text-[#817B77]">
                       <div className="flex items-center gap-1 text-[11px]">
                         <FiClock className="text-xs text-[#A39A94]" />
-                        <span>{lastActivityText}</span>
+                        <span>{lastUpdatedText}</span>
                       </div>
                     </td>
 
@@ -181,14 +189,6 @@ const CompaniesTable = ({
                           title={isCompanyActive ? "Suspend Company" : "Activate Company"}
                         >
                           <FiPower className="text-sm" />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="p-1.5 text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] rounded-lg transition cursor-pointer"
-                          title="More Actions"
-                        >
-                          <FiMoreVertical className="text-sm" />
                         </button>
                       </div>
                     </td>

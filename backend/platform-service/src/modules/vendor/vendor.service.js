@@ -220,6 +220,10 @@ export const getVendors = async (query = {}) => {
     filter.status = formattedStatus;
   }
 
+  if (query.service && query.service !== "All" && query.service !== "All Services") {
+    filter.services = typeof query.service === "string" ? query.service.trim() : query.service;
+  }
+
   if (query.search && query.search.trim()) {
     const searchRegex = new RegExp(query.search.trim(), "i");
     filter.$or = [
@@ -291,25 +295,49 @@ export const getVendors = async (query = {}) => {
     }
   });
 
-  // Aggregate live user counts for each vendor (owner + associated staff)
-  const userCountAggregate = await User.aggregate([
-    {
-      $group: {
-        _id: "$companyId",
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+  // Query distinct users belonging to retrieved vendors (owner user + staff mapped via companyId)
+  const allOwnerIds = [];
+  const allCompanyIdentifiers = [];
 
-  const userCountMap = new Map();
-  userCountAggregate.forEach((u) => {
-    if (u._id) {
-      userCountMap.set(u._id.toString(), u.count);
+  vendors.forEach((vendor) => {
+    if (vendor._id) {
+      allCompanyIdentifiers.push(vendor._id);
+    }
+    const ownerId = vendor.userId?._id || vendor.userId;
+    if (ownerId && mongoose.Types.ObjectId.isValid(ownerId)) {
+      const ownerObjId = new mongoose.Types.ObjectId(ownerId.toString());
+      allOwnerIds.push(ownerObjId);
+      allCompanyIdentifiers.push(ownerObjId);
+    }
+  });
+
+  const relatedUsers = (allOwnerIds.length > 0 || allCompanyIdentifiers.length > 0)
+    ? await User.find({
+        $or: [
+          { _id: { $in: allOwnerIds } },
+          { companyId: { $in: allCompanyIdentifiers } },
+        ],
+      }).select("_id companyId role").lean()
+    : [];
+
+  // Query assigned company subscriptions for all retrieved vendors in a single query
+  const vendorIds = vendors.map((v) => v._id);
+  const companySubscriptions = await CompanySubscription.find({
+    vendorId: { $in: vendorIds },
+  }).populate(
+    "planId",
+    "name code subtitle monthlyPrice billingInterval userLimit storageLimitGb status"
+  ).lean();
+
+  const subMap = new Map();
+  companySubscriptions.forEach((sub) => {
+    if (sub.vendorId) {
+      subMap.set(sub.vendorId.toString(), sub);
     }
   });
 
   const formattedVendors = vendors.map((vendor) => {
-    const vendorObj = vendor.toObject();
+    const vendorObj = typeof vendor.toObject === "function" ? vendor.toObject() : { ...vendor };
     const stats = statsMap.get(vendorObj._id.toString()) || {
       assigned: 0,
       active: 0,
@@ -317,17 +345,51 @@ export const getVendors = async (query = {}) => {
       waitingForApproval: 0,
     };
 
-    // Calculate total users (1 for owner + staff count if mapped)
-    const staffCount =
-      userCountMap.get(vendorObj._id.toString()) ||
-      (vendorObj.userId ? userCountMap.get(vendorObj.userId._id?.toString() || vendorObj.userId.toString()) || 0 : 0);
-    const userCount = (vendorObj.userId ? 1 : 0) + staffCount;
+    // Calculate distinct persisted users (owner + staff/company members without double-counting)
+    const vendorIdStr = vendorObj._id.toString();
+    const ownerIdStr = vendorObj.userId?._id
+      ? vendorObj.userId._id.toString()
+      : vendorObj.userId
+      ? vendorObj.userId.toString()
+      : null;
+
+    const distinctUserIds = new Set();
+    relatedUsers.forEach((u) => {
+      const uIdStr = u._id.toString();
+      const uCompStr = u.companyId ? u.companyId.toString() : null;
+
+      const isOwner = ownerIdStr && uIdStr === ownerIdStr;
+      const isStaffOrLinked =
+        uCompStr && (uCompStr === vendorIdStr || (ownerIdStr && uCompStr === ownerIdStr));
+
+      if (isOwner || isStaffOrLinked) {
+        distinctUserIds.add(uIdStr);
+      }
+    });
 
     vendorObj.projectStats = stats;
     vendorObj.activeProjects = stats.active;
     vendorObj.completed = stats.completed;
     vendorObj.approval = stats.waitingForApproval;
-    vendorObj.userCount = userCount;
+    vendorObj.userCount = distinctUserIds.size;
+
+    // Attach populated subscription plan details if present
+    const companySub = subMap.get(vendorIdStr);
+    if (companySub && companySub.planId) {
+      vendorObj.subscription = {
+        _id: companySub._id,
+        status: companySub.status,
+        startDate: companySub.startDate,
+        renewalDate: companySub.renewalDate,
+        expiryDate: companySub.expiryDate,
+        durationMonths: companySub.durationMonths,
+        planId: companySub.planId._id,
+        planName: companySub.planId.name,
+        planCode: companySub.planId.code,
+      };
+    } else {
+      vendorObj.subscription = null;
+    }
 
     return vendorObj;
   });
@@ -370,33 +432,44 @@ export const getVendorById = async (id) => {
   const vendorObj = vendor.toObject();
   const vendorObjectId = new mongoose.Types.ObjectId(id);
 
-  // Calculate live project metrics for this vendor from Project collection
-  const [assignedCount, activeCount, completedCount, waitingForApprovalCount, rejectedCount, assignedProjectsList] =
-    await Promise.all([
-      Project.countDocuments({
-        vendorId: vendorObjectId,
-        status: { $in: ["ASSIGNED", "New"] },
-      }),
-      Project.countDocuments({
-        vendorId: vendorObjectId,
-        status: "In Progress",
-      }),
-      Project.countDocuments({ vendorId: vendorObjectId, status: "Completed" }),
-      Project.countDocuments({
-        vendorId: vendorObjectId,
-        status: { $in: ["Submitted", "Under Review"] },
-      }),
-      Project.countDocuments({ vendorId: vendorObjectId, status: "Rejected" }),
-      Project.find({ vendorId: vendorObjectId })
-        .select("projectId projectName serviceTypeName location status deadline photos checklistItems createdAt")
-        .sort({ createdAt: -1 }),
-    ]);
+  // Calculate live project metrics and fetch company subscription for this vendor
+  const [
+    assignedCount,
+    activeCount,
+    completedCount,
+    waitingForApprovalCount,
+    rejectedCount,
+    assignedProjectsList,
+    subscription,
+  ] = await Promise.all([
+    Project.countDocuments({
+      vendorId: vendorObjectId,
+      status: { $in: ["ASSIGNED", "New"] },
+    }),
+    Project.countDocuments({
+      vendorId: vendorObjectId,
+      status: "In Progress",
+    }),
+    Project.countDocuments({ vendorId: vendorObjectId, status: "Completed" }),
+    Project.countDocuments({
+      vendorId: vendorObjectId,
+      status: { $in: ["Submitted", "Under Review"] },
+    }),
+    Project.countDocuments({ vendorId: vendorObjectId, status: "Rejected" }),
+    Project.find({ vendorId: vendorObjectId })
+      .select("projectId projectName serviceTypeName location status deadline photos checklistItems createdAt")
+      .sort({ createdAt: -1 }),
+    CompanySubscription.findOne({ vendorId: vendorObjectId }).populate(
+      "planId",
+      "name code subtitle monthlyPrice billingInterval userLimit storageLimitGb features isPopular status"
+    ),
+  ]);
 
   vendorObj.projectStats = {
     assigned: assignedCount,
     active: activeCount,
     completed: completedCount,
-    waitingForApproval: waitingForApprovalCount,
+    waitingForApprovalCount,
     rejected: rejectedCount,
   };
   vendorObj.activeProjects = activeCount;
@@ -407,6 +480,7 @@ export const getVendorById = async (id) => {
     pObj.progress = calculateProjectWorkflowProgress(pObj.status, pObj.checklistItems);
     return pObj;
   });
+  vendorObj.subscription = subscription || null;
 
   return vendorObj;
 };
@@ -477,12 +551,15 @@ export const updateVendorStatus = async (id, status) => {
 };
 
 export const getVendorStats = async () => {
-  const [totalVendors, activeVendors, suspendedVendors, inactiveVendors] =
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [totalVendors, activeVendors, suspendedVendors, inactiveVendors, newSignupsThisWeek] =
     await Promise.all([
       Vendor.countDocuments({}),
       Vendor.countDocuments({ status: "Active" }),
       Vendor.countDocuments({ status: "Suspended" }),
       Vendor.countDocuments({ status: "Inactive" }),
+      Vendor.countDocuments({ createdAt: { $gte: oneWeekAgo } }),
     ]);
 
   return {
@@ -490,6 +567,7 @@ export const getVendorStats = async () => {
     activeVendors,
     suspendedVendors,
     inactiveVendors,
+    newSignupsThisWeek,
   };
 };
 

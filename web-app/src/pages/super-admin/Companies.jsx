@@ -18,8 +18,6 @@ import {
   FiPieChart,
   FiFilter,
   FiChevronDown,
-  FiList,
-  FiGrid,
   FiChevronLeft,
   FiChevronRight,
   FiRefreshCw,
@@ -29,8 +27,8 @@ const SuperAdminCompanies = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
-  const [planFilter, setPlanFilter] = useState("All Plans");
-  const [viewMode, setViewMode] = useState("list");
+  const [serviceFilter, setServiceFilter] = useState("All Services");
+  const [availableServices, setAvailableServices] = useState([]);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -86,6 +84,10 @@ const SuperAdminCompanies = () => {
         params.status = statusFilter;
       }
 
+      if (serviceFilter && serviceFilter !== "All Services") {
+        params.service = serviceFilter;
+      }
+
       const res = await getCompanies(params);
 
       if (res?.success) {
@@ -93,6 +95,15 @@ const SuperAdminCompanies = () => {
           setCompanies(res.data);
           setTotalRecords(res.totalRecords || res.count || res.data.length);
           setTotalPages(res.totalPages || Math.ceil((res.totalRecords || res.data.length) / limit) || 1);
+          // Accumulate known services so filtering does not empty dropdown options
+          const discoveredServices = res.data.flatMap((c) =>
+            Array.isArray(c.services) ? c.services : []
+          );
+          if (discoveredServices.length > 0) {
+            setAvailableServices((prev) =>
+              Array.from(new Set([...prev, ...discoveredServices])).sort()
+            );
+          }
         } else {
           setCompanies([]);
         }
@@ -107,13 +118,15 @@ const SuperAdminCompanies = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, searchQuery, statusFilter]);
+  }, [page, limit, searchQuery, statusFilter, serviceFilter]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStats();
   }, [fetchStats]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCompaniesList();
   }, [fetchCompaniesList]);
 
@@ -138,13 +151,6 @@ const SuperAdminCompanies = () => {
     setIsEditModalOpen(true);
   };
 
-  // Format revenue string
-  const formatRevenue = (val) => {
-    if (!val || val === 0) return "$0";
-    if (val >= 1000000) return `$${(val / 1000000).toFixed(2)}M`;
-    if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`;
-    return `$${val.toFixed(2)}`;
-  };
 
   const startRecordNum = (page - 1) * limit + 1;
   const endRecordNum = Math.min(page * limit, totalRecords);
@@ -213,16 +219,17 @@ const SuperAdminCompanies = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <SuperAdminMetricCard
               title="Total Revenue"
-              value={formatRevenue(companyStats.totalRevenue)}
+              value="N/A"
               change={null}
-              isAvailable={true}
+              isAvailable={false}
+              reason="Subscription payment gateway not integrated"
               icon={FiDollarSign}
               iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
             />
 
             <SuperAdminMetricCard
               title="Active Companies"
-              value={`${companyStats.activeVendors || 0}`}
+              value={`${companyStats.activeVendors ?? 0}`}
               change={null}
               isAvailable={true}
               icon={FiCheckSquare}
@@ -231,7 +238,7 @@ const SuperAdminCompanies = () => {
 
             <SuperAdminMetricCard
               title="New Sign Ups"
-              value={`${companyStats.newSignupsThisWeek || 0}`}
+              value={`${companyStats.newSignupsThisWeek ?? 0}`}
               change={null}
               isAvailable={true}
               icon={FiTrendingUp}
@@ -243,7 +250,7 @@ const SuperAdminCompanies = () => {
               value="N/A"
               change={null}
               isAvailable={false}
-              reason="Data unavailable"
+              reason="Customer churn telemetry not integrated"
               icon={FiPieChart}
               iconBg="bg-amber-50 text-amber-600 border border-amber-100"
             />
@@ -274,22 +281,28 @@ const SuperAdminCompanies = () => {
               {/* Service Offering Filter */}
               <div className="relative">
                 <select
-                  value={planFilter}
-                  onChange={(e) => setPlanFilter(e.target.value)}
+                  value={serviceFilter}
+                  onChange={(e) => {
+                    setServiceFilter(e.target.value);
+                    setPage(1);
+                  }}
                   className="appearance-none bg-white border border-[#EBE6E3] text-[#2D3436] text-xs font-semibold rounded-xl pl-4 pr-8 py-2 outline-none cursor-pointer hover:bg-[#FAF7F5] transition shadow-xs"
                 >
                   <option value="All Services">All Services</option>
                   {Array.from(
-                    new Set(
-                      companies.flatMap((c) =>
+                    new Set([
+                      ...availableServices,
+                      ...companies.flatMap((c) =>
                         Array.isArray(c.services) ? c.services : []
-                      )
-                    )
-                  ).map((srv) => (
-                    <option key={srv} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
+                      ),
+                    ])
+                  )
+                    .sort()
+                    .map((srv) => (
+                      <option key={srv} value={srv}>
+                        {srv}
+                      </option>
+                    ))}
                 </select>
                 <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
               </div>

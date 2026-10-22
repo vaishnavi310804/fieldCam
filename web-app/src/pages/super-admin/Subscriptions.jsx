@@ -90,10 +90,13 @@ const Subscriptions = () => {
 
   const handleStatusUpdate = async (subId, newStatus) => {
     try {
-      await updateSubscriptionStatus(subId, newStatus);
-      fetchSubscribedCompanies();
+      if (subId && newStatus) {
+        await updateSubscriptionStatus(subId, newStatus);
+      }
+      await fetchSubscribedCompanies();
     } catch (err) {
       console.error("Failed to update subscription status:", err);
+      throw err;
     }
   };
 

@@ -12,6 +12,8 @@ import {
   FiAlertCircle,
   FiLoader,
   FiUserCheck,
+  FiCreditCard,
+  FiCheck,
 } from "react-icons/fi";
 
 const VendorProfileModal = ({ isOpen, onClose, vendor }) => {
@@ -96,6 +98,96 @@ const VendorProfileModal = ({ isOpen, onClose, vendor }) => {
   const phone = userAccount?.phone || activeDoc.phone || "Not Provided";
   const userRole = userAccount?.role || "VENDOR";
   const isUserVerified = userAccount?.isVerified ?? true;
+
+  // Safely extract subscription and plan info
+  const subscription = activeDoc?.subscription || null;
+  const plan =
+    subscription?.planId && typeof subscription.planId === "object"
+      ? subscription.planId
+      : null;
+
+  const planName = plan?.name || subscription?.planName || "Unnamed Plan";
+  const planCode = plan?.code || subscription?.planCode || "";
+  const planSubtitle = plan?.subtitle || "";
+
+  const subStartDate = subscription?.startDate
+    ? new Date(subscription.startDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "N/A";
+
+  const rawSubExpiry = subscription?.renewalDate || subscription?.expiryDate;
+  const subExpiryDate = rawSubExpiry
+    ? new Date(rawSubExpiry).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "N/A";
+
+  const subMonthlyPrice =
+    plan?.monthlyPrice !== undefined && plan?.monthlyPrice !== null
+      ? `$${plan.monthlyPrice} / ${plan.billingInterval === "YEARLY" ? "yr" : "mo"}`
+      : "N/A";
+
+  const subUserLimit =
+    plan?.userLimit === -1 || plan?.userLimit === "Unlimited"
+      ? "Unlimited"
+      : plan?.userLimit !== undefined && plan?.userLimit !== null
+      ? `${plan.userLimit} Users`
+      : "N/A";
+
+  const subStorageLimit =
+    plan?.storageLimitGb === -1 || plan?.storageLimitGb === "Unlimited"
+      ? "Unlimited"
+      : plan?.storageLimitGb !== undefined && plan?.storageLimitGb !== null
+      ? `${plan.storageLimitGb} GB`
+      : "N/A";
+
+  const subFeatures = Array.isArray(plan?.features) ? plan.features : [];
+
+  const getSubBadge = (subStatus) => {
+    switch (subStatus) {
+      case "Active":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Active
+          </span>
+        );
+      case "Past Due":
+      case "Pending":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            {subStatus}
+          </span>
+        );
+      case "Cancelled":
+      case "Expired":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            {subStatus}
+          </span>
+        );
+      case "Trial":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            Trial
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-50 text-gray-700 border border-gray-200">
+            {subStatus || "Active"}
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-xs">
@@ -220,6 +312,133 @@ const VendorProfileModal = ({ isOpen, onClose, vendor }) => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Subscription Details Card */}
+        <div className="bg-white border border-[#E8E2DE] rounded-2xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-[#3E3734] uppercase tracking-wider flex items-center gap-1.5">
+              <FiCreditCard className="text-[#817B77]" />
+              <span>Subscription Details</span>
+            </h4>
+            {subscription && !loading && !error && getSubBadge(subscription.status)}
+          </div>
+
+          {loading ? (
+            <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-4 text-center text-[#817B77]">
+              <FiLoader className="animate-spin text-base mx-auto mb-1 text-[#817B77]" />
+              <p className="text-xs font-medium">Loading subscription details...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-3 rounded-xl text-xs flex items-center gap-2">
+              <FiAlertCircle className="text-base shrink-0" />
+              <div>
+                <span className="font-bold block">Subscription data unavailable</span>
+                <span className="text-[11px] text-[#C62828]/90">Could not retrieve subscription details due to an API error.</span>
+              </div>
+            </div>
+          ) : !subscription || !plan ? (
+            <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-4 text-center">
+              <div className="w-8 h-8 rounded-full bg-[#EAE4DF] text-[#817B77] flex items-center justify-center mx-auto mb-2">
+                <FiCreditCard className="text-sm" />
+              </div>
+              <p className="text-xs font-bold text-[#3E3734]">
+                No subscription plan assigned
+              </p>
+              <p className="text-[11px] text-[#817B77] mt-0.5">
+                This company does not currently have an active subscription package.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Plan Banner */}
+              <div className="bg-[#FAF7F5] border border-[#F2EBE5] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-[#3E3734]">
+                      {planName}
+                    </span>
+                    {planCode && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#EAE4DF] text-[#6E6763]">
+                        {planCode}
+                      </span>
+                    )}
+                  </div>
+                  {planSubtitle && (
+                    <p className="text-[11px] text-[#817B77] mt-0.5">
+                      {planSubtitle}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-[#3E3734]">
+                    {subMonthlyPrice}
+                  </span>
+                  {subscription.durationMonths && (
+                    <span className="block text-[10px] font-semibold text-[#817B77]">
+                      {subscription.durationMonths} month duration
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid: Start Date, Expiry / Renewal Date, User Limit, Storage Limit */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#FAF7F5] rounded-xl p-3 text-center border border-[#F2EBE5]">
+                <div>
+                  <span className="block text-xs font-bold text-[#3E3734] truncate">
+                    {subStartDate}
+                  </span>
+                  <span className="block text-[9px] font-bold text-[#A39A94] tracking-wider mt-0.5 uppercase">
+                    START DATE
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#3E3734] truncate">
+                    {subExpiryDate}
+                  </span>
+                  <span className="block text-[9px] font-bold text-[#A39A94] tracking-wider mt-0.5 uppercase">
+                    RENEWAL / EXPIRY
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#3E3734] truncate">
+                    {subUserLimit}
+                  </span>
+                  <span className="block text-[9px] font-bold text-[#A39A94] tracking-wider mt-0.5 uppercase">
+                    USER LIMIT
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#3E3734] truncate">
+                    {subStorageLimit}
+                  </span>
+                  <span className="block text-[9px] font-bold text-[#A39A94] tracking-wider mt-0.5 uppercase">
+                    STORAGE LIMIT
+                  </span>
+                </div>
+              </div>
+
+              {/* Plan Features */}
+              {subFeatures.length > 0 && (
+                <div className="pt-2 border-t border-[#F2EBE5]">
+                  <span className="block text-[10px] font-bold text-[#A39A94] uppercase tracking-wider mb-2">
+                    Included Plan Features
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {subFeatures.map((feat, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 text-xs text-[#6E6763]"
+                      >
+                        <FiCheck className="text-emerald-600 shrink-0 text-xs" />
+                        <span className="truncate">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Vendor Details & Services Card */}

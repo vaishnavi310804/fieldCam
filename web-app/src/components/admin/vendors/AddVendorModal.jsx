@@ -308,7 +308,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
             {/* Row 4: Initial Rating */}
             <div>
               <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
-                Initial Rating (0 - 5)
+                Rating (0 - 5)
               </label>
               <input
                 type="number"
@@ -327,7 +327,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
           <div className="pt-4 border-t border-[#E8E2DE] space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
-                <span>Subscription Configuration</span>
+                <span>Subscription Plans</span>
               </h3>
             </div>
 
@@ -339,24 +339,10 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
               </div>
             )}
 
-            {/* Error State */}
-            {plansError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs flex items-center justify-between">
-                <span>{plansError}</span>
-                <button
-                  type="button"
-                  onClick={fetchPlans}
-                  className="font-bold underline cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
             {/* Empty State */}
             {!loadingPlans && !plansError && plans.length === 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
-                No published subscription plans available. Please create and publish a plan in Super Admin &gt; Subscriptions before provisioning a company.
+                No published subscription plans available.
               </div>
             )}
 
@@ -421,7 +407,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                             key={idx}
                             className="bg-white border border-[#E8E2DE] px-2 py-0.5 rounded text-[10px] text-[#6E6763]"
                           >
-                            ✓ {feat}
+                            {feat}
                           </span>
                         ))}
                       </div>
