@@ -6,7 +6,7 @@ import mongoose from "mongoose";
  * @param {Object} params
  * @param {Object} params.actor - { id, email, role } from req.user
  * @param {string} params.action - Action enum string
- * @param {string} params.entityType - "Project" | "Vendor" | "Service" | "Invoice" | "Support"
+ * @param {string} params.entityType - "Project" | "Vendor" | "Service" | "Invoice" | "Support" | "SubscriptionPlan" | "Subscription" | "CompanySubscription"
  * @param {string} params.entityId - Primary identifier of entity
  * @param {string} params.description - Human readable summary
  * @param {Object} [params.metadata] - Non-sensitive context metadata

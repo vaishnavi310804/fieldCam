@@ -175,7 +175,7 @@ const SuperAdminCompanies = () => {
                 Companies
               </h1>
               <p className="text-xs md:text-sm text-[#817B77] mt-1 font-medium">
-                Manage {totalRecords} client organizations and platform operational partners
+                Manage client organizations and platform partners.
               </p>
             </div>
 
@@ -293,34 +293,6 @@ const SuperAdminCompanies = () => {
                 </select>
                 <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
               </div>
-            </div>
-
-            {/* List / Grid Toggle */}
-            <div className="flex items-center gap-1 bg-white border border-[#EBE6E3] p-1 rounded-xl shadow-xs self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded-lg transition text-xs cursor-pointer ${
-                  viewMode === "list"
-                    ? "bg-[#817B77] text-white"
-                    : "text-[#817B77] hover:text-[#2D3436]"
-                }`}
-                title="List View"
-              >
-                <FiList />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`p-1.5 rounded-lg transition text-xs cursor-pointer ${
-                  viewMode === "grid"
-                    ? "bg-[#817B77] text-white"
-                    : "text-[#817B77] hover:text-[#2D3436]"
-                }`}
-                title="Grid View"
-              >
-                <FiGrid />
-              </button>
             </div>
           </div>
 

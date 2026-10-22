@@ -244,13 +244,14 @@ export const createSubscriptionPlan = async (data, adminUser) => {
 
   // Log audit event
   await AuditLog.create({
-    userId: adminUser._id,
-    userEmail: adminUser.email,
-    userRole: adminUser.role,
+    actorId: adminUser._id || adminUser.id,
+    actorEmail: adminUser.email,
+    actorRole: adminUser.role,
     action: "SUBSCRIPTION_PLAN_CREATED",
-    entity: "SubscriptionPlan",
+    entityType: "SubscriptionPlan",
     entityId: plan._id.toString(),
-    details: { name: plan.name, code: plan.code, monthlyPrice: plan.monthlyPrice, status: plan.status },
+    description: `Created subscription plan ${plan.name} (${plan.code})`,
+    metadata: { name: plan.name, code: plan.code, monthlyPrice: plan.monthlyPrice, status: plan.status },
   });
 
   return plan;
@@ -276,13 +277,14 @@ export const updateSubscriptionPlan = async (id, data, adminUser) => {
   await plan.save();
 
   await AuditLog.create({
-    userId: adminUser._id,
-    userEmail: adminUser.email,
-    userRole: adminUser.role,
+    actorId: adminUser._id || adminUser.id,
+    actorEmail: adminUser.email,
+    actorRole: adminUser.role,
     action: "SUBSCRIPTION_PLAN_UPDATED",
-    entity: "SubscriptionPlan",
+    entityType: "SubscriptionPlan",
     entityId: plan._id.toString(),
-    details: { name: plan.name, status: plan.status },
+    description: `Updated subscription plan ${plan.name} (${plan.code})`,
+    metadata: { name: plan.name, status: plan.status },
   });
 
   return plan;
@@ -300,13 +302,14 @@ export const publishSubscriptionPlan = async (id, adminUser) => {
   await plan.save();
 
   await AuditLog.create({
-    userId: adminUser._id,
-    userEmail: adminUser.email,
-    userRole: adminUser.role,
+    actorId: adminUser._id || adminUser.id,
+    actorEmail: adminUser.email,
+    actorRole: adminUser.role,
     action: "SUBSCRIPTION_PLAN_PUBLISHED",
-    entity: "SubscriptionPlan",
+    entityType: "SubscriptionPlan",
     entityId: plan._id.toString(),
-    details: { name: plan.name, code: plan.code },
+    description: `Published subscription plan ${plan.name} (${plan.code})`,
+    metadata: { name: plan.name, code: plan.code },
   });
 
   return plan;
@@ -325,13 +328,14 @@ export const updateCompanySubscriptionStatus = async (id, status, adminUser) => 
   await sub.save();
 
   await AuditLog.create({
-    userId: adminUser._id,
-    userEmail: adminUser.email,
-    userRole: adminUser.role,
+    actorId: adminUser._id || adminUser.id,
+    actorEmail: adminUser.email,
+    actorRole: adminUser.role,
     action: "SUBSCRIPTION_STATUS_CHANGED",
-    entity: "CompanySubscription",
+    entityType: "CompanySubscription",
     entityId: sub._id.toString(),
-    details: { oldStatus, newStatus: status, vendorId: sub.vendorId },
+    description: `Changed subscription status from ${oldStatus} to ${status}`,
+    metadata: { oldStatus, newStatus: status, vendorId: sub.vendorId },
   });
 
   return sub;

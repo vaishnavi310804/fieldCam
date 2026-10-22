@@ -44,7 +44,7 @@ const SuperAdminMetricCard = ({
           </div>
         ) : (
           <span className="text-[10px] font-semibold text-[#817B77] bg-[#F5F2F0] px-2 py-0.5 rounded-full border border-[#EBE6E3]">
-            {isAvailable ? "— Stable" : "N/A"}
+            {isAvailable ? "—" : "N/A"}
           </span>
         )}
       </div>

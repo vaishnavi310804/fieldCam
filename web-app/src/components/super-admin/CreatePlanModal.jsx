@@ -106,9 +106,9 @@ const CreatePlanModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-[#EBE6E3] overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#EBE6E3] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-[#EBE6E3] flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-[#EBE6E3] flex items-center justify-between shrink-0 bg-white">
           <h3 className="text-base font-bold text-[#2D3436]">
             {planToEdit ? "Edit Subscription Plan" : "Create New Subscription Plan"}
           </h3>
@@ -122,136 +122,139 @@ const CreatePlanModal = ({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable Form Body */}
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {error && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs">
+                {error}
+              </div>
+            )}
 
-          {/* Plan Name */}
-          <div>
-            <label className="block text-xs font-bold text-[#2D3436] mb-1">
-              Plan Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Professional"
-              className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
-            />
-          </div>
-
-          {/* Subtitle */}
-          <div>
-            <label className="block text-xs font-bold text-[#2D3436] mb-1">
-              Description / Subtitle
-            </label>
-            <input
-              type="text"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              placeholder="e.g. Advanced tools for growing companies."
-              className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Price */}
+            {/* Plan Name */}
             <div>
               <label className="block text-xs font-bold text-[#2D3436] mb-1">
-                Monthly Price (USD) *
+                Plan Name *
               </label>
               <input
-                type="number"
+                type="text"
                 required
-                min="0"
-                value={monthlyPrice}
-                onChange={(e) => setMonthlyPrice(e.target.value)}
-                placeholder="149"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Professional"
                 className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
               />
             </div>
 
-            {/* Status */}
+            {/* Subtitle */}
             <div>
               <label className="block text-xs font-bold text-[#2D3436] mb-1">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-2.5 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
-              >
-                <option value="PUBLISHED">Published</option>
-                <option value="DRAFT">Draft</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* User Limit */}
-            <div>
-              <label className="block text-xs font-bold text-[#2D3436] mb-1">
-                User Limit (Blank = Unlimited)
+                Description / Subtitle
               </label>
               <input
-                type="number"
-                value={userLimit}
-                onChange={(e) => setUserLimit(e.target.value)}
-                placeholder="50"
+                type="text"
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
+                placeholder="e.g. Advanced tools for growing companies."
                 className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
               />
             </div>
 
-            {/* Storage Limit */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Price */}
+              <div>
+                <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                  Monthly Price (USD) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={monthlyPrice}
+                  onChange={(e) => setMonthlyPrice(e.target.value)}
+                  placeholder="149"
+                  className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-2.5 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
+                >
+                  <option value="PUBLISHED">Published</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* User Limit */}
+              <div>
+                <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                  User Limit (Blank = Unlimited)
+                </label>
+                <input
+                  type="number"
+                  value={userLimit}
+                  onChange={(e) => setUserLimit(e.target.value)}
+                  placeholder="50"
+                  className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
+                />
+              </div>
+
+              {/* Storage Limit */}
+              <div>
+                <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                  Storage Limit (GB)
+                </label>
+                <input
+                  type="number"
+                  value={storageLimitGb}
+                  onChange={(e) => setStorageLimitGb(e.target.value)}
+                  placeholder="100"
+                  className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Features Checklist List */}
             <div>
               <label className="block text-xs font-bold text-[#2D3436] mb-1">
-                Storage Limit (GB)
+                Features (One per line)
               </label>
-              <input
-                type="number"
-                value={storageLimitGb}
-                onChange={(e) => setStorageLimitGb(e.target.value)}
-                placeholder="100"
-                className="w-full h-9 bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg px-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
+              <textarea
+                rows={4}
+                value={featuresText}
+                onChange={(e) => setFeaturesText(e.target.value)}
+                placeholder={`Up to 50 Users\n100GB NVMe Storage\nPriority Email Support\nAdvanced Analytics`}
+                className="w-full bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg p-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
               />
             </div>
-          </div>
 
-          {/* Features Checklist List */}
-          <div>
-            <label className="block text-xs font-bold text-[#2D3436] mb-1">
-              Features (One per line)
-            </label>
-            <textarea
-              rows={4}
-              value={featuresText}
-              onChange={(e) => setFeaturesText(e.target.value)}
-              placeholder={`Up to 50 Users\n100GB NVMe Storage\nPriority Email Support\nAdvanced Analytics`}
-              className="w-full bg-[#FAF7F5] border border-[#EBE6E3] rounded-lg p-3 text-xs text-[#2D3436] outline-none focus:border-[#5141F5] focus:bg-white"
-            />
-          </div>
-
-          {/* Highlight Popular Checkbox */}
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="isPopular"
-              checked={isPopular}
-              onChange={(e) => setIsPopular(e.target.checked)}
-              className="rounded border-gray-300 text-[#817B77] focus:ring-[#817B77]"
-            />
-            <label htmlFor="isPopular" className="text-xs font-medium text-[#2D3436] cursor-pointer">
-              Mark as Popular / Featured Plan
-            </label>
+            {/* Highlight Popular Checkbox */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="isPopular"
+                checked={isPopular}
+                onChange={(e) => setIsPopular(e.target.checked)}
+                className="rounded border-gray-300 text-[#817B77] focus:ring-[#817B77]"
+              />
+              <label htmlFor="isPopular" className="text-xs font-medium text-[#2D3436] cursor-pointer">
+                Mark as Popular / Featured Plan
+              </label>
+            </div>
           </div>
 
           {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#EBE6E3]">
+          <div className="px-6 py-4 border-t border-[#EBE6E3] flex items-center justify-end gap-3 shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
