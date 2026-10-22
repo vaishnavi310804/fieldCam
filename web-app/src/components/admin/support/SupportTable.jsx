@@ -487,7 +487,7 @@ const SupportTable = ({
             {/* Read-Only Subject */}
             <div>
               <label className="block text-xs font-bold text-[#817B77] mb-1">
-                Subject <span className="text-[10px] font-normal text-[#A39A94]">(Read-only)</span>
+                Subject
               </label>
               <div className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium select-text">
                 {editTicket.subject || "—"}
@@ -498,7 +498,7 @@ const SupportTable = ({
             {editTicket.description ? (
               <div>
                 <label className="block text-xs font-bold text-[#817B77] mb-1">
-                  Description <span className="text-[10px] font-normal text-[#A39A94]">(Read-only)</span>
+                  Description
                 </label>
                 <div className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3 text-xs text-[#6E6763] max-h-24 overflow-y-auto leading-relaxed select-text whitespace-pre-wrap">
                   {editTicket.description}

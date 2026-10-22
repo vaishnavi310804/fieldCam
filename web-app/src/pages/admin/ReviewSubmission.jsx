@@ -546,7 +546,7 @@ const ReviewSubmission = () => {
                         <span>Submission Approved</span>
                       </div>
                       <p className="text-[#3E3734] leading-relaxed">
-                        This project submission has been approved. Review actions are locked and no further retakes or status changes can be performed from this panel.
+                        This project submission has been approved. Review actions are locked and no changes can be performed from this panel.
                       </p>
                     </div>
 

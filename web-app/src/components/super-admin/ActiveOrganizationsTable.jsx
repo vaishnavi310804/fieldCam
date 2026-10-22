@@ -2,6 +2,25 @@ import { useState } from "react";
 import { FiDownload, FiBriefcase, FiCheckCircle, FiAlertCircle, FiEye } from "react-icons/fi";
 import VendorProfileModal from "../admin/vendors/VendorProfileModal";
 
+const formatStorageDisplay = (storage, storageLimitGb) => {
+  if (typeof storage === "string" && storage.trim()) {
+    return storage;
+  }
+  if (typeof storageLimitGb === "number") {
+    if (storageLimitGb === -1) return "Unlimited";
+    if (storageLimitGb >= 0) return `${storageLimitGb} GB`;
+    return "—";
+  }
+  if (typeof storage === "object" && storage !== null) {
+    if (typeof storage.limitGb === "number") {
+      if (storage.limitGb === -1) return "Unlimited";
+      if (storage.limitGb >= 0) return `${storage.limitGb} GB`;
+    }
+    if (storage.text) return storage.text;
+  }
+  return "—";
+};
+
 const ActiveOrganizationsTable = ({
   organizations = [],
   loading = false,
@@ -25,11 +44,10 @@ const ActiveOrganizationsTable = ({
     const headers = ["Organization,Status,Projects Assigned,Storage\n"];
     const rows = organizations.map(
       (org) =>
-        `"${org.name}","${org.status}","${org.projectsAssigned ?? 0}","${
-          typeof org.storage === "object" && org.storage !== null
-            ? org.storage.text || "Usage unavailable"
-            : org.storage || "N/A"
-        }"\n`
+        `"${org.name}","${org.status}","${org.projectsAssigned ?? 0}","${formatStorageDisplay(
+          org.storage,
+          org.storageLimitGb
+        )}"\n`
     );
 
     const blob = new Blob([...headers, ...rows], { type: "text/csv" });
@@ -143,54 +161,11 @@ const ActiveOrganizationsTable = ({
                       {typeof org.projectsAssigned === "number" ? org.projectsAssigned : "—"}
                     </td>
 
-                    {/* Storage Relative to Assigned Plan Limit */}
+                    {/* Storage (Plan Limit Only) */}
                     <td className="py-4 px-6 text-[#2D3436]">
-                      {typeof org.storage === "object" && org.storage !== null ? (
-                        <div>
-                          <p
-                            className={`font-semibold ${
-                              !org.storage.isAvailable && !org.storage.hasPlan
-                                ? "text-[#817B77]"
-                                : "text-[#2D3436]"
-                            }`}
-                          >
-                            {org.storage.text || "Usage unavailable"}
-                          </p>
-                          {org.storage.isAvailable &&
-                            org.storage.hasPlan &&
-                            !org.storage.isUnlimited && (
-                              <div className="w-24 h-1.5 bg-[#EBE6E3] rounded-full overflow-hidden mt-1.5">
-                                <div
-                                  className={`h-full rounded-full transition-all ${
-                                    org.storage.percentage > 90
-                                      ? "bg-rose-500"
-                                      : org.storage.percentage > 70
-                                      ? "bg-amber-500"
-                                      : "bg-emerald-500"
-                                  }`}
-                                  style={{
-                                    width: `${Math.max(
-                                      org.storage.percentage === 0 ? 0 : 2,
-                                      org.storage.percentage
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                            )}
-                          {!org.storage.isAvailable && org.storage.reason && (
-                            <p
-                              className="text-[10px] text-[#A39A94] mt-0.5 truncate max-w-[180px]"
-                              title={org.storage.reason}
-                            >
-                              {org.storage.reason}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="font-semibold text-[#817B77]">
-                          {org.storage || "N/A"}
-                        </span>
-                      )}
+                      <span className="font-semibold text-xs">
+                        {formatStorageDisplay(org.storage, org.storageLimitGb)}
+                      </span>
                     </td>
 
                     {/* View Details Action Button */}
@@ -198,7 +173,7 @@ const ActiveOrganizationsTable = ({
                       <button
                         type="button"
                         onClick={() => handleOpenDetails(org)}
-                        className="p-1.5 text-[#2D3436] hover:text-[#817B77] text-xs font-semibold hover:border-[#D6CEC7] cursor-pointer"
+                        className="items-center justify-center p-1.5 hover:bg-[#FAF7F5] text-[#2D3436] hover:text-[#000] text-xs font-semibold rounded-lg cursor-pointer"
                       >
                         <FiEye className="text-sm" />
                       </button>
