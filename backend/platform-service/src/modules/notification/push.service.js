@@ -1,4 +1,5 @@
 import { getMessaging } from "firebase-admin/messaging";
+import { getApps } from "firebase-admin/app";
 import firebaseAdminApp from "../../config/firebaseAdmin.js";
 import {
   getActiveDeviceTokensService,
@@ -30,7 +31,8 @@ export const sendPushNotificationForUser = async ({
   data = {},
 }) => {
   try {
-    if (!firebaseAdminApp) {
+    const app = firebaseAdminApp || (getApps().length > 0 ? getApps()[0] : null);
+    if (!app) {
       console.warn("[FCM Push] Firebase Admin app not initialized. Skipping push delivery.");
       return { attempted: 0, successCount: 0, failureCount: 0 };
     }
@@ -46,7 +48,7 @@ export const sendPushNotificationForUser = async ({
       `[FCM Push] Preparing push delivery to user ${userId} across ${tokens.length} active device(s)...`
     );
 
-    const messaging = getMessaging(firebaseAdminApp);
+    const messaging = getMessaging(app);
     const normalizedData = normalizeFcmDataPayload({
       ...data,
       type,
@@ -84,9 +86,10 @@ export const sendPushNotificationForUser = async ({
         failureCount++;
         const error = response.error;
         const errorCode = error ? error.code : "unknown";
+        const tokenSuffix = typeof targetToken === "string" ? targetToken.slice(-6) : "unknown";
 
         console.warn(
-          `[FCM Push] Delivery failed for token ending in ...${targetToken.slice(-6)}: ${errorCode}`
+          `[FCM Push] Delivery failed for token ending in ...${tokenSuffix}: ${errorCode}`
         );
 
         if (
@@ -94,7 +97,7 @@ export const sendPushNotificationForUser = async ({
           errorCode === "messaging/registration-token-not-registered"
         ) {
           console.log(
-            `[FCM Push] Deactivating invalid/unregistered token ...${targetToken.slice(-6)}`
+            `[FCM Push] Deactivating invalid/unregistered token ...${tokenSuffix}`
           );
           await deactivateDeviceTokenService({
             userId,
