@@ -70,6 +70,22 @@ export const createVendorValidation = [
     .optional()
     .isISO8601()
     .withMessage("Joined date must be a valid ISO date string"),
+
+  body("planId")
+    .notEmpty()
+    .withMessage("Subscription plan is required")
+    .isMongoId()
+    .withMessage("Valid subscription plan ID is required"),
+
+  body("startDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Start date must be a valid ISO date string"),
+
+  body("durationMonths")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Duration must be a positive number of months (minimum 1)"),
 ];
 
 export const updateVendorValidation = [

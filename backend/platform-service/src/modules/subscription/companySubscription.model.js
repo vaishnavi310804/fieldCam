@@ -26,6 +26,14 @@ const companySubscriptionSchema = new mongoose.Schema(
       type: Date,
       default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
+    durationMonths: {
+      type: Number,
+      default: 1,
+      min: [1, "Duration must be at least 1 month"],
+    },
+    expiryDate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

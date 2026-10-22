@@ -6,12 +6,67 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 import { createNotification } from "../notification/notification.service.js";
 import { calculateProjectWorkflowProgress } from "../project/project.service.js";
+import SubscriptionPlan from "../subscription/subscriptionPlan.model.js";
+import CompanySubscription from "../subscription/companySubscription.model.js";
+import { assignSubscriptionToCompany } from "../subscription/subscription.service.js";
 
-export const createVendor = async (vendorData) => {
+export const createVendor = async (vendorData, adminUser = null) => {
   let createdUserId = null;
   let createdVendorId = null;
+  let createdSubscriptionId = null;
 
   try {
+    // 1. Subscription Configuration Validation
+    const planId = vendorData.planId || vendorData.subscription?.planId;
+    const rawStartDate = vendorData.startDate || vendorData.subscription?.startDate || new Date();
+    const rawDuration =
+      vendorData.durationMonths !== undefined
+        ? vendorData.durationMonths
+        : vendorData.duration !== undefined
+        ? vendorData.duration
+        : vendorData.subscription?.durationMonths !== undefined
+        ? vendorData.subscription?.durationMonths
+        : 1;
+
+    if (!planId) {
+      const err = new Error("Subscription plan is required");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(planId)) {
+      const err = new Error("Valid subscription plan ID is required");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan) {
+      const err = new Error("Selected subscription plan does not exist");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (plan.status !== "PUBLISHED") {
+      const err = new Error("Selected subscription plan is not eligible for assignment (must be PUBLISHED)");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const parsedDuration = parseInt(rawDuration, 10);
+    if (isNaN(parsedDuration) || parsedDuration <= 0) {
+      const err = new Error("Duration must be a positive number of months (minimum 1)");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const parsedStartDate = new Date(rawStartDate);
+    if (isNaN(parsedStartDate.getTime())) {
+      const err = new Error("Invalid start date format");
+      err.statusCode = 400;
+      throw err;
+    }
+
     // If no userId provided, check email & provision a VENDOR user account
     if (!vendorData.userId) {
       if (!vendorData.email || !vendorData.email.trim()) {
@@ -102,15 +157,49 @@ export const createVendor = async (vendorData) => {
       }
     }
 
-    const vendor = await Vendor.create(vendorData);
+    // Clean payload of subscription-specific fields before creating Vendor document
+    const {
+      planId: _pId,
+      startDate: _sDate,
+      durationMonths: _dMonths,
+      subscription: _subData,
+      ...cleanVendorData
+    } = vendorData;
+
+    const vendor = await Vendor.create(cleanVendorData);
     createdVendorId = vendor._id;
 
-    return await Vendor.findById(vendor._id).populate(
+    // Link user's companyId to the created vendor
+    if (createdUserId) {
+      await User.findByIdAndUpdate(createdUserId, { companyId: vendor._id });
+    }
+
+    // Associate subscription to the newly created vendor/company
+    const subscription = await assignSubscriptionToCompany(
+      {
+        vendorId: vendor._id,
+        planId: plan._id,
+        startDate: parsedStartDate,
+        durationMonths: parsedDuration,
+        status: "Active",
+      },
+      adminUser
+    );
+    createdSubscriptionId = subscription._id;
+
+    const populatedVendor = await Vendor.findById(vendor._id).populate(
       "userId",
       "name email phone role status"
     );
+
+    const result = populatedVendor.toObject();
+    result.subscription = subscription;
+    return result;
   } catch (err) {
-    // Perform compensation cleanup if Vendor or User were created during this flow
+    // Perform compensation cleanup if Subscription, Vendor, or User were created during this flow
+    if (createdSubscriptionId) {
+      await CompanySubscription.findByIdAndDelete(createdSubscriptionId);
+    }
     if (createdVendorId) {
       await Vendor.findByIdAndDelete(createdVendorId);
     }

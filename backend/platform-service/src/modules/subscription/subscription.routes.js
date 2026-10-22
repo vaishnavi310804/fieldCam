@@ -5,6 +5,7 @@ import {
   createPlanValidation,
   updatePlanValidation,
   updateSubscriptionStatusValidation,
+  assignSubscriptionValidation,
 } from "./subscription.validation.js";
 import {
   getPlansController,
@@ -14,16 +15,28 @@ import {
   updatePlanController,
   publishPlanController,
   updateSubscriptionStatusController,
+  assignSubscriptionController,
 } from "./subscription.controller.js";
 
 const router = Router();
 
-// All routes require authentication and SUPER_ADMIN role
+// All subscription routes require authentication
 router.use(protect);
-router.use(authorize("SUPER_ADMIN"));
 
-// GET /api/subscriptions/plans - Read subscription plans
-router.get("/plans", getPlansController);
+// GET /api/subscriptions/plans - Read subscription plans (SUPER_ADMIN and ADMIN)
+router.get("/plans", authorize("SUPER_ADMIN", "ADMIN"), getPlansController);
+
+// POST /api/subscriptions/assign - Assign subscription to an existing company (SUPER_ADMIN and ADMIN)
+router.post(
+  "/assign",
+  authorize("SUPER_ADMIN", "ADMIN"),
+  assignSubscriptionValidation,
+  validate,
+  assignSubscriptionController
+);
+
+// All subsequent management routes require SUPER_ADMIN role
+router.use(authorize("SUPER_ADMIN"));
 
 // GET /api/subscriptions/stats - Read subscription overview metrics
 router.get("/stats", getSubscriptionStatsController);

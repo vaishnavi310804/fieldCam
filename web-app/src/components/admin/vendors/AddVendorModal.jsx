@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { FiX, FiPlus, FiAlertCircle, FiChevronDown } from "react-icons/fi";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { FiX, FiPlus, FiAlertCircle, FiChevronDown, FiCalendar, FiClock, FiLayers } from "react-icons/fi";
+import { getSubscriptionPlans } from "../../../services/subscriptionService";
+import { calculateExpiryDate, formatDisplayDate } from "../../../utils/subscriptionUtils";
 
 const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
   // Form state for actual Vendor backend fields
@@ -12,8 +14,38 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
   const [status, setStatus] = useState("Active");
   const [rating, setRating] = useState("4.0");
 
+  // Subscription configuration state
+  const [plans, setPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [plansError, setPlansError] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [durationMonths, setDurationMonths] = useState(1);
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchPlans = useCallback(async () => {
+    try {
+      setLoadingPlans(true);
+      setPlansError("");
+      const res = await getSubscriptionPlans({ status: "PUBLISHED" });
+      const published = res.data || [];
+      setPlans(published);
+      if (published.length > 0) {
+        setSelectedPlanId(published[0]._id);
+      } else {
+        setSelectedPlanId("");
+      }
+    } catch (err) {
+      console.error("Failed to load subscription plans:", err);
+      setPlansError(
+        err.response?.data?.message || err.message || "Failed to load subscription plans from server"
+      );
+    } finally {
+      setLoadingPlans(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -27,11 +59,24 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
       setServicesInput("Site Inspection");
       setStatus("Active");
       setRating("4.0");
+      setStartDate(new Date().toISOString().split("T")[0]);
+      setDurationMonths(1);
       setError("");
+      await fetchPlans();
     };
 
     resetForm();
-  }, [isOpen]);
+  }, [isOpen, fetchPlans]);
+
+  const selectedPlan = useMemo(
+    () => plans.find((p) => p._id === selectedPlanId),
+    [plans, selectedPlanId]
+  );
+
+  const expiryDatePreview = useMemo(() => {
+    if (!startDate || !durationMonths) return null;
+    return calculateExpiryDate(startDate, durationMonths);
+  }, [startDate, durationMonths]);
 
   if (!isOpen) return null;
 
@@ -64,6 +109,18 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
       setError("Please enter a Location.");
       return;
     }
+    if (!selectedPlanId) {
+      setError("Please select a subscription plan for the company.");
+      return;
+    }
+    if (!startDate) {
+      setError("Please select a subscription start date.");
+      return;
+    }
+    if (!durationMonths || durationMonths < 1) {
+      setError("Please select a valid duration of at least 1 month.");
+      return;
+    }
 
     const servicesArray = servicesInput
       .split(",")
@@ -79,6 +136,9 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
       services: servicesArray.length > 0 ? servicesArray : ["Site Inspection"],
       status,
       rating: Number(rating || 4),
+      planId: selectedPlanId,
+      startDate,
+      durationMonths: Number(durationMonths),
     };
 
     try {
@@ -261,6 +321,160 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                 className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-semibold outline-none focus:border-[#C8B5AC] transition-colors"
               />
             </div>
+          </div>
+
+          {/* Subscription Configuration Section */}
+          <div className="pt-4 border-t border-[#E8E2DE] space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
+                <span>Subscription Configuration</span>
+              </h3>
+            </div>
+
+            {/* Loading State */}
+            {loadingPlans && (
+              <div className="py-4 text-center text-xs text-[#817B77] bg-[#FAF7F5] rounded-xl border border-[#E8E2DE]">
+                <div className="inline-block w-4 h-4 border-2 border-[#817B77] border-t-transparent rounded-full animate-spin mr-2" />
+                Loading published subscription plans...
+              </div>
+            )}
+
+            {/* Error State */}
+            {plansError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs flex items-center justify-between">
+                <span>{plansError}</span>
+                <button
+                  type="button"
+                  onClick={fetchPlans}
+                  className="font-bold underline cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loadingPlans && !plansError && plans.length === 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
+                No published subscription plans available. Please create and publish a plan in Super Admin &gt; Subscriptions before provisioning a company.
+              </div>
+            )}
+
+            {/* Plan Configuration Fields */}
+            {!loadingPlans && plans.length > 0 && (
+              <div className="space-y-3">
+                {/* Plan Dropdown */}
+                <div>
+                  <label className="block text-xs font-bold text-[#3E3734] mb-1.5">
+                    Select Plan <span className="text-[#C62828]">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedPlanId}
+                      onChange={(e) => setSelectedPlanId(e.target.value)}
+                      required
+                      className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="">Choose a subscription plan...</option>
+                      {plans.map((p) => (
+                        <option key={p._id} value={p._id}>
+                          {p.name} — ${p.monthlyPrice}/mo ({p.userLimit === -1 ? "Unlimited" : p.userLimit} Users, {p.storageLimitGb === -1 ? "Unlimited" : p.storageLimitGb + " GB"} Storage)
+                        </option>
+                      ))}
+                    </select>
+                    <FiChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Selected Plan Details Preview Card */}
+                {selectedPlan && (
+                  <div className="bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl p-3.5 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#2D3436] text-sm">
+                          {selectedPlan.name}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white border border-[#E8E2DE] text-[#6E6763]">
+                          {selectedPlan.code}
+                        </span>
+                      </div>
+                      <span className="font-bold text-[#5141F5] text-sm">
+                        ${selectedPlan.monthlyPrice} / month
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[#6E6763] pt-1">
+                      <div>
+                        <strong className="text-[#3E3734]">User Limit:</strong>{" "}
+                        {selectedPlan.userLimit === -1 ? "Unlimited" : `${selectedPlan.userLimit} Users`}
+                      </div>
+                      <div>
+                        <strong className="text-[#3E3734]">Storage:</strong>{" "}
+                        {selectedPlan.storageLimitGb === -1 ? "Unlimited" : `${selectedPlan.storageLimitGb} GB`}
+                      </div>
+                    </div>
+
+                    {Array.isArray(selectedPlan.features) && selectedPlan.features.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1.5">
+                        {selectedPlan.features.map((feat, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-white border border-[#E8E2DE] px-2 py-0.5 rounded text-[10px] text-[#6E6763]"
+                          >
+                            ✓ {feat}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Start Date & Duration */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#3E3734] mb-1.5 flex items-center gap-1.5">
+                      <FiCalendar className="text-[#817B77]" />
+                      <span>Start Date <span className="text-[#C62828]">*</span></span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#3E3734] mb-1.5 flex items-center gap-1.5">
+                      <FiClock className="text-[#817B77]" />
+                      <span>Duration (Months) <span className="text-[#C62828]">*</span></span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={durationMonths}
+                        onChange={(e) => setDurationMonths(Number(e.target.value))}
+                        className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
+                      >
+                        <option value={1}>1 Month</option>
+                        <option value={3}>3 Months (Quarterly)</option>
+                        <option value={6}>6 Months (Semi-annual)</option>
+                        <option value={12}>12 Months (Annual)</option>
+                      </select>
+                      <FiChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expiry / Renewal Date Live Preview */}
+                <div className="bg-[#F8F7FF] border border-[#5141F5]/20 rounded-xl p-3 flex items-center justify-between text-xs">
+                  <span className="text-[#6E6763] font-medium">Calculated Expiry / Renewal Date:</span>
+                  <span className="font-bold text-[#5141F5] text-xs">
+                    {expiryDatePreview ? formatDisplayDate(expiryDatePreview) : "—"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Actions */}

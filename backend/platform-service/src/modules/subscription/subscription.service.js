@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import SubscriptionPlan from "./subscriptionPlan.model.js";
 import CompanySubscription from "./companySubscription.model.js";
 import Vendor from "../vendor/vendor.model.js";
@@ -65,33 +66,139 @@ const ensureDefaultPlansSeeded = async () => {
   }
 };
 
-// Helper to seed company subscriptions for existing vendors if collection is empty
-const ensureCompanySubscriptionsSeeded = async () => {
-  const count = await CompanySubscription.countDocuments();
-  if (count === 0) {
-    const vendors = await Vendor.find();
-    const plans = await SubscriptionPlan.find({ status: "PUBLISHED" });
-    if (vendors.length > 0 && plans.length > 0) {
-      const basicPlan = plans.find((p) => p.code === "BASIC") || plans[0];
-      const proPlan = plans.find((p) => p.code === "PROFESSIONAL") || plans[0];
-      const entPlan = plans.find((p) => p.code === "ENTERPRISE") || plans[0];
-
-      const sampleSubscriptions = vendors.map((vendor, idx) => {
-        const selectedPlan = idx % 3 === 0 ? proPlan : idx % 3 === 1 ? entPlan : basicPlan;
-        const status = idx === 2 ? "Past Due" : "Active";
-        const renewalDate = new Date(Date.now() + (15 + idx * 5) * 24 * 60 * 60 * 1000);
-        return {
-          vendorId: vendor._id,
-          planId: selectedPlan._id,
-          status,
-          startDate: vendor.joinedDate || new Date(),
-          renewalDate,
-        };
-      });
-
-      await CompanySubscription.insertMany(sampleSubscriptions);
-    }
+export const calculateSubscriptionExpiryDate = (startDate, durationMonths = 1) => {
+  const start = new Date(startDate);
+  if (isNaN(start.getTime())) {
+    const err = new Error("Invalid start date format");
+    err.statusCode = 400;
+    throw err;
   }
+  const months = parseInt(durationMonths, 10);
+  if (isNaN(months) || months <= 0) {
+    const err = new Error("Duration must be a positive number of months (minimum 1)");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth();
+  const startDay = start.getDate();
+
+  const targetTotalMonths = startMonth + months;
+  const targetYear = startYear + Math.floor(targetTotalMonths / 12);
+  const normalizedMonth = ((targetTotalMonths % 12) + 12) % 12;
+
+  // Last day of target month: (year, month + 1, 0)
+  const daysInTargetMonth = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+  const targetDay = Math.min(startDay, daysInTargetMonth);
+
+  const expiry = new Date(start);
+  expiry.setDate(1);
+  expiry.setFullYear(targetYear);
+  expiry.setMonth(normalizedMonth);
+  expiry.setDate(targetDay);
+
+  return expiry;
+};
+
+export const assignSubscriptionToCompany = async (
+  { vendorId, planId, startDate, durationMonths = 1, status = "Active" },
+  adminUser
+) => {
+  if (!vendorId || !mongoose.Types.ObjectId.isValid(vendorId)) {
+    const err = new Error("Valid vendor ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!planId || !mongoose.Types.ObjectId.isValid(planId)) {
+    const err = new Error("Valid subscription plan ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const vendor = await Vendor.findById(vendorId);
+  if (!vendor) {
+    const err = new Error("Referenced vendor/company does not exist");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const plan = await SubscriptionPlan.findById(planId);
+  if (!plan) {
+    const err = new Error("Selected subscription plan does not exist");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (plan.status !== "PUBLISHED") {
+    const err = new Error("Selected subscription plan is not eligible for assignment (must be PUBLISHED)");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Prevent duplicate subscription assignment
+  const existingSub = await CompanySubscription.findOne({ vendorId: vendor._id });
+  if (existingSub) {
+    const err = new Error("Company already has an active subscription");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validStart = startDate ? new Date(startDate) : new Date();
+  if (isNaN(validStart.getTime())) {
+    const err = new Error("Invalid subscription start date format");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validDuration = parseInt(durationMonths, 10);
+  if (isNaN(validDuration) || validDuration <= 0) {
+    const err = new Error("Duration must be a positive number of months (minimum 1)");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const expiryDate = calculateSubscriptionExpiryDate(validStart, validDuration);
+
+  const subscription = await CompanySubscription.create({
+    vendorId: vendor._id,
+    planId: plan._id,
+    status: status || "Active",
+    startDate: validStart,
+    renewalDate: expiryDate,
+    durationMonths: validDuration,
+    expiryDate,
+  });
+
+  if (adminUser) {
+    await AuditLog.create({
+      actorId: adminUser._id || adminUser.id,
+      actorEmail: adminUser.email,
+      actorRole: adminUser.role,
+      action: "SUBSCRIPTION_ASSIGNED",
+      entityType: "CompanySubscription",
+      entityId: subscription._id.toString(),
+      description: `Assigned plan ${plan.name} (${plan.code}) to company ${vendor.companyName} for ${validDuration} month(s)`,
+      metadata: {
+        vendorId: vendor._id.toString(),
+        companyName: vendor.companyName,
+        planId: plan._id.toString(),
+        planName: plan.name,
+        planCode: plan.code,
+        monthlyPrice: plan.monthlyPrice,
+        userLimit: plan.userLimit,
+        storageLimitGb: plan.storageLimitGb,
+        startDate: validStart,
+        renewalDate: expiryDate,
+        durationMonths: validDuration,
+      },
+    });
+  }
+
+  return await CompanySubscription.findById(subscription._id)
+    .populate("planId", "name code monthlyPrice userLimit storageLimitGb features")
+    .populate("vendorId", "companyName contactName email status");
 };
 
 export const getSubscriptionPlans = async (queryStatus) => {
@@ -112,27 +219,27 @@ export const getSubscribedCompanies = async ({
   limit = 10,
 }) => {
   await ensureDefaultPlansSeeded();
-  await ensureCompanySubscriptionsSeeded();
 
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
   const skip = (pageNum - 1) * limitNum;
 
-  // Build match filters
-  const matchStage = {};
-  if (status && status !== "ALL") {
-    matchStage.status = status;
-  }
-  if (planId && planId !== "ALL") {
-    matchStage.planId = planId;
-  }
+  // 1. Fetch all companies/vendors
+  const vendors = await Vendor.find().sort({ createdAt: -1 });
 
-  let subscriptions = await CompanySubscription.find(matchStage)
-    .populate("vendorId", "companyName contactName avatarBg initials status")
+  // 2. Fetch all persisted company subscriptions
+  const subscriptions = await CompanySubscription.find()
     .populate("planId", "name code monthlyPrice userLimit storageLimitGb")
     .sort({ createdAt: -1 });
 
-  // Get user counts for all vendors
+  const subByVendorId = new Map();
+  for (const sub of subscriptions) {
+    if (sub.vendorId) {
+      subByVendorId.set(sub.vendorId.toString(), sub);
+    }
+  }
+
+  // 3. Get user counts for all vendors
   const userCounts = await User.aggregate([
     { $match: { companyId: { $ne: null } } },
     { $group: { _id: "$companyId", count: { $sum: 1 } } },
@@ -142,33 +249,73 @@ export const getSubscribedCompanies = async ({
     if (u._id) userCountMap[u._id.toString()] = u.count;
   });
 
-  // Transform records
-  let result = subscriptions.map((sub) => {
-    const vendor = sub.vendorId || {};
-    const plan = sub.planId || {};
-    const vendorIdStr = vendor._id ? vendor._id.toString() : "";
+  // 4. Map records
+  let result = vendors.map((vendor) => {
+    const vendorIdStr = vendor._id.toString();
+    const sub = subByVendorId.get(vendorIdStr);
     const userCount = userCountMap[vendorIdStr] || 0;
 
+    if (sub) {
+      const plan = sub.planId || {};
+      return {
+        _id: sub._id,
+        subscriptionId: sub._id,
+        vendorId: vendor._id,
+        companyName: vendor.companyName || "Unknown Company",
+        avatarBg: vendor.avatarBg || "#5141F5",
+        initials: vendor.initials || vendor.companyName?.slice(0, 2)?.toUpperCase() || "CO",
+        planId: plan._id || null,
+        planName: plan.name || "N/A",
+        planCode: plan.code || "BASIC",
+        monthlyPrice: plan.monthlyPrice || 0,
+        userLimit: plan.userLimit !== undefined ? plan.userLimit : -1,
+        userCount,
+        status: sub.status || "Active",
+        renewalDate: sub.renewalDate || sub.expiryDate,
+        startDate: sub.startDate,
+        durationMonths: sub.durationMonths || 1,
+        createdAt: sub.createdAt,
+      };
+    }
+
     return {
-      _id: sub._id,
+      _id: `unassigned-${vendor._id}`,
+      subscriptionId: null,
       vendorId: vendor._id,
       companyName: vendor.companyName || "Unknown Company",
       avatarBg: vendor.avatarBg || "#5141F5",
       initials: vendor.initials || vendor.companyName?.slice(0, 2)?.toUpperCase() || "CO",
-      planId: plan._id,
-      planName: plan.name || "N/A",
-      planCode: plan.code || "BASIC",
-      monthlyPrice: plan.monthlyPrice || 0,
-      userLimit: plan.userLimit !== undefined ? plan.userLimit : -1,
+      planId: null,
+      planName: "Unassigned",
+      planCode: "UNASSIGNED",
+      monthlyPrice: 0,
+      userLimit: "N/A",
       userCount,
-      status: sub.status || "Active",
-      renewalDate: sub.renewalDate,
-      startDate: sub.startDate,
-      createdAt: sub.createdAt,
+      status: "Unassigned",
+      renewalDate: null,
+      startDate: null,
+      durationMonths: null,
+      createdAt: vendor.createdAt,
     };
   });
 
-  // Apply search filtering on companyName or planName if search param provided
+  // 5. Apply filters
+  if (status && status !== "ALL") {
+    result = result.filter(
+      (r) => r.status.toLowerCase() === status.toLowerCase()
+    );
+  }
+
+  if (planId && planId !== "ALL") {
+    if (planId === "UNASSIGNED") {
+      result = result.filter((r) => !r.planId);
+    } else {
+      result = result.filter(
+        (r) => r.planId && r.planId.toString() === planId.toString()
+      );
+    }
+  }
+
   if (search && search.trim()) {
     const q = search.trim().toLowerCase();
     result = result.filter(
@@ -194,7 +341,6 @@ export const getSubscribedCompanies = async ({
 
 export const getSubscriptionStats = async () => {
   await ensureDefaultPlansSeeded();
-  await ensureCompanySubscriptionsSeeded();
 
   const totalPlans = await SubscriptionPlan.countDocuments();
   const publishedPlans = await SubscriptionPlan.countDocuments({ status: "PUBLISHED" });

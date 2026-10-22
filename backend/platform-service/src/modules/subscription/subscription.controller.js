@@ -6,6 +6,7 @@ import {
   updateSubscriptionPlan,
   publishSubscriptionPlan,
   updateCompanySubscriptionStatus,
+  assignSubscriptionToCompany,
 } from "./subscription.service.js";
 
 export const getPlansController = async (req, res, next) => {
@@ -106,6 +107,28 @@ export const updateSubscriptionStatusController = async (req, res, next) => {
       success: true,
       data: subscription,
       message: "Subscription status updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const assignSubscriptionController = async (req, res, next) => {
+  try {
+    const subscription = await assignSubscriptionToCompany(
+      {
+        vendorId: req.body.vendorId,
+        planId: req.body.planId,
+        startDate: req.body.startDate,
+        durationMonths: req.body.durationMonths,
+        status: req.body.status,
+      },
+      req.user
+    );
+    res.status(201).json({
+      success: true,
+      data: subscription,
+      message: "Subscription assigned to company successfully",
     });
   } catch (error) {
     next(error);

@@ -30,6 +30,14 @@ export const updatePlanValidation = [
 export const assignSubscriptionValidation = [
   body("vendorId").isMongoId().withMessage("Valid Vendor ID is required"),
   body("planId").isMongoId().withMessage("Valid Plan ID is required"),
+  body("startDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Start date must be a valid ISO date string"),
+  body("durationMonths")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Duration must be a positive number of months (minimum 1)"),
   body("status")
     .optional()
     .isIn(["Active", "Past Due", "Cancelled", "Trial"])

@@ -54,6 +54,7 @@ const auditLogSchema = new mongoose.Schema(
         "SUBSCRIPTION_PLAN_UPDATED",
         "SUBSCRIPTION_PLAN_PUBLISHED",
         "SUBSCRIPTION_STATUS_CHANGED",
+        "SUBSCRIPTION_ASSIGNED",
       ],
       index: true,
     },

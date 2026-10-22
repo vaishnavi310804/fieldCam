@@ -44,7 +44,7 @@ const RecentSubscriptionsTable = ({
       `"${s.planName}"`,
       `"${s.status}"`,
       `"${s.userCount}/${s.userLimit === -1 ? "Unlimited" : s.userLimit}"`,
-      `"${s.renewalDate ? new Date(s.renewalDate).toLocaleDateString() : "N/A"}"`,
+      `"${s.renewalDate ? new Date(s.renewalDate).toLocaleDateString() : "—"}"`,
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -87,6 +87,13 @@ const RecentSubscriptionsTable = ({
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
             Trial
+          </span>
+        );
+      case "Unassigned":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Unassigned
           </span>
         );
       default:
@@ -148,6 +155,7 @@ const RecentSubscriptionsTable = ({
               <option value="Past Due">Past Due</option>
               <option value="Cancelled">Cancelled</option>
               <option value="Trial">Trial</option>
+              <option value="Unassigned">Unassigned</option>
             </select>
           </div>
 
@@ -159,6 +167,7 @@ const RecentSubscriptionsTable = ({
               className="h-8 bg-white border border-[#EBE6E3] rounded-lg px-2.5 text-xs text-[#2D3436] outline-none focus:border-[#5141F5]"
             >
               <option value="ALL">All Plans</option>
+              <option value="UNASSIGNED">Unassigned</option>
               {plans.map((p) => (
                 <option key={p._id} value={p._id}>
                   {p.name}
@@ -224,9 +233,15 @@ const RecentSubscriptionsTable = ({
 
                   {/* Plan */}
                   <td className="py-3.5 px-6">
-                    <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-[#F5F2F0] text-[#6E6763]">
-                      {sub.planCode || sub.planName}
-                    </span>
+                    {sub.planName === "Unassigned" || !sub.planId ? (
+                      <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                        No Plan Assigned
+                      </span>
+                    ) : (
+                      <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-[#F5F2F0] text-[#6E6763]">
+                        {sub.planCode || sub.planName}
+                      </span>
+                    )}
                   </td>
 
                   {/* Status */}
@@ -235,7 +250,7 @@ const RecentSubscriptionsTable = ({
                   {/* Users */}
                   <td className="py-3.5 px-6 font-semibold text-[#2D3436]">
                     {sub.userCount} /{" "}
-                    {sub.userLimit === -1 ? "∞" : sub.userLimit}
+                    {sub.userLimit === -1 ? "∞" : sub.userLimit !== "N/A" && sub.userLimit !== undefined ? sub.userLimit : "—"}
                   </td>
 
                   {/* Renewal Date */}
@@ -246,60 +261,66 @@ const RecentSubscriptionsTable = ({
                           day: "numeric",
                           year: "numeric",
                         })
-                      : "N/A"}
+                      : "—"}
                   </td>
 
                   {/* Actions */}
                   <td className="py-3.5 px-6 text-right relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveMenuId(
-                          activeMenuId === sub._id ? null : sub._id
-                        )
-                      }
-                      className="p-1.5 rounded-lg text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] transition-colors cursor-pointer"
-                      title="Actions"
-                    >
-                      <FiMoreVertical size={16} />
-                    </button>
+                    {!sub.subscriptionId ? (
+                      <span className="text-[11px] text-[#A8A29E] italic">No actions</span>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveMenuId(
+                              activeMenuId === sub._id ? null : sub._id
+                            )
+                          }
+                          className="p-1.5 rounded-lg text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] transition-colors cursor-pointer"
+                          title="Actions"
+                        >
+                          <FiMoreVertical size={16} />
+                        </button>
 
-                    {activeMenuId === sub._id && (
-                      <div className="absolute right-6 top-10 z-20 w-40 bg-white rounded-xl shadow-lg border border-[#EBE6E3] py-1 text-left">
-                        <p className="px-3 py-1 text-[10px] font-bold text-[#817B77] uppercase tracking-wider">
-                          Update Status
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onStatusUpdate(sub._id, "Active");
-                            setActiveMenuId(null);
-                          }}
-                          className="w-full px-3 py-1.5 text-xs text-left text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                        >
-                          Set Active
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onStatusUpdate(sub._id, "Past Due");
-                            setActiveMenuId(null);
-                          }}
-                          className="w-full px-3 py-1.5 text-xs text-left text-amber-600 hover:bg-amber-50 cursor-pointer"
-                        >
-                          Set Past Due
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onStatusUpdate(sub._id, "Cancelled");
-                            setActiveMenuId(null);
-                          }}
-                          className="w-full px-3 py-1.5 text-xs text-left text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        >
-                          Set Cancelled
-                        </button>
-                      </div>
+                        {activeMenuId === sub._id && (
+                          <div className="absolute right-6 top-10 z-20 w-40 bg-white rounded-xl shadow-lg border border-[#EBE6E3] py-1 text-left">
+                            <p className="px-3 py-1 text-[10px] font-bold text-[#817B77] uppercase tracking-wider">
+                              Update Status
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onStatusUpdate(sub._id, "Active");
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs text-left text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+                            >
+                              Set Active
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onStatusUpdate(sub._id, "Past Due");
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs text-left text-amber-600 hover:bg-amber-50 cursor-pointer"
+                            >
+                              Set Past Due
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onStatusUpdate(sub._id, "Cancelled");
+                                setActiveMenuId(null);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs text-left text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            >
+                              Set Cancelled
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

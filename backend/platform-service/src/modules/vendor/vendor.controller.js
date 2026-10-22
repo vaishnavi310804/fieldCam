@@ -29,7 +29,7 @@ export const getMyVendorProfileController = async (req, res) => {
 
 export const createVendorController = async (req, res) => {
   try {
-    const result = await createVendor(req.body);
+    const result = await createVendor(req.body, req.user);
 
     await logAuditEvent({
       actor: req.user,
