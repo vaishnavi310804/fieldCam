@@ -226,6 +226,9 @@ export const createProject = async (projectData, files = {}) => {
           url: uploadResult.key,
           caption: photoFile.originalname,
           category: "General",
+          filename: photoFile.originalname,
+          mimeType: photoFile.mimetype,
+          fileSize: uploadResult.size || photoFile.size || photoFile.buffer?.length,
           uploadedAt: new Date(),
         });
       }

@@ -1,16 +1,35 @@
-import { FiMoreVertical, FiDownload, FiBriefcase, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import { useState } from "react";
+import { FiDownload, FiBriefcase, FiCheckCircle, FiAlertCircle, FiEye } from "react-icons/fi";
+import VendorProfileModal from "../admin/vendors/VendorProfileModal";
 
 const ActiveOrganizationsTable = ({
   organizations = [],
   loading = false,
 }) => {
+  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  const handleOpenDetails = (org) => {
+    setSelectedVendor({
+      _id: org._id || org.id,
+      companyName: org.name,
+      contactName: org.contactName,
+      status: org.status,
+    });
+    setIsDetailsModalOpen(true);
+  };
+
   const handleExportCSV = () => {
     if (!organizations || organizations.length === 0) return;
 
-    const headers = ["Organization,Status,Active Projects,API Calls,Storage\n"];
+    const headers = ["Organization,Status,Projects Assigned,Storage\n"];
     const rows = organizations.map(
       (org) =>
-        `"${org.name}","${org.status}","${org.activeProjects || 0}","${org.apiCalls || "N/A"}","${org.storage || "N/A"}"\n`
+        `"${org.name}","${org.status}","${org.projectsAssigned ?? 0}","${
+          typeof org.storage === "object" && org.storage !== null
+            ? org.storage.text || "Usage unavailable"
+            : org.storage || "N/A"
+        }"\n`
     );
 
     const blob = new Blob([...headers, ...rows], { type: "text/csv" });
@@ -66,7 +85,7 @@ const ActiveOrganizationsTable = ({
               <tr className="bg-[#FAF7F5] border-b border-[#EBE6E3] text-[10px] font-bold text-[#817B77] uppercase tracking-wider">
                 <th className="py-3 px-6">Organization</th>
                 <th className="py-3 px-6">Status</th>
-                <th className="py-3 px-6">API Calls</th>
+                <th className="py-3 px-6">Projects Assigned</th>
                 <th className="py-3 px-6">Storage</th>
                 <th className="py-3 px-6 text-right">Action</th>
               </tr>
@@ -74,12 +93,12 @@ const ActiveOrganizationsTable = ({
 
             <tbody className="divide-y divide-[#F2EBE5] text-xs">
               {organizations.map((org) => {
-                const isActive = org.status === "ACTIVE" || org.status === "ACTIVE";
+                const isActive = org.status === "ACTIVE";
                 const isOverLimit = org.status === "OVER LIMIT" || org.status === "SUSPENDED";
 
                 return (
                   <tr
-                    key={org.id || org.name}
+                    key={org.id || org._id || org.name}
                     className="hover:bg-[#FAF7F5] transition-colors"
                   >
                     {/* Organization Name & Plan */}
@@ -93,7 +112,7 @@ const ActiveOrganizationsTable = ({
                             {org.name}
                           </p>
                           <p className="text-[10px] text-[#817B77] truncate">
-                            {org.plan || "Standard Plan"}
+                            {org.planName || org.plan || "Standard Plan"}
                           </p>
                         </div>
                       </div>
@@ -119,24 +138,69 @@ const ActiveOrganizationsTable = ({
                       </span>
                     </td>
 
-                    {/* API Calls (Real Backend Metric or N/A) */}
-                    <td className="py-4 px-6 font-medium text-[#2D3436]">
-                      {org.apiCalls || "N/A"}
+                    {/* Projects Assigned (Authoritative project count) */}
+                    <td className="py-4 px-6 font-semibold text-[#2D3436]">
+                      {typeof org.projectsAssigned === "number" ? org.projectsAssigned : "—"}
                     </td>
 
-                    {/* Storage (Real Backend Metric or N/A) */}
-                    <td className="py-4 px-6 font-medium text-[#2D3436]">
-                      {org.storage || "N/A"}
+                    {/* Storage Relative to Assigned Plan Limit */}
+                    <td className="py-4 px-6 text-[#2D3436]">
+                      {typeof org.storage === "object" && org.storage !== null ? (
+                        <div>
+                          <p
+                            className={`font-semibold ${
+                              !org.storage.isAvailable && !org.storage.hasPlan
+                                ? "text-[#817B77]"
+                                : "text-[#2D3436]"
+                            }`}
+                          >
+                            {org.storage.text || "Usage unavailable"}
+                          </p>
+                          {org.storage.isAvailable &&
+                            org.storage.hasPlan &&
+                            !org.storage.isUnlimited && (
+                              <div className="w-24 h-1.5 bg-[#EBE6E3] rounded-full overflow-hidden mt-1.5">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    org.storage.percentage > 90
+                                      ? "bg-rose-500"
+                                      : org.storage.percentage > 70
+                                      ? "bg-amber-500"
+                                      : "bg-emerald-500"
+                                  }`}
+                                  style={{
+                                    width: `${Math.max(
+                                      org.storage.percentage === 0 ? 0 : 2,
+                                      org.storage.percentage
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                            )}
+                          {!org.storage.isAvailable && org.storage.reason && (
+                            <p
+                              className="text-[10px] text-[#A39A94] mt-0.5 truncate max-w-[180px]"
+                              title={org.storage.reason}
+                            >
+                              {org.storage.reason}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-[#817B77]">
+                          {org.storage || "N/A"}
+                        </span>
+                      )}
                     </td>
 
-                    {/* Action Menu */}
+                    {/* View Details Action Button */}
                     <td className="py-4 px-6 text-right">
                       <button
                         type="button"
-                        className="p-1.5 text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] rounded-lg transition cursor-pointer"
-                        title="Actions"
+                        onClick={() => handleOpenDetails(org)}
+                        className="p-1.5 text-[#2D3436] hover:text-[#817B77] text-xs font-semibold hover:border-[#D6CEC7] cursor-pointer"
                       >
-                        <FiMoreVertical className="text-sm" />
+                        <FiEye className="text-sm" />
                       </button>
                     </td>
                   </tr>
@@ -146,6 +210,18 @@ const ActiveOrganizationsTable = ({
           </table>
         )}
       </div>
+
+      {/* Existing Vendor / Organization Profile Detail Modal */}
+      {isDetailsModalOpen && selectedVendor && (
+        <VendorProfileModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedVendor(null);
+          }}
+          vendor={selectedVendor}
+        />
+      )}
     </div>
   );
 };

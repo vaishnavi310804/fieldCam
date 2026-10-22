@@ -6,7 +6,7 @@ import GrowthTrendsChart from "../../components/super-admin/GrowthTrendsChart";
 import RegionalAvailability from "../../components/super-admin/RegionalAvailability";
 import ActiveOrganizationsTable from "../../components/super-admin/ActiveOrganizationsTable";
 import { getSuperAdminDashboardStats } from "../../services/dashboardService";
-import { FiDollarSign, FiUsers, FiZap, FiDatabase, FiRefreshCw } from "react-icons/fi";
+import { FiDollarSign, FiUsers, FiZap, FiDatabase } from "react-icons/fi";
 
 const SuperAdminDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -41,6 +41,7 @@ const SuperAdminDashboard = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardStats();
   }, [fetchDashboardStats]);
 
@@ -85,8 +86,15 @@ const SuperAdminDashboard = () => {
               <p className="text-xs md:text-sm text-[#817B77] mt-1 font-medium">
                 Real-time global infrastructure and business performance telemetry.
               </p>
-            </div>
           </div>
+          </div>
+
+          {/* Error Notice */}
+          {error && (
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+              {error}
+            </div>
+          )}
 
           {/* Metric Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

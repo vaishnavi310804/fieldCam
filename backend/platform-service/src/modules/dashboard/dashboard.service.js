@@ -3,6 +3,9 @@ import Vendor from "../vendor/vendor.model.js";
 import Invoice from "../invoice/invoice.model.js";
 import AuditLog from "../audit/audit.model.js";
 import User from "../users/user.model.js";
+import CompanySubscription from "../subscription/companySubscription.model.js";
+import SubscriptionPlan from "../subscription/subscriptionPlan.model.js";
+import { getS3ObjectSize } from "../../services/s3Service.js";
 
 export const getAdminDashboardData = async () => {
   const now = new Date();
@@ -326,25 +329,172 @@ export const getSuperAdminDashboardData = async () => {
 
   // 5. Fetch Real Top Active Organizations (Vendors)
   const allVendors = await Vendor.find({}).lean();
-  const topOrganizations = allVendors.map((v) => {
-    const vProjects = allProjects.filter(
-      (p) => p.vendorId && p.vendorId.toString() === v._id.toString()
-    );
-    const activeProjects = vProjects.filter(
-      (p) => p.status === "In Progress" || p.status === "ASSIGNED" || p.status === "Submitted"
-    ).length;
+  const vendorIds = allVendors.map((v) => v._id);
 
-    return {
-      id: v._id,
-      name: v.companyName || v.contactName || "Organization",
-      contactName: v.contactName,
-      status: (v.status || "ACTIVE").toUpperCase(),
-      plan: (v.services && v.services.length > 0) ? v.services.join(", ") : "Standard Plan",
-      apiCalls: "N/A",
-      storage: "N/A",
-      activeProjects,
-    };
+  // Batched query for company subscriptions with populated plan details
+  const allSubscriptions = await CompanySubscription.find({
+    vendorId: { $in: vendorIds },
+  })
+    .populate("planId", "name code storageLimitGb userLimit status")
+    .lean();
+
+  const subMap = new Map();
+  allSubscriptions.forEach((sub) => {
+    if (sub.vendorId) {
+      subMap.set(sub.vendorId.toString(), sub);
+    }
   });
+
+  const formatStorageBytes = (bytes) => {
+    if (bytes === 0) return "0 GB";
+    const gigabytes = bytes / (1024 * 1024 * 1024);
+    if (gigabytes >= 1) {
+      return `${gigabytes.toFixed(1)} GB`;
+    }
+    const megabytes = bytes / (1024 * 1024);
+    if (megabytes >= 1) {
+      return `${megabytes.toFixed(1)} MB`;
+    }
+    const kilobytes = bytes / 1024;
+    if (kilobytes >= 1) {
+      return `${kilobytes.toFixed(1)} KB`;
+    }
+    return `${bytes} B`;
+  };
+
+  const topOrganizations = await Promise.all(
+    allVendors.map(async (v) => {
+      const vProjects = allProjects.filter(
+        (p) => p.vendorId && p.vendorId.toString() === v._id.toString()
+      );
+      const activeProjects = vProjects.filter(
+        (p) => p.status === "In Progress" || p.status === "ASSIGNED" || p.status === "Submitted"
+      ).length;
+
+      const projectsAssigned = vProjects.length;
+
+      // Subscription & Plan details
+      const sub = subMap.get(v._id.toString());
+      const plan = sub?.planId;
+      const hasPlan = Boolean(sub && plan);
+      const planName = plan?.name || (v.services && v.services.length > 0 ? v.services.join(", ") : "Standard Plan");
+      const storageLimitGb = hasPlan
+        ? typeof plan.storageLimitGb === "number"
+          ? plan.storageLimitGb
+          : -1
+        : null;
+      const isUnlimited = storageLimitGb === -1;
+
+      // Storage calculation: aggregate unique photos and attachments across assigned projects
+      let usedBytes = 0;
+      let hasMissingSizes = false;
+      const seenMediaKeys = new Set();
+
+      for (const p of vProjects) {
+        if (Array.isArray(p.photos)) {
+          for (const photo of p.photos) {
+            const key = photo.url;
+            if (key && !seenMediaKeys.has(key)) {
+              seenMediaKeys.add(key);
+              if (typeof photo.fileSize === "number" && !isNaN(photo.fileSize)) {
+                usedBytes += photo.fileSize;
+              } else {
+                // Try resolving size for legacy uploads without full bucket scans
+                const resolvedSize = await getS3ObjectSize(key);
+                if (typeof resolvedSize === "number" && !isNaN(resolvedSize)) {
+                  usedBytes += resolvedSize;
+                } else {
+                  hasMissingSizes = true;
+                }
+              }
+            }
+          }
+        }
+
+        if (Array.isArray(p.attachments)) {
+          for (const att of p.attachments) {
+            const key = att.url;
+            if (key && !seenMediaKeys.has(key)) {
+              seenMediaKeys.add(key);
+              if (typeof att.size === "number" && !isNaN(att.size)) {
+                usedBytes += att.size;
+              } else {
+                const resolvedSize = await getS3ObjectSize(key);
+                if (typeof resolvedSize === "number" && !isNaN(resolvedSize)) {
+                  usedBytes += resolvedSize;
+                } else {
+                  hasMissingSizes = true;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Storage status formatting
+      let storageData;
+      if (!hasPlan) {
+        storageData = {
+          text: "No plan assigned",
+          usedBytes,
+          usedText: formatStorageBytes(usedBytes),
+          limitGb: null,
+          limitText: "No plan",
+          isAvailable: false,
+          hasPlan: false,
+          isUnlimited: false,
+          percentage: 0,
+          reason: "No subscription plan assigned",
+        };
+      } else if (hasMissingSizes) {
+        storageData = {
+          text: "Usage unavailable",
+          usedBytes: null,
+          usedText: "N/A",
+          limitGb: storageLimitGb,
+          limitText: isUnlimited ? "Unlimited" : `${storageLimitGb} GB`,
+          isAvailable: false,
+          hasPlan: true,
+          isUnlimited,
+          percentage: 0,
+          reason: "Storage size metadata unavailable for media files",
+        };
+      } else {
+        const usedText = formatStorageBytes(usedBytes);
+        const limitText = isUnlimited ? "Unlimited" : `${storageLimitGb} GB`;
+        const percentage = isUnlimited
+          ? 0
+          : storageLimitGb > 0
+          ? Math.min(100, Math.round((usedBytes / (storageLimitGb * 1024 * 1024 * 1024)) * 100))
+          : 0;
+
+        storageData = {
+          text: `${usedText} / ${limitText}`,
+          usedBytes,
+          usedText,
+          limitGb: storageLimitGb,
+          limitText,
+          isAvailable: true,
+          hasPlan: true,
+          isUnlimited,
+          percentage,
+        };
+      }
+
+      return {
+        id: v._id,
+        _id: v._id,
+        name: v.companyName || v.contactName || "Organization",
+        contactName: v.contactName,
+        status: (v.status || "ACTIVE").toUpperCase(),
+        plan: planName,
+        planName,
+        activeProjects,
+        projectsAssigned,
+        storage: storageData,
+      };
+    })
+  );
 
   // 6. Regional Availability status
   const regionalAvailability = {

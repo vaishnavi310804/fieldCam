@@ -1,4 +1,4 @@
-import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import s3Client from "../config/s3.js";
 
@@ -49,6 +49,30 @@ export const deleteFromS3 = async (keyOrUrl) => {
   } catch (err) {
     console.error("S3 deletion error:", err);
     throw err;
+  }
+};
+
+export const getS3ObjectSize = async (keyOrUrl) => {
+  if (!keyOrUrl) return null;
+
+  try {
+    let cleanKey = keyOrUrl;
+    if (typeof keyOrUrl === "string" && (keyOrUrl.startsWith("http://") || keyOrUrl.startsWith("https://"))) {
+      const parsedUrl = new URL(keyOrUrl);
+      cleanKey = parsedUrl.pathname.startsWith("/")
+        ? parsedUrl.pathname.substring(1)
+        : parsedUrl.pathname;
+    }
+
+    const command = new HeadObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET,
+      Key: cleanKey,
+    });
+
+    const response = await s3Client.send(command);
+    return typeof response?.ContentLength === "number" ? response.ContentLength : null;
+  } catch {
+    return null;
   }
 };
 
