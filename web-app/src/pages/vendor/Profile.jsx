@@ -265,14 +265,14 @@ const VendorProfile = () => {
                 </div>
 
                 {/* Edit Profile Button */}
-                <button
+                {/* <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-[#EAE4DF] hover:bg-[#E0D7D0] text-[#3E3734] rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs border border-[#E8E2DE]"
                 >
                   <FiEdit2 size={13} />
                   <span>Edit Profile</span>
-                </button>
+                </button> */}
               </div>
 
               {/* Contact Information Bar */}

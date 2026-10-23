@@ -276,7 +276,7 @@ export const VendorProfileScreen = () => {
           </View>
 
           {/* EDIT PROFILE BUTTON */}
-          <View style={styles.actionSection}>
+          {/* <View style={styles.actionSection}>
             <Pressable
               style={styles.editProfileButton}
               onPress={handleEditProfile}
@@ -285,7 +285,7 @@ export const VendorProfileScreen = () => {
             >
               <Text style={styles.editProfileButtonText}>Edit Profile</Text>
             </Pressable>
-          </View>
+          </View> */}
         </ScrollView>
       )}
     </View>
