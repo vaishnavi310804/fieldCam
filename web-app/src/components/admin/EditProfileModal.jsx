@@ -42,7 +42,7 @@ const DEPARTMENT_OPTIONS = [
   "Support",
 ];
 
-const EditProfileModal = ({ isOpen, onClose }) => {
+const EditProfileModal = ({ isOpen, onClose, vendorProfile = null, onSuccess = null }) => {
   const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState("personal");
 
@@ -65,39 +65,51 @@ const EditProfileModal = ({ isOpen, onClose }) => {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize form from authenticated user ONLY when modal opens (isOpen becomes true)
+  // Initialize form from authenticated user and vendor profile when modal opens
   useEffect(() => {
-    if (isOpen && user) {
-      // Derive initial firstName & lastName from user.firstName/lastName or fallback to user.name
-      let initFirstName = user.firstName || "";
-      let initLastName = user.lastName || "";
+    if (isOpen && (user || vendorProfile)) {
+      // Derive initial firstName & lastName from user or vendor contactName
+      let initFirstName = user?.firstName || "";
+      let initLastName = user?.lastName || "";
 
-      if (!initFirstName && !initLastName && user.name) {
-        const parts = user.name.trim().split(" ");
-        initFirstName = parts[0] || "";
-        initLastName = parts.slice(1).join(" ") || "";
+      if (!initFirstName && !initLastName) {
+        const candidateName = user?.name || vendorProfile?.contactName || "";
+        if (candidateName) {
+          const parts = candidateName.trim().split(" ");
+          initFirstName = parts[0] || "";
+          initLastName = parts.slice(1).join(" ") || "";
+        }
       }
 
       setFirstName(initFirstName);
       setLastName(initLastName);
-      setPhone(user.phone || "");
-      setLocation(user.location || "");
-      setTimezone(user.timezone || "");
-      setTitle(user.title || "");
-      setDepartment(user.department || "");
-      setBio(user.bio || "");
+      setPhone(user?.phone || vendorProfile?.phone || vendorProfile?.userId?.phone || "");
+
+      const initLocation =
+        user?.location ||
+        vendorProfile?.location ||
+        vendorProfile?.userId?.location ||
+        (vendorProfile?.city && vendorProfile?.country
+          ? `${vendorProfile.city}, ${vendorProfile.country}`
+          : vendorProfile?.city || vendorProfile?.country || "");
+      setLocation(initLocation);
+
+      setTimezone(user?.timezone || vendorProfile?.userId?.timezone || "");
+      setTitle(user?.title || vendorProfile?.userId?.title || "");
+      setDepartment(user?.department || vendorProfile?.userId?.department || "");
+      setBio(user?.bio || vendorProfile?.userId?.bio || "");
       setSocialLinks({
-        linkedin: user.socialLinks?.linkedin || "",
-        twitter: user.socialLinks?.twitter || "",
-        github: user.socialLinks?.github || "",
-        website: user.socialLinks?.website || "",
+        linkedin: user?.socialLinks?.linkedin || vendorProfile?.userId?.socialLinks?.linkedin || "",
+        twitter: user?.socialLinks?.twitter || vendorProfile?.userId?.socialLinks?.twitter || "",
+        github: user?.socialLinks?.github || vendorProfile?.userId?.socialLinks?.github || "",
+        website: user?.socialLinks?.website || vendorProfile?.userId?.socialLinks?.website || "",
       });
 
       setError("");
       setIsSubmitting(false);
       setActiveTab("personal");
     }
-  }, [isOpen]);
+  }, [isOpen, user, vendorProfile]);
 
   if (!isOpen) return null;
 
@@ -165,6 +177,9 @@ const EditProfileModal = ({ isOpen, onClose }) => {
       const res = await updateProfile(payload);
       if (res?.success && res?.data) {
         updateUser(res.data);
+        if (typeof onSuccess === "function") {
+          await onSuccess();
+        }
         onClose();
       } else {
         setError(res?.message || "Failed to update profile.");

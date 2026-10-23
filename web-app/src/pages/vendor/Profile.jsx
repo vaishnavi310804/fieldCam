@@ -598,6 +598,8 @@ const VendorProfile = () => {
       <EditProfileModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
+        vendorProfile={vendorProfile}
+        onSuccess={loadProfileData}
       />
     </div>
   );

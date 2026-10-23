@@ -14,10 +14,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { getVendorProfile, VendorProfileData } from "../../api/dashboard.api";
+import { useAuth } from "../../context/AuthContext";
+import { EditProfileModal } from "./EditProfileModal";
 import Colors from "@/src/constants/color";
 
 export const VendorProfileScreen = () => {
   const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(insets.top, 20) + 16;
 
@@ -25,12 +28,16 @@ export const VendorProfileScreen = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
   const fetchProfile = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setIsLoading(true);
       setError(null);
-      const data = await getVendorProfile();
+      const [data] = await Promise.all([
+        getVendorProfile(),
+        refreshUser().catch(() => {}),
+      ]);
       setProfile(data);
     } catch (err: any) {
       console.error("Failed to load vendor profile:", err);
@@ -39,7 +46,7 @@ export const VendorProfileScreen = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [refreshUser]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,11 +68,11 @@ export const VendorProfileScreen = () => {
   };
 
   const handleEditProfile = () => {
-    Alert.alert("Edit Profile", "Profile editing feature is coming soon.");
+    setIsEditModalOpen(true);
   };
 
   const contactName =
-    profile?.contactName || profile?.userId?.name || profile?.companyName || "Vendor Partner";
+    profile?.userId?.name || user?.name || profile?.contactName || profile?.companyName || "Vendor Partner";
   const companyName = profile?.companyName || "";
   const initials =
     profile?.initials ||
@@ -77,9 +84,9 @@ export const VendorProfileScreen = () => {
       .toUpperCase() ||
     "VD";
 
-  const phone = profile?.userId?.phone || "Not specified";
-  const email = profile?.userId?.email || "Not specified";
-  const location = profile?.location || "Not specified";
+  const phone = profile?.userId?.phone || user?.phone || "Not specified";
+  const email = profile?.userId?.email || user?.email || "Not specified";
+  const location = profile?.location || profile?.userId?.location || user?.location || "Not specified";
   const vendorIdDisplay = profile?._id || "Not specified";
 
   const serviceTypes = Array.isArray(profile?.services) ? profile!.services : [];
@@ -247,6 +254,7 @@ export const VendorProfileScreen = () => {
             ) : (
               <Text style={styles.emptySectionText}>No service types specified.</Text>
             )}
+
           </View>
 
           {/* STATISTICS SECTION */}
@@ -276,7 +284,7 @@ export const VendorProfileScreen = () => {
           </View>
 
           {/* EDIT PROFILE BUTTON */}
-          {/* <View style={styles.actionSection}>
+          <View style={styles.actionSection}>
             <Pressable
               style={styles.editProfileButton}
               onPress={handleEditProfile}
@@ -285,9 +293,21 @@ export const VendorProfileScreen = () => {
             >
               <Text style={styles.editProfileButtonText}>Edit Profile</Text>
             </Pressable>
-          </View> */}
+          </View>
         </ScrollView>
       )}
+
+      <EditProfileModal
+        visible={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        profile={profile}
+        onSuccess={(updated) => {
+          if (updated) {
+            setProfile(updated);
+          }
+          fetchProfile(false);
+        }}
+      />
     </View>
   );
 };
