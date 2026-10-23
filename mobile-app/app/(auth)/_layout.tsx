@@ -10,6 +10,7 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="activate-account" />
       <Stack.Screen name="complete-profile" />
+      <Stack.Screen name="vendor-registration" />
     </Stack>
   );
 }

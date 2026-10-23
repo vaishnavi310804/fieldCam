@@ -188,12 +188,23 @@ const LoginScreen = () => {
             <Text style={styles.ssoText}>Sign in with SSO</Text>
           </Pressable>
 
-          {/* Contact Admin */}
+          {/* Activate Account */}
           <View style={styles.contactContainer}>
             <Pressable
               onPress={() => router.push("/(auth)/activate-account" as any)}
             >
               <Text style={styles.contactLink}>Invited as a Vendor/Staff? Activate Account</Text>
+            </Pressable>
+          </View>
+
+          {/* Contact Admin - Vendor Registration Request */}
+          <View style={[styles.contactContainer, { marginTop: 10 }]}>
+            <Text style={styles.contactText}>{"Don't have an account? "}</Text>
+            <Pressable
+              onPress={() => router.push("/(auth)/vendor-registration" as any)}
+              hitSlop={5}
+            >
+              <Text style={styles.contactLink}>Contact Admin</Text>
             </Pressable>
           </View>
         </View>

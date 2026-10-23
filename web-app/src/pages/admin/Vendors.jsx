@@ -5,6 +5,7 @@ import VendorStats from "../../components/admin/vendors/VendorStats";
 import VendorToolbar from "../../components/admin/vendors/VendorToolbar";
 import VendorCard from "../../components/admin/vendors/VendorCard";
 import AddVendorModal from "../../components/admin/vendors/AddVendorModal";
+import ApproveVendorModal from "../../components/admin/vendors/ApproveVendorModal";
 import AssignProjectModal from "../../components/admin/vendors/AssignProjectModal";
 import VendorProfileModal from "../../components/admin/vendors/VendorProfileModal";
 import { useAuth } from "../../context/AuthContext";
@@ -26,6 +27,7 @@ const Vendors = () => {
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedVendorForAssign, setSelectedVendorForAssign] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -164,7 +166,7 @@ const Vendors = () => {
           {/* 1. KPI Cards */}
           <VendorStats statsData={statsData} />
 
-          {/* 2. Toolbar (Search, Filter Tabs, Add Vendor Button) */}
+          {/* 2. Toolbar (Search, Filter Tabs, Add Vendor Button, Approve Vendor Button) */}
           <VendorToolbar
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -172,6 +174,7 @@ const Vendors = () => {
             setActiveFilter={setActiveFilter}
             readOnly={readOnly}
             onAddVendor={() => setIsAddModalOpen(true)}
+            onApproveVendor={() => setIsApproveModalOpen(true)}
           />
 
           {/* Feedback Alerts */}
@@ -223,6 +226,13 @@ const Vendors = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onCreateVendor={handleCreateVendor}
+      />
+
+      {/* Approve Vendor Requests Modal */}
+      <ApproveVendorModal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        onVendorApproved={fetchVendorsData}
       />
 
       {/* Assign Project Modal */}

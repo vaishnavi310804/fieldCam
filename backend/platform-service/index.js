@@ -13,6 +13,7 @@ import notificationRoutes from "./src/modules/notification/notification.routes.j
 import dashboardRoutes from "./src/modules/dashboard/dashboard.routes.js";
 import subscriptionRoutes from "./src/modules/subscription/subscription.routes.js";
 import chatRoutes from "./src/modules/chat/chat.routes.js";
+import vendorRegistrationRoutes from "./src/modules/vendorRegistration/vendorRegistration.routes.js";
 
 const app = express();
 
@@ -36,6 +37,8 @@ app.use("/api/audit-logs", auditRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/vendor-registrations", vendorRegistrationRoutes);
+app.use("/api/vendor-registration-requests", vendorRegistrationRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

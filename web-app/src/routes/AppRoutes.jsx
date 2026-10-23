@@ -5,6 +5,7 @@ import VerifyResetOtp from "../pages/auth/VerifyResetOtp";
 import ResetPassword from "../pages/auth/ResetPassword";
 import VerifyOtp from "../pages/auth/VerifyOtp";
 import CompleteProfile from "../pages/auth/CompleteProfile";
+import VendorRegistrationRequest from "../pages/auth/VendorRegistrationRequest";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
 import SuperAdminCompanies from "../pages/super-admin/Companies";
 import SuperAdminSubscriptions from "../pages/super-admin/Subscriptions";
@@ -46,6 +47,8 @@ const AppRoutes = () => {
       <Route path="/complete-profile" element={<CompleteProfile />} />
       <Route path="/vendor/verify-otp" element={<VerifyOtp />} />
       <Route path="/vendor/complete-profile" element={<CompleteProfile />} />
+      <Route path="/vendor/register" element={<VendorRegistrationRequest />} />
+      <Route path="/vendor-registration" element={<VendorRegistrationRequest />} />
 
 
       {/* Super Admin Protected Routes */}

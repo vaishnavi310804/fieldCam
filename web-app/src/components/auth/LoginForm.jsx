@@ -269,6 +269,18 @@ const LoginForm = () => {
           </button>
         </div>
 
+        {/* Contact Admin - Vendor Registration Request */}
+        <div className="text-center pt-0.5">
+          <span className="text-[10px] text-[#858585]">Don't have an account? </span>
+          <button
+            type="button"
+            onClick={() => navigate("/vendor/register")}
+            className="text-[10px] text-[#5141F5] font-semibold hover:underline"
+          >
+            Contact Admin
+          </button>
+        </div>
+
 
         {/* Secured Access */}
         <div className="flex items-center gap-3 pt-1">
