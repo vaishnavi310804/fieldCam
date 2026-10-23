@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import StaffSidebar from "../../components/staff/StaffSidebar";
@@ -25,13 +25,11 @@ import {
   FiCalendar,
   FiUser,
   FiX,
-  FiCheck,
   FiInfo,
 } from "react-icons/fi";
 
 const ReviewSubmission = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const isStaff = user?.role === "STAFF";
 
@@ -43,7 +41,8 @@ const ReviewSubmission = () => {
   // Review Form & Action State
   const [adminComments, setAdminComments] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState(null); // { type: 'success' | 'error', text: '' }
+  const [actionMessage, setActionMessage] = useState(null); // { type: 'success' | 'warning' | 'error', text: '' }
+  const [notifyVendorEmail, setNotifyVendorEmail] = useState(true);
 
   // Lightbox Preview State
   const [previewImage, setPreviewImage] = useState(null);
@@ -56,6 +55,11 @@ const ReviewSubmission = () => {
 
   // Toast / Copy Feedback State
   const [copied, setCopied] = useState(false);
+
+  const handlePreviewImage = (url, title = "") => {
+    setPreviewImage(url);
+    setPreviewTitle(title);
+  };
 
   const fetchProjectDetails = async () => {
     setLoading(true);
@@ -115,7 +119,13 @@ const ReviewSubmission = () => {
     try {
       setActionLoading(true);
       const rejectionReasonVal = targetStatus === "Rejected" ? adminComments.trim() : undefined;
-      await updateProjectStatus(project._id || id, targetStatus, rejectionReasonVal, adminComments.trim());
+      const res = await updateProjectStatus(
+        project._id || id,
+        targetStatus,
+        rejectionReasonVal,
+        adminComments.trim(),
+        notifyVendorEmail
+      );
 
       const statusLabels = {
         Approved: "Project submission has been approved successfully.",
@@ -123,9 +133,26 @@ const ReviewSubmission = () => {
         Rejected: "Project submission has been rejected.",
       };
 
+      let baseText = statusLabels[targetStatus] || `Project status updated to ${targetStatus}.`;
+      let messageType = "success";
+
+      if (res?.emailNotification?.requested) {
+        if (res.emailNotification.sent) {
+          const recip = res.emailNotification.recipient || "vendor";
+          baseText += ` Notification email sent to ${recip}.`;
+        } else {
+          messageType = "warning";
+          const reason =
+            res.emailNotification.error ||
+            res.emailNotification.reason ||
+            "delivery could not be completed";
+          baseText += ` (Notice: Vendor notification email could not be delivered: ${reason})`;
+        }
+      }
+
       setActionMessage({
-        type: "success",
-        text: statusLabels[targetStatus] || `Project status updated to ${targetStatus}.`,
+        type: messageType,
+        text: baseText,
       });
 
       // Refresh real live project data
@@ -761,6 +788,8 @@ const ReviewSubmission = () => {
                         className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
                           actionMessage.type === "success"
                             ? "bg-[#E8F5E9] border border-[#2E7D32]/20 text-[#2E7D32]"
+                            : actionMessage.type === "warning"
+                            ? "bg-[#FFF3E0] border border-[#E65100]/20 text-[#E65100]"
                             : "bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828]"
                         }`}
                       >
@@ -787,22 +816,38 @@ const ReviewSubmission = () => {
                       />
                     </div>
 
-                    {/* Vendor Notification Checkbox (Disabled / Honest State) */}
-                    <div className="bg-[#FAF7F5] border border-[#F2EBE5] p-3 rounded-xl opacity-75">
-                      <label className="flex items-center gap-2 cursor-not-allowed">
+                    {/* Vendor Notification Checkbox */}
+                    <div className="bg-[#FAF7F5] border border-[#E8E2DE] p-3 rounded-xl transition-colors">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
                         <input
                           type="checkbox"
-                          disabled
-                          checked={false}
-                          className="rounded text-[#8A817C] cursor-not-allowed"
+                          checked={notifyVendorEmail}
+                          onChange={(e) => setNotifyVendorEmail(e.target.checked)}
+                          disabled={actionLoading}
+                          className="w-4 h-4 rounded border-[#C8B5AC] text-[#2E7D32] focus:ring-[#2E7D32] cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-[#817B77]">
+                        <span className="text-xs font-bold text-[#3E3734]">
                           Notify Vendor via Email
                         </span>
                       </label>
-                      <p className="text-[10px] text-[#A39A94] mt-1 pl-5">
-                        (Vendor notification system not configured in platform backend)
-                      </p>
+                      {project?.vendorEmail ? (
+                        <p className="text-[11px] text-[#817B77] mt-1 pl-6">
+                          Send decision email to <strong>{project.vendorEmail}</strong>
+                        </p>
+                      ) : project?.vendorName || project?.vendorId ? (
+                        <p className="text-[11px] text-[#817B77] mt-1 pl-6">
+                          Send decision email to assigned vendor (<strong>{project?.vendorName || project?.vendorId?.companyName || "Vendor"}</strong>)
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-[#A39A94] mt-1 pl-6 italic">
+                          (No vendor currently assigned to this project)
+                        </p>
+                      )}
+                      {project?.emailNotificationsConfigured === false && (
+                        <p className="text-[10px] text-[#C62828] mt-1 pl-6 font-semibold">
+                          (Warning: Email service is unconfigured in backend environment)
+                        </p>
+                      )}
                     </div>
 
                     {/* Review Action Buttons */}

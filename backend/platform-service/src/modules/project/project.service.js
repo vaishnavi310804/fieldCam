@@ -9,6 +9,7 @@ import { validatePhotoWithAI } from "../../services/aiService.js";
 import { validatePhotoLocation, validateCaptureTimestamp } from "../../utils/geo.utils.js";
 import { createNotification } from "../notification/notification.service.js";
 import { logAuditEvent } from "../audit/audit.service.js";
+import { sendProjectReviewEmail, isEmailConfigured } from "./project.email.js";
 
 const getVendorUserId = async (vendorId) => {
   if (!vendorId) return null;
@@ -105,6 +106,15 @@ const transformProjectMedia = async (projectDoc) => {
       })
     );
   }
+
+  // Extract vendor email from populated vendor document if available
+  if (projectObj.vendorId && typeof projectObj.vendorId === "object") {
+    if (projectObj.vendorId.userId && typeof projectObj.vendorId.userId === "object") {
+      projectObj.vendorEmail = projectObj.vendorId.userId.email || null;
+    }
+  }
+
+  projectObj.emailNotificationsConfigured = isEmailConfigured();
 
   return projectObj;
 };
@@ -327,13 +337,21 @@ export const getProjectById = async (id, user) => {
   if (mongoose.Types.ObjectId.isValid(id)) {
     project = await Project.findById(id)
       .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
-      .populate("vendorId", "companyName contactName location rating status");
+      .populate({
+        path: "vendorId",
+        select: "companyName contactName location rating status userId",
+        populate: { path: "userId", select: "name email phone" },
+      });
   }
 
   if (!project) {
     project = await Project.findOne({ projectId: id })
       .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
-      .populate("vendorId", "companyName contactName location rating status");
+      .populate({
+        path: "vendorId",
+        select: "companyName contactName location rating status userId",
+        populate: { path: "userId", select: "name email phone" },
+      });
   }
 
   if (!project) {
@@ -502,7 +520,13 @@ export const updateProject = async (id, updateData) => {
 };
 
 
-export const updateProjectStatus = async (id, status, rejectionReason, reviewComments) => {
+export const updateProjectStatus = async (
+  id,
+  status,
+  rejectionReason,
+  reviewComments,
+  notifyVendor = false
+) => {
   if (!id) {
     const err = new Error("Project ID is required");
     err.statusCode = 400;
@@ -603,7 +627,7 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
     throw new Error("Project not found");
   }
 
-  // Side effect: Notify assigned vendor if applicable
+  // Side effect 1: In-app notification
   if (updatedProject.vendorId) {
     try {
       const vendorObj = updatedProject.vendorId;
@@ -642,7 +666,65 @@ export const updateProjectStatus = async (id, status, rejectionReason, reviewCom
     }
   }
 
-  return await transformProjectMedia(updatedProject);
+  // Side effect 2: Vendor Email Notification (if requested for review decisions: Approved, Rejected, In Progress)
+  let emailNotification = null;
+
+  if (notifyVendor) {
+    if (["Approved", "Rejected", "In Progress"].includes(status)) {
+      try {
+        let recipientEmail = null;
+        let recipientName = null;
+
+        if (updatedProject.vendorId) {
+          const vendorIdVal = updatedProject.vendorId._id || updatedProject.vendorId;
+          const vendorDoc = await Vendor.findById(vendorIdVal).populate("userId", "name email");
+          if (vendorDoc?.userId?.email) {
+            recipientEmail = vendorDoc.userId.email;
+            recipientName = vendorDoc.userId.name || vendorDoc.contactName || vendorDoc.companyName;
+          }
+        }
+
+        const emailResult = await sendProjectReviewEmail({
+          project: updatedProject,
+          decision: status,
+          reviewComments: updateFields.reviewComments,
+          rejectionReason: updateFields.rejectionReason,
+          recipientEmail,
+          recipientName,
+        });
+
+        emailNotification = {
+          requested: true,
+          ...emailResult,
+        };
+      } catch (err) {
+        console.error(
+          `[Project Service] Failed to send vendor review email for ${updatedProject.projectId}:`,
+          err.message
+        );
+        emailNotification = {
+          requested: true,
+          sent: false,
+          error: err.message || "Failed to send vendor review email",
+        };
+      }
+    } else {
+      emailNotification = {
+        requested: true,
+        sent: false,
+        reason: `No email notification configured for status '${status}'`,
+      };
+    }
+  } else {
+    emailNotification = {
+      requested: false,
+      sent: false,
+    };
+  }
+
+  const result = await transformProjectMedia(updatedProject);
+  result.emailNotification = emailNotification;
+  return result;
 };
 
 export const acceptProject = async (projectIdOrId, userId) => {

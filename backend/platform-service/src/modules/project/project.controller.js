@@ -134,8 +134,11 @@ export const updateProjectStatusController = async (req, res) => {
       req.params.id,
       req.body.status,
       req.body.rejectionReason,
-      req.body.reviewComments
+      req.body.reviewComments,
+      req.body.notifyVendor
     );
+
+    const emailNotification = result.emailNotification || null;
 
     await logAuditEvent({
       actor: req.user,
@@ -149,6 +152,7 @@ export const updateProjectStatusController = async (req, res) => {
         newStatus: result.status,
         rejectionReason: result.rejectionReason || null,
         reviewComments: result.reviewComments || null,
+        emailNotification,
       },
     });
 
@@ -156,6 +160,7 @@ export const updateProjectStatusController = async (req, res) => {
       success: true,
       message: "Project status updated successfully",
       data: result,
+      emailNotification,
     });
   } catch (error) {
     const statusCode =

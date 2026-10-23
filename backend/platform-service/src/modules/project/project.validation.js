@@ -270,6 +270,11 @@ export const updateProjectStatusValidation = [
     .trim()
     .isString()
     .withMessage("Review comments must be a string"),
+
+  body("notifyVendor")
+    .optional()
+    .isBoolean()
+    .withMessage("notifyVendor must be a boolean"),
 ];
 
 export const uploadVendorPhotoValidation = [

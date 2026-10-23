@@ -24,11 +24,13 @@ export const updateProjectStatus = async (
   id,
   status,
   rejectionReason,
-  reviewComments
+  reviewComments,
+  notifyVendor = true
 ) => {
   const payload = { status };
   if (rejectionReason) payload.rejectionReason = rejectionReason;
   if (reviewComments) payload.reviewComments = reviewComments;
+  if (typeof notifyVendor === "boolean") payload.notifyVendor = notifyVendor;
   const response = await platformApi.patch(`/projects/${id}/status`, payload);
   return response.data;
 };
