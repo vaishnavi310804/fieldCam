@@ -215,7 +215,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
               Vendor Registration Requests
             </h2>
             <p className="text-xs text-[#817B77] mt-0.5">
-              Review and approve prospective vendor requests submitted from the login screen.
+              Review and approve prospective vendor requests submitted.
             </p>
           </div>
 
@@ -264,7 +264,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
               })}
             </div>
 
-            <button
+            {/* <button
               type="button"
               onClick={fetchRequests}
               disabled={loading}
@@ -272,7 +272,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
               className="w-8 h-8 rounded-xl border border-[#E8E2DE] bg-[#FAF7F5] hover:bg-[#E8E2DE] flex items-center justify-center text-[#817B77] transition-colors disabled:opacity-50"
             >
               <FiRefreshCw className={`text-xs ${loading ? "animate-spin" : ""}`} />
-            </button>
+            </button> */}
           </div>
         </div>
 

@@ -18,13 +18,10 @@ import { submitVendorRegistration } from "../../services/vendorRegistrationServi
 import workerImage from "../../assets/workerImage.jpg";
 
 const DEFAULT_SERVICES = [
-  "Site Inspection",
-  "Photo Auditing",
-  "Structural Survey",
-  "Drone & Aerial Inspection",
-  "HVAC & Equipment Check",
-  "Plumbing & Piping Inspection",
-  "Thermal Imaging",
+ "Site Inspection",
+  "Maintenance",
+  "Annual Inspection",
+  "Interior Inspection",
 ];
 
 const VendorRegistrationRequest = () => {
@@ -283,7 +280,7 @@ const VendorRegistrationRequest = () => {
                 {/* Contact Name */}
                 <div>
                   <label className="block text-[11px] font-semibold text-[#202020] mb-1">
-                    Contact Person's Full Name <span className="text-red-500">*</span>
+                    Contact Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA9C2] text-sm" />
@@ -294,7 +291,7 @@ const VendorRegistrationRequest = () => {
                         setContactName(e.target.value);
                         if (error) setError("");
                       }}
-                      placeholder="e.g. Sarah Jenkins"
+                      placeholder="Enter your Name"
                       disabled={isSubmitting}
                       className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                     />
@@ -315,7 +312,7 @@ const VendorRegistrationRequest = () => {
                         setCompanyName(e.target.value);
                         if (error) setError("");
                       }}
-                      placeholder="e.g. Apex Field Services LLC"
+                      placeholder="Company Name..."
                       disabled={isSubmitting}
                       className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                     />
@@ -338,7 +335,7 @@ const VendorRegistrationRequest = () => {
                           setEmail(e.target.value);
                           if (error) setError("");
                         }}
-                        placeholder="sarah@apex.com"
+                        placeholder="Enter your business email"
                         disabled={isSubmitting}
                         className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                       />
@@ -359,7 +356,7 @@ const VendorRegistrationRequest = () => {
                           setPhone(e.target.value);
                           if (error) setError("");
                         }}
-                        placeholder="+1 (555) 000-0000"
+                        placeholder="+91"
                         disabled={isSubmitting}
                         className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                       />
@@ -370,7 +367,7 @@ const VendorRegistrationRequest = () => {
                 {/* Business Address / Location */}
                 <div>
                   <label className="block text-[11px] font-semibold text-[#202020] mb-1">
-                    Business Address or Operating Location <span className="text-red-500">*</span>
+                    Address / Location <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA9C2] text-sm" />
@@ -381,7 +378,7 @@ const VendorRegistrationRequest = () => {
                         setLocation(e.target.value);
                         if (error) setError("");
                       }}
-                      placeholder="City, State, or Full Address"
+                      placeholder="City, State"
                       disabled={isSubmitting}
                       className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                     />
@@ -402,7 +399,7 @@ const VendorRegistrationRequest = () => {
                         setServicesInput(e.target.value);
                         if (error) setError("");
                       }}
-                      placeholder="Comma-separated: Site Inspection, Drone Survey, etc."
+                      placeholder="Site Inspection, ...., etc."
                       disabled={isSubmitting}
                       className="w-full h-[36px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] pl-9 pr-3 text-xs text-[#333] placeholder:text-[#A9B7CB] outline-none transition focus:border-[#5141F5] focus:ring-1 focus:ring-[#5141F5]/10"
                     />
@@ -455,7 +452,7 @@ const VendorRegistrationRequest = () => {
                 <div className="rounded-xl bg-[#F7F8FA] border border-[#E5E7EB] p-2.5 flex items-start gap-2">
                   <FiShield className="text-[#5141F5] text-xs shrink-0 mt-0.5" />
                   <p className="text-[10px] text-[#817B77] leading-3.5">
-                    Submitting this form does not create an active login session or account. All vendor partners undergo administrator verification prior to onboarding.
+                    Applications are reviewed by FieldCam Admin..
                   </p>
                 </div>
 

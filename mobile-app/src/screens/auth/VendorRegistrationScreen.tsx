@@ -17,12 +17,9 @@ import { submitVendorRegistration } from "@/src/api/vendorRegistration.api";
 
 const PRESET_SERVICES = [
   "Site Inspection",
-  "Photo Auditing",
-  "Structural Survey",
-  "Drone Inspection",
-  "HVAC Inspection",
-  "Plumbing Audit",
-  "Thermal Imaging",
+  "Maintenance",
+  "Annual Inspection",
+  "Interior Inspection",
 ];
 
 const VendorRegistrationScreen = () => {
@@ -180,8 +177,8 @@ const VendorRegistrationScreen = () => {
             <View style={styles.infoNotice}>
               <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
               <Text style={styles.infoNoticeText}>
-                No account or login session has been established at this stage. Upon approval, an invitation email
-                with your registration OTP will be dispatched to your registered address.
+                Upon approval of your account an invitation email
+                with your registration OTP will be sent to your registered email.
               </Text>
             </View>
 
@@ -225,7 +222,7 @@ const VendorRegistrationScreen = () => {
         <View style={styles.content}>
           <Text style={styles.title}>Request Account Access</Text>
           <Text style={styles.subtitle}>
-            Submit your business and contact information to request vendor registration with FieldCam.
+            To aasociate with FieldCam submit your company details and contact information.
           </Text>
 
           {errorMessage ? (
@@ -238,7 +235,7 @@ const VendorRegistrationScreen = () => {
           {/* Contact Person Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              {"Contact Person's Full Name "}
+              {"Contact Name "}
               <Text style={styles.requiredStar}>*</Text>
             </Text>
             <TextInput
@@ -247,7 +244,7 @@ const VendorRegistrationScreen = () => {
                 setContactName(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="e.g. Sarah Jenkins"
+              placeholder="Enter your Name"
               placeholderTextColor="#A1A1AA"
               autoCapitalize="words"
               editable={!isSubmitting}
@@ -266,7 +263,7 @@ const VendorRegistrationScreen = () => {
                 setCompanyName(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="e.g. Apex Inspections LLC"
+              placeholder="Company Name..."
               placeholderTextColor="#A1A1AA"
               autoCapitalize="words"
               editable={!isSubmitting}
@@ -285,7 +282,7 @@ const VendorRegistrationScreen = () => {
                 setEmail(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="sarah@apexinspections.com"
+              placeholder="Enter your business email"
               placeholderTextColor="#A1A1AA"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -306,7 +303,7 @@ const VendorRegistrationScreen = () => {
                 setPhone(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="+1 (555) 000-0000"
+              placeholder="+91"
               placeholderTextColor="#A1A1AA"
               keyboardType="phone-pad"
               autoCapitalize="none"
@@ -318,7 +315,7 @@ const VendorRegistrationScreen = () => {
           {/* Business Address or Operating Location */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Operating Address / Location <Text style={styles.requiredStar}>*</Text>
+              Address / Location <Text style={styles.requiredStar}>*</Text>
             </Text>
             <TextInput
               value={location}
@@ -326,7 +323,7 @@ const VendorRegistrationScreen = () => {
                 setLocation(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="e.g. Austin, TX or Full Address"
+              placeholder="Address..."
               placeholderTextColor="#A1A1AA"
               autoCapitalize="words"
               editable={!isSubmitting}
@@ -345,7 +342,7 @@ const VendorRegistrationScreen = () => {
                 setServicesInput(text);
                 if (errorMessage) setErrorMessage(null);
               }}
-              placeholder="e.g. Site Inspection, Photo Auditing"
+              placeholder="e.g. Site Inspection, ...."
               placeholderTextColor="#A1A1AA"
               editable={!isSubmitting}
               style={styles.input}
@@ -394,7 +391,7 @@ const VendorRegistrationScreen = () => {
           <View style={styles.noticeContainer}>
             <Ionicons name="shield-outline" size={16} color={Colors.primary} />
             <Text style={styles.noticeText}>
-              Applications are reviewed by FieldCam Admin. Approval does not create an immediate session.
+              Applications are reviewed by FieldCam Admin.
             </Text>
           </View>
 
@@ -593,6 +590,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
+    paddingHorizontal: 16,
   },
 
   disabledButton: {
