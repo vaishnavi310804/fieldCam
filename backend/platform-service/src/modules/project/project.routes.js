@@ -18,6 +18,7 @@ import {
   updateProjectController,
   updateProjectStatusController,
   acceptProjectController,
+  rejectProjectController,
   getProjectNotesController,
   addProjectNoteController,
   uploadVendorPhotoController,
@@ -60,6 +61,20 @@ router.post(
   protect,
   authorize("VENDOR"),
   acceptProjectController
+);
+
+// PATCH or POST /api/projects/:id/reject - Vendor rejects an assigned project (VENDOR)
+router.patch(
+  "/:id/reject",
+  protect,
+  authorize("VENDOR"),
+  rejectProjectController
+);
+router.post(
+  "/:id/reject",
+  protect,
+  authorize("VENDOR"),
+  rejectProjectController
 );
 
 // GET /api/projects/:id/report/pdf - Download project report PDF (SUPER_ADMIN, ADMIN, VENDOR, STAFF)

@@ -6,6 +6,7 @@ import {
   getProjectById,
   addProjectNote,
   acceptProject,
+  rejectProject,
 } from "../../services/projectService";
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
@@ -49,6 +50,11 @@ const VendorProjectDetails = () => {
   const [acceptSuccess, setAcceptSuccess] = useState(null);
   const [acceptError, setAcceptError] = useState(null);
 
+  // Rejection state
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectSuccess, setRejectSuccess] = useState(null);
+  const [rejectError, setRejectError] = useState(null);
+
   // Notes state
   const [notesList, setNotesList] = useState([]);
   const [newNoteText, setNewNoteText] = useState("");
@@ -64,12 +70,13 @@ const VendorProjectDetails = () => {
   const [copied, setCopied] = useState(false);
 
   const handleAcceptProject = async () => {
-    if (!project || isAccepting) return;
+    if (!project || isAccepting || isRejecting) return;
     const targetId = project._id || project.projectId || id;
 
     try {
       setIsAccepting(true);
       setAcceptError(null);
+      setRejectError(null);
       await acceptProject(targetId);
       setAcceptSuccess(
         "Project accepted successfully! It is now assigned to your organization and ready for staff assignment."
@@ -83,6 +90,33 @@ const VendorProjectDetails = () => {
       );
     } finally {
       setIsAccepting(false);
+    }
+  };
+
+  const handleRejectProject = async () => {
+    if (!project || isAccepting || isRejecting) return;
+    const targetId = project._id || project.projectId || id;
+
+    const confirmDecline = window.confirm(
+      "Are you sure you want to decline this project assignment? This decision is final."
+    );
+    if (!confirmDecline) return;
+
+    try {
+      setIsRejecting(true);
+      setRejectError(null);
+      setAcceptError(null);
+      await rejectProject(targetId, "Declined by vendor from project details");
+      setRejectSuccess("Project assignment declined.");
+      await fetchProjectData();
+    } catch (err) {
+      setRejectError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to decline project assignment."
+      );
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -461,6 +495,38 @@ const VendorProjectDetails = () => {
                 </div>
               )}
 
+              {rejectSuccess && (
+                <div className="bg-[#FFF3E0] border border-[#E65100]/20 text-[#E65100] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <FiAlertCircle className="text-base shrink-0" />
+                    <span>{rejectSuccess}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRejectSuccess(null)}
+                    className="text-[#E65100] hover:opacity-75 p-1 cursor-pointer"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+              )}
+
+              {rejectError && (
+                <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <FiAlertCircle className="text-base shrink-0" />
+                    <span>{rejectError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRejectError(null)}
+                    className="text-[#C62828] hover:opacity-75 p-1 cursor-pointer"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+              )}
+
               {/* Status Action Banners */}
               {project.status === "New" && (
                 <div className="bg-[#EFF6FF] border border-[#BFDBFE] p-4.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
@@ -475,24 +541,44 @@ const VendorProjectDetails = () => {
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isAccepting}
-                    onClick={handleAcceptProject}
-                    className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 shadow-xs cursor-pointer"
-                  >
-                    {isAccepting ? (
-                      <>
-                        <FiLoader className="animate-spin text-xs" />
-                        <span>Accepting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FiCheckCircle size={15} />
-                        <span>Accept Project</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isAccepting || isRejecting}
+                      onClick={handleRejectProject}
+                      className="bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#C62828] px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-2xs cursor-pointer"
+                    >
+                      {isRejecting ? (
+                        <>
+                          <FiLoader className="animate-spin text-xs" />
+                          <span>Declining...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiX size={14} />
+                          <span>Decline</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isAccepting || isRejecting}
+                      onClick={handleAcceptProject}
+                      className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-xs cursor-pointer"
+                    >
+                      {isAccepting ? (
+                        <>
+                          <FiLoader className="animate-spin text-xs" />
+                          <span>Accepting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiCheckCircle size={15} />
+                          <span>Accept Project</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 

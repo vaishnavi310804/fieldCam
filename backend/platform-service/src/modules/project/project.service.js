@@ -187,7 +187,7 @@ export const createProject = async (projectData, files = {}) => {
 
     projectData.assignedAt = new Date();
     if (!projectData.status) {
-      projectData.status = "ASSIGNED";
+      projectData.status = "New";
     }
   }
 
@@ -411,11 +411,26 @@ export const getStaffAssignedProjects = async (staffUserId) => {
 
 export const isProjectAssigned = (project) => {
   if (!project) return false;
-  return Boolean(
-    project.vendorId ||
-    project.assignedAt ||
-    (project.status && project.status !== "New")
+  const hasVendor = Boolean(
+    project.vendorId && (typeof project.vendorId === "object" ? project.vendorId._id : project.vendorId)
   );
+  const hasAssignedAt = Boolean(project.assignedAt);
+  const isPostNewStatus = Boolean(project.status && project.status !== "New");
+
+  return Boolean(hasVendor || hasAssignedAt || isPostNewStatus);
+};
+
+export const isProjectPendingAcceptance = (project) => {
+  if (!project) return false;
+  const hasVendor = Boolean(
+    project.vendorId && (typeof project.vendorId === "object" ? project.vendorId._id : project.vendorId)
+  );
+  return Boolean(hasVendor && (project.status === "New" || !project.status));
+};
+
+export const isProjectNeverAssigned = (project) => {
+  if (!project) return false;
+  return !isProjectAssigned(project);
 };
 
 export const assignProjectToVendor = async (projectId, vendorId, actorUser = null) => {
@@ -475,6 +490,7 @@ export const assignProjectToVendor = async (projectId, vendorId, actorUser = nul
 
   // 4. Concurrency-safe atomic conditional update
   // Matches ONLY if the project is still unassigned and in "New" status
+  // Preserves status as "New" awaiting vendor acceptance
   const now = new Date();
   const updatedProject = await Project.findOneAndUpdate(
     {
@@ -487,7 +503,7 @@ export const assignProjectToVendor = async (projectId, vendorId, actorUser = nul
       $set: {
         vendorId: vendor._id,
         vendorName: vendor.companyName,
-        status: "ASSIGNED",
+        status: "New",
         assignedAt: now,
       },
     },
@@ -506,7 +522,7 @@ export const assignProjectToVendor = async (projectId, vendorId, actorUser = nul
     throw err;
   }
 
-  // 5. Notify assigned vendor
+  // 5. Notify assigned vendor of new pending project assignment
   try {
     const vendorUserId = await getVendorUserId(vendor._id);
     if (vendorUserId) {
@@ -518,7 +534,7 @@ export const assignProjectToVendor = async (projectId, vendorId, actorUser = nul
         data: {
           projectId: updatedProject.projectId,
           projectMongoId: updatedProject._id.toString(),
-          status: "ASSIGNED",
+          status: "New",
         },
       });
     }
@@ -534,12 +550,12 @@ export const assignProjectToVendor = async (projectId, vendorId, actorUser = nul
         action: "PROJECT_STATUS_CHANGED",
         entityType: "Project",
         entityId: updatedProject.projectId || updatedProject._id.toString(),
-        description: `Assigned project ${updatedProject.projectName || ""} (${updatedProject.projectId || ""}) to vendor ${vendor.companyName} with status ASSIGNED`.trim(),
+        description: `Assigned project ${updatedProject.projectName || ""} (${updatedProject.projectId || ""}) to vendor ${vendor.companyName} pending acceptance`.trim(),
         metadata: {
           projectId: updatedProject.projectId,
           vendorId: vendor._id.toString(),
           vendorName: vendor.companyName,
-          status: "ASSIGNED",
+          status: "New",
           assignedAt: now,
         },
       });
@@ -632,7 +648,7 @@ export const updateProject = async (id, updateData, actorUser = null) => {
         updateData.vendorName = vendor.companyName;
       }
 
-      updateData.status = "ASSIGNED";
+      updateData.status = "New";
       updateData.assignedAt = new Date();
       isVendorAssignmentChanged = true;
     }
@@ -967,6 +983,27 @@ export const acceptProject = async (projectIdOrId, userId) => {
   await project.save();
 
   try {
+    await logAuditEvent({
+      actor: {
+        id: userId,
+        role: "VENDOR",
+      },
+      action: "PROJECT_STATUS_CHANGED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Vendor ${vendor.companyName} accepted project ${project.projectName || ""} (${project.projectId || ""}) with status ASSIGNED`.trim(),
+      metadata: {
+        projectId: project.projectId,
+        vendorId: vendor._id.toString(),
+        vendorName: vendor.companyName,
+        status: "ASSIGNED",
+      },
+    });
+  } catch (auditErr) {
+    console.error("Failed to log project acceptance audit event:", auditErr.message);
+  }
+
+  try {
     await createNotification({
       userId,
       title: "Project Accepted",
@@ -980,6 +1017,94 @@ export const acceptProject = async (projectIdOrId, userId) => {
     });
   } catch (notifErr) {
     console.error("Failed to generate project acceptance notification:", notifErr.message);
+  }
+
+  return await transformProjectMedia(project);
+};
+
+export const rejectProject = async (projectIdOrId, userId, reason = "") => {
+  const vendor = await Vendor.findOne({ userId });
+  if (!vendor) {
+    const err = new Error("Vendor profile not found for authenticated user");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(projectIdOrId)) {
+    project = await Project.findById(projectIdOrId);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: projectIdOrId });
+  }
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!project.vendorId || project.vendorId.toString() !== vendor._id.toString()) {
+    const err = new Error("You are not authorized to reject this project");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (project.status === "Rejected") {
+    return await transformProjectMedia(project);
+  }
+
+  if (project.status !== "New") {
+    const err = new Error(
+      `Cannot reject project with current status '${project.status}'. Only 'New' projects can be rejected.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  project.status = "Rejected";
+  project.rejectionReason = (reason || "").trim() || "Assignment declined by vendor";
+  if (!project.assignedAt) {
+    project.assignedAt = new Date();
+  }
+  await project.save();
+
+  try {
+    await logAuditEvent({
+      actor: {
+        id: userId,
+        role: "VENDOR",
+      },
+      action: "PROJECT_STATUS_CHANGED",
+      entityType: "Project",
+      entityId: project.projectId || project._id.toString(),
+      description: `Vendor ${vendor.companyName} rejected assignment for project ${project.projectName || ""} (${project.projectId || ""})`.trim(),
+      metadata: {
+        projectId: project.projectId,
+        vendorId: vendor._id.toString(),
+        vendorName: vendor.companyName,
+        status: "Rejected",
+        rejectionReason: project.rejectionReason,
+      },
+    });
+  } catch (auditErr) {
+    console.error("Failed to log project rejection audit event:", auditErr.message);
+  }
+
+  try {
+    await createNotification({
+      userId,
+      title: "Project Assignment Declined",
+      body: `You declined assignment for project "${project.projectName}" (${project.projectId}).`,
+      type: "PROJECT_UPDATED",
+      data: {
+        projectId: project._id.toString(),
+        projectCode: project.projectId,
+        status: "Rejected",
+      },
+    });
+  } catch (notifErr) {
+    console.error("Failed to generate project rejection notification:", notifErr.message);
   }
 
   return await transformProjectMedia(project);

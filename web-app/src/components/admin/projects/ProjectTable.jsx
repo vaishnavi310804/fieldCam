@@ -235,7 +235,14 @@ const ProjectTable = ({
                           <span>Assign Vendor</span>
                         </button>
                       ) : (
-                        <span>{vName}</span>
+                        <div className="flex flex-col">
+                          <span>{vName}</span>
+                          {project.status === "New" && (project.vendorId || project.assignedAt) && (
+                            <span className="text-[10px] text-[#2563EB] font-normal flex items-center gap-1">
+                              ● Pending Acceptance
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
 
@@ -425,9 +432,16 @@ const ProjectTable = ({
                     </button>
                   </span>
                 ) : (
-                  <span className="text-[#3E3734] font-medium">
-                    {selectedProject.vendorName || selectedProject.vendorId?.companyName || "Unassigned"}
-                  </span>
+                  <div className="inline-flex flex-col">
+                    <span className="text-[#3E3734] font-medium">
+                      {selectedProject.vendorName || selectedProject.vendorId?.companyName || "Unassigned"}
+                    </span>
+                    {selectedProject.status === "New" && (selectedProject.vendorId || selectedProject.assignedAt) && (
+                      <span className="text-[10px] text-[#2563EB] font-normal">
+                        ● Pending Acceptance
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div>

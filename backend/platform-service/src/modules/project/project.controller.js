@@ -5,6 +5,7 @@ import {
   updateProject,
   updateProjectStatus,
   acceptProject,
+  rejectProject,
   getProjectNotes,
   addProjectNote,
   uploadVendorPhoto,
@@ -203,6 +204,41 @@ export const acceptProjectController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to accept project",
+    });
+  }
+};
+
+export const rejectProjectController = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const projectId = req.params.id;
+    const reason = req.body?.reason || req.body?.rejectionReason;
+
+    const result = await rejectProject(projectId, userId, reason);
+
+    await logAuditEvent({
+      actor: req.user,
+      action: "PROJECT_STATUS_CHANGED",
+      entityType: "Project",
+      entityId: result.projectId || result._id?.toString() || "",
+      description: `Vendor rejected assignment for project ${result.projectName || ""} (${result.projectId || ""})`.trim(),
+      metadata: {
+        projectId: result.projectId,
+        newStatus: result.status,
+        rejectionReason: result.rejectionReason,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Project assignment rejected successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to reject project assignment",
     });
   }
 };

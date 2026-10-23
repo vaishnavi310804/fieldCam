@@ -19,6 +19,7 @@ import {
   getProjectById,
   getVendorProjects,
   acceptProject,
+  rejectProject,
   getProjectNotes,
   addProjectNote,
   VendorProjectItem,
@@ -256,6 +257,35 @@ export const ProjectDetailsScreen = () => {
     } finally {
       setIsAccepting(false);
     }
+  };
+
+  const handleRejectProject = async () => {
+    if (!project) return;
+    const targetId = project._id || project.projectId;
+
+    Alert.alert(
+      "Decline Assignment",
+      "Are you sure you want to decline this project assignment? This decision is final.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsAccepting(true);
+              await rejectProject(targetId, "Declined by vendor via mobile app");
+              Alert.alert("Declined", "You have declined this project assignment.");
+              await fetchProjectData(false);
+            } catch (err: any) {
+              Alert.alert("Error", err?.message || "Could not decline project.");
+            } finally {
+              setIsAccepting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleStartCapture = () => {
@@ -660,19 +690,30 @@ export const ProjectDetailsScreen = () => {
           {activeTab !== "photos" && activeTab !== "notes" && (isNew || isAssigned || isInProgress || isSubmitted || isApproved || isCompleted) ? (
             <View style={styles.actionContainer}>
               {isNew ? (
-                <Pressable
-                  style={[styles.primaryActionButton, isAccepting && styles.disabledButton]}
-                  onPress={handleAcceptProject}
-                  disabled={isAccepting}
-                  accessibilityRole="button"
-                  accessibilityLabel="Accept Project"
-                >
-                  {isAccepting ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.primaryActionText}>Accept Project</Text>
-                  )}
-                </Pressable>
+                <View style={styles.actionRow}>
+                  <Pressable
+                    style={[styles.timelineIconButton, { borderColor: "#DC2626", backgroundColor: "#FEF2F2" }]}
+                    onPress={handleRejectProject}
+                    disabled={isAccepting}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decline Project"
+                  >
+                    <Ionicons name="close-outline" size={22} color="#DC2626" />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.primaryActionButton, styles.primaryActionFlex, isAccepting && styles.disabledButton]}
+                    onPress={handleAcceptProject}
+                    disabled={isAccepting}
+                    accessibilityRole="button"
+                    accessibilityLabel="Accept Project"
+                  >
+                    {isAccepting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.primaryActionText}>Accept Project</Text>
+                    )}
+                  </Pressable>
+                </View>
               ) : isAssigned ? (
                 <Pressable
                   style={styles.primaryActionButton}

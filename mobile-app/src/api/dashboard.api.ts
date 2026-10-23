@@ -222,6 +222,20 @@ export const acceptProject = async (projectId: string): Promise<VendorProjectIte
   return response.data.data;
 };
 
+export const rejectProject = async (projectId: string, reason?: string): Promise<VendorProjectItem> => {
+  const response = await platformClient.patch<{
+    success: boolean;
+    data: VendorProjectItem;
+    message?: string;
+  }>(`/projects/${projectId}/reject`, { reason });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to decline project");
+  }
+
+  return response.data.data;
+};
+
 export const getProjectById = async (id: string): Promise<VendorProjectItem> => {
   const response = await platformClient.get<{
     success: boolean;
