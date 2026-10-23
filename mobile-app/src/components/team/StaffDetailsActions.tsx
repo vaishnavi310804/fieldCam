@@ -22,14 +22,13 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
 }) => {
   const router = useRouter();
   const [assignLoading] = useState(false);
-  const [editLoading, setEditLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
 
   const rawStatus = (staff.status || "ACTIVE").toLowerCase();
   const isActive = rawStatus === "active";
 
   const handleAssignProject = () => {
-    if (assignLoading || editLoading || statusLoading) return;
+    if (assignLoading || statusLoading) return;
     router.push({
       pathname: "/(app)/assign-project",
       params: { staffId: staff._id },
@@ -37,19 +36,15 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
   };
 
   const handleEditProfile = () => {
-    if (assignLoading || editLoading || statusLoading) return;
-    setEditLoading(true);
-    setTimeout(() => {
-      setEditLoading(false);
-      Alert.alert(
-        "Edit Profile",
-        "Editing staff member profile details requires backend staff update endpoint support."
-      );
-    }, 300);
+    if (assignLoading || statusLoading) return;
+    router.push({
+      pathname: "/(app)/edit-staff",
+      params: { id: staff._id },
+    });
   };
 
   const handleToggleStatus = () => {
-    if (assignLoading || editLoading || statusLoading) return;
+    if (assignLoading || statusLoading) return;
     setStatusLoading(true);
     const actionText = isActive ? "Deactivate" : "Activate";
 
@@ -70,7 +65,7 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
       <Pressable
         style={[styles.actionButton, styles.primaryButton]}
         onPress={handleAssignProject}
-        disabled={assignLoading || editLoading || statusLoading}
+        disabled={assignLoading || statusLoading}
         accessibilityRole="button"
         accessibilityLabel="Assign Project"
       >
@@ -89,18 +84,12 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
         <Pressable
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleEditProfile}
-          disabled={assignLoading || editLoading || statusLoading}
+          disabled={assignLoading || statusLoading}
           accessibilityRole="button"
           accessibilityLabel="Edit Details"
         >
-          {editLoading ? (
-            <ActivityIndicator size="small" color="#3B82F6" />
-          ) : (
-            <>
-              <Ionicons name="create-outline" size={18} color="#3B82F6" />
-              <Text style={styles.editButtonText}>Edit Details</Text>
-            </>
-          )}
+          <Ionicons name="create-outline" size={18} color="#3B82F6" />
+          <Text style={styles.editButtonText}>Edit Details</Text>
         </Pressable>
 
         <Pressable
@@ -110,7 +99,7 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
             isActive ? styles.deactivateBorder : styles.activateBorder,
           ]}
           onPress={handleToggleStatus}
-          disabled={assignLoading || editLoading || statusLoading}
+          disabled={assignLoading || statusLoading}
           accessibilityRole="button"
           accessibilityLabel={isActive ? "Deactivate Staff" : "Activate Staff"}
         >

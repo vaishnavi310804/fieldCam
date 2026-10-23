@@ -19,6 +19,9 @@ export const createUserByAdminValidation = [
     .trim()
     .notEmpty()
     .withMessage("Phone number is required")
+    .customSanitizer((val) =>
+      typeof val === "string" ? val.replace(/[\s-]/g, "") : val
+    )
     .isMobilePhone("en-IN")
     .withMessage("Invalid phone number"),
 
@@ -53,6 +56,9 @@ export const mobileLoginValidation = [
     .trim()
     .notEmpty()
     .withMessage("Phone number is required")
+    .customSanitizer((val) =>
+      typeof val === "string" ? val.replace(/[\s-]/g, "") : val
+    )
     .isMobilePhone("en-IN")
     .withMessage("Invalid phone number"),
 

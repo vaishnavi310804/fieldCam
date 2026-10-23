@@ -163,3 +163,45 @@ export const updateVendorStatusValidation = [
     .isIn(ALLOWED_STATUSES)
     .withMessage(`Status must be one of: ${ALLOWED_STATUSES.join(", ")}`),
 ];
+
+export const updateVendorStaffValidation = [
+  param("id")
+    .isMongoId()
+    .withMessage("Invalid staff ID format"),
+
+  body("name")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Name cannot be empty")
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Name must be between 2 and 100 characters"),
+
+  body("email")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Email cannot be empty")
+    .isEmail()
+    .withMessage("Please provide a valid email address"),
+
+  body("phone")
+    .optional()
+    .trim(),
+
+  body("title")
+    .optional()
+    .trim(),
+
+  body("location")
+    .optional()
+    .trim(),
+
+  body("department")
+    .optional()
+    .trim(),
+
+  body("bio")
+    .optional()
+    .trim(),
+];

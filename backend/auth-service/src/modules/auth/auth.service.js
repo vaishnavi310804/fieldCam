@@ -49,7 +49,16 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
   }
 
   if (phone) {
-    const existingPhone = await User.findOne({ phone: phone.trim() });
+    const trimmedPhone = phone.trim();
+    const cleanedPhone = trimmedPhone.replace(/[\s-]/g, "");
+    const last10 = cleanedPhone.replace(/\D/g, "").slice(-10);
+    const phoneCandidates = [trimmedPhone, cleanedPhone];
+    if (last10 && last10.length === 10) {
+      phoneCandidates.push(last10, `+91${last10}`, `91${last10}`);
+    }
+    const existingPhone = await User.findOne({
+      phone: { $in: Array.from(new Set(phoneCandidates.filter(Boolean))) },
+    });
     if (existingPhone) {
       throw new Error("Phone number already registered");
     }
@@ -64,7 +73,7 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
     user = await User.create({
       name,
       email: email.toLowerCase(),
-      phone: phone ? phone.trim() : undefined,
+      phone: phone ? phone.trim().replace(/[\s-]/g, "") : undefined,
       role: role || "STAFF",
       companyId: companyId || null,
       isVerified: false,
@@ -176,7 +185,7 @@ export const completeProfile = async (data, setupTokenFromHeader) => {
     throw new Error("User registration must be verified before completing profile");
   }
 
-  if (user.status === "ACTIVE" || user.password) {
+  if (user.password) {
     throw new Error("Account setup is already complete or password has already been established");
   }
 
@@ -207,6 +216,14 @@ export const webLoginUser = async (credentials) => {
   const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
   if (!user) {
     throw new Error("Invalid email or password");
+  }
+
+  if (user.isVerified === false) {
+    throw new Error("Account is not verified. Please complete your registration via the onboarding link sent to your email.");
+  }
+
+  if (!user.password) {
+    throw new Error("Account setup is incomplete. Please establish your password using your onboarding invitation.");
   }
 
   if (user.status !== "ACTIVE") {
@@ -243,9 +260,28 @@ export const webLoginUser = async (credentials) => {
 export const mobileLoginUser = async (credentials) => {
   const { phone, password } = credentials;
 
-  const user = await User.findOne({ phone: phone.trim() }).select("+password");
+  const trimmedPhone = (phone || "").trim();
+  const cleanedPhone = trimmedPhone.replace(/[\s-]/g, "");
+  const last10 = cleanedPhone.replace(/\D/g, "").slice(-10);
+
+  const phoneCandidates = [trimmedPhone, cleanedPhone];
+  if (last10 && last10.length === 10) {
+    phoneCandidates.push(last10, `+91${last10}`, `91${last10}`);
+  }
+
+  const user = await User.findOne({
+    phone: { $in: Array.from(new Set(phoneCandidates.filter(Boolean))) },
+  }).select("+password");
   if (!user) {
     throw new Error("Invalid phone number or password");
+  }
+
+  if (user.isVerified === false) {
+    throw new Error("Account is not verified. Please complete your registration via the onboarding link sent to your email.");
+  }
+
+  if (!user.password) {
+    throw new Error("Account setup is incomplete. Please establish your password using your onboarding invitation.");
   }
 
   if (user.status !== "ACTIVE") {

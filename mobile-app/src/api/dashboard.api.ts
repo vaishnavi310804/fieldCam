@@ -470,6 +470,32 @@ export const downloadProjectReportPdf = async (
   return response.data;
 };
 
+export interface UpdateStaffPayload {
+  name?: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  department?: string;
+  location?: string;
+}
+
+export const updateVendorStaff = async (
+  staffId: string,
+  payload: UpdateStaffPayload
+): Promise<VendorStaffItem> => {
+  const response = await platformClient.put<{
+    success: boolean;
+    message?: string;
+    data: VendorStaffItem;
+  }>(`/vendors/me/staff/${staffId}`, payload);
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to update staff member");
+  }
+
+  return response.data.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
@@ -483,6 +509,7 @@ export const dashboardApi = {
   getVendorStaffList,
   assignProjectToStaff,
   downloadProjectReportPdf,
+  updateVendorStaff,
 };
 
 export default dashboardApi;

@@ -65,6 +65,7 @@ const LoginScreen = () => {
       router.replace("/(app)/" as any);
     } catch (err: any) {
       const msg =
+        err?.response?.data?.errors?.[0]?.message ||
         err?.response?.data?.message ||
         err?.message ||
         "Failed to sign in. Please check your credentials.";

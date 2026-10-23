@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import Colors from "@/src/constants/color";
 import { dashboardApi, VendorStaffItem } from "@/src/api/dashboard.api";
 import { PageHeader } from "@/src/components/navigation/PageHeader";
@@ -59,6 +59,12 @@ export const StaffDetailsScreen: React.FC = () => {
   useEffect(() => {
     fetchStaffDetails();
   }, [fetchStaffDetails]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStaffDetails(false);
+    }, [fetchStaffDetails])
+  );
 
   const onRefresh = () => {
     setIsRefreshing(true);

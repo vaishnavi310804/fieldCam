@@ -5,6 +5,7 @@ import {
   createVendorValidation,
   updateVendorValidation,
   updateVendorStatusValidation,
+  updateVendorStaffValidation,
 } from "./vendor.validation.js";
 import {
   createVendorController,
@@ -53,11 +54,13 @@ router.patch(
   updateVendorStaffStatusController
 );
 
-// PUT /api/vendors/me/staff/:id - Update staff member details (VENDOR)
+// PUT /api/vendors/me/staff/:id - Update staff member details (VENDOR, ADMIN, SUPER_ADMIN)
 router.put(
   "/me/staff/:id",
   protect,
-  authorize("VENDOR"),
+  authorize("VENDOR", "ADMIN", "SUPER_ADMIN"),
+  updateVendorStaffValidation,
+  validate,
   updateVendorStaffController
 );
 

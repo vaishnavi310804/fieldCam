@@ -693,34 +693,116 @@ export const updateVendorStaffStatus = async (staffId, status, currentUser) => {
 
 export const updateVendorStaff = async (staffId, updateData, currentUser) => {
   if (!mongoose.Types.ObjectId.isValid(staffId)) {
-    throw new Error("Invalid staff ID format");
-  }
-
-  const vendorUser = await User.findById(currentUser.id);
-  const vendorProfile = await Vendor.findOne({ userId: currentUser.id });
-  const companyIds = [currentUser.id.toString()];
-  if (vendorUser?.companyId) companyIds.push(vendorUser.companyId.toString());
-  if (vendorProfile?._id) companyIds.push(vendorProfile._id.toString());
-
-  const staffUser = await User.findById(staffId);
-  if (!staffUser || staffUser.role !== "STAFF") {
-    throw new Error("Staff member not found");
-  }
-
-  const staffCompanyId = staffUser.companyId ? staffUser.companyId.toString() : null;
-  if (!staffCompanyId || !companyIds.includes(staffCompanyId)) {
-    const error = new Error("Forbidden: Staff member does not belong to your organization");
-    error.statusCode = 403;
+    const error = new Error("Invalid staff ID format");
+    error.statusCode = 400;
     throw error;
   }
 
-  const allowedFields = ["name", "phone", "title", "location", "department", "bio"];
-  allowedFields.forEach((field) => {
+  const staffUser = await User.findById(staffId);
+  if (!staffUser || staffUser.role !== "STAFF") {
+    const error = new Error("Staff member not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const isSuperOrAdmin = currentUser.role === "SUPER_ADMIN" || currentUser.role === "ADMIN";
+  if (!isSuperOrAdmin) {
+    const vendorUser = await User.findById(currentUser.id);
+    const vendorProfile = await Vendor.findOne({ userId: currentUser.id });
+    const companyIds = [currentUser.id.toString()];
+    if (vendorUser?.companyId) companyIds.push(vendorUser.companyId.toString());
+    if (vendorProfile?._id) companyIds.push(vendorProfile._id.toString());
+
+    const staffCompanyId = staffUser.companyId ? staffUser.companyId.toString() : null;
+    if (!staffCompanyId || !companyIds.includes(staffCompanyId)) {
+      const error = new Error("Forbidden: Staff member does not belong to your organization");
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
+  // 1. Validate & update name
+  if (updateData.name !== undefined) {
+    const trimmedName = typeof updateData.name === "string" ? updateData.name.trim() : "";
+    if (!trimmedName || trimmedName.length < 2) {
+      const error = new Error("Name must be at least 2 characters");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (trimmedName.length > 100) {
+      const error = new Error("Name cannot exceed 100 characters");
+      error.statusCode = 400;
+      throw error;
+    }
+    staffUser.name = trimmedName;
+  }
+
+  // 2. Validate & update email with uniqueness check
+  if (updateData.email !== undefined) {
+    const trimmedEmail = typeof updateData.email === "string" ? updateData.email.trim().toLowerCase() : "";
+    if (!trimmedEmail) {
+      const error = new Error("Email cannot be empty");
+      error.statusCode = 400;
+      throw error;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      const error = new Error("Please provide a valid email address");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (trimmedEmail !== staffUser.email?.toLowerCase()) {
+      const existingEmail = await User.findOne({
+        email: trimmedEmail,
+        _id: { $ne: staffUser._id },
+      });
+      if (existingEmail) {
+        const error = new Error("Email already registered");
+        error.statusCode = 400;
+        throw error;
+      }
+      staffUser.email = trimmedEmail;
+    }
+  }
+
+  // 3. Validate & update phone with uniqueness check
+  if (updateData.phone !== undefined) {
+    const trimmedPhone = typeof updateData.phone === "string" ? updateData.phone.trim() : "";
+    if (trimmedPhone) {
+      if (trimmedPhone !== staffUser.phone) {
+        const existingPhone = await User.findOne({
+          phone: trimmedPhone,
+          _id: { $ne: staffUser._id },
+        });
+        if (existingPhone) {
+          const error = new Error("Phone number already registered");
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+      staffUser.phone = trimmedPhone;
+    } else {
+      staffUser.phone = "";
+    }
+  }
+
+  // 4. Update optional operational fields (role, companyId, status, password remain immutable here)
+  const optionalStringFields = ["title", "location", "department", "bio"];
+  optionalStringFields.forEach((field) => {
     if (updateData[field] !== undefined) {
-      staffUser[field] = updateData[field];
+      staffUser[field] = typeof updateData[field] === "string" ? updateData[field].trim() : updateData[field];
     }
   });
 
   await staffUser.save();
-  return staffUser.toObject();
+
+  const staffObj = staffUser.toObject();
+  delete staffObj.password;
+  delete staffObj.registrationOtpHash;
+  delete staffObj.registrationOtpExpires;
+  delete staffObj.resetOtpHash;
+  delete staffObj.resetOtpExpires;
+
+  return staffObj;
 };
