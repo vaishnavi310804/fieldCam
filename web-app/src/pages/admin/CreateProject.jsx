@@ -38,6 +38,7 @@ const CreateProject = () => {
   const [vendorId, setVendorId] = useState("");
   const [deadline, setDeadline] = useState("");
   const [location, setLocation] = useState("");
+  const [locationCoordinates, setLocationCoordinates] = useState(null);
   const [checklistItems, setChecklistItems] = useState(initialChecklist);
   const [photos, setPhotos] = useState([]);
   const [photoError, setPhotoError] = useState("");
@@ -120,6 +121,20 @@ const CreateProject = () => {
     formData.append("serviceTypeName", selectedService ? selectedService.serviceTypeName : "");
     formData.append("location", location.trim());
     formData.append("deadline", deadline);
+
+    if (
+      locationCoordinates &&
+      typeof locationCoordinates.latitude === "number" &&
+      typeof locationCoordinates.longitude === "number"
+    ) {
+      formData.append(
+        "locationCoordinates",
+        JSON.stringify({
+          latitude: locationCoordinates.latitude,
+          longitude: locationCoordinates.longitude,
+        })
+      );
+    }
 
     if (vendorId) {
       formData.append("vendorId", vendorId);
@@ -226,6 +241,8 @@ const CreateProject = () => {
                 setDeadline={setDeadline}
                 location={location}
                 setLocation={setLocation}
+                locationCoordinates={locationCoordinates}
+                setLocationCoordinates={setLocationCoordinates}
                 vendors={vendors}
               />
 

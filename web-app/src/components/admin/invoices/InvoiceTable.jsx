@@ -402,9 +402,6 @@ const InvoiceTable = ({
               <tr>
                 <td colSpan={8} className="py-12 px-6 text-center text-[#817B77]">
                   <p className="text-sm font-semibold text-[#3E3734]">No invoices found</p>
-                  <p className="text-xs mt-1">
-                    Try adjusting your search query or filter settings.
-                  </p>
                 </td>
               </tr>
             )}

@@ -158,7 +158,7 @@ const Support = () => {
           {/* 3. Support Tickets Table Card */}
           {loading ? (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
-              Loading support tickets from platform service...
+              Loading support tickets...
             </div>
           ) : (
             <SupportTable

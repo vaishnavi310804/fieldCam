@@ -482,7 +482,7 @@ export const getInvoices = async (query = {}, user = {}) => {
   }
 
   // Company boundaries for Admin/Staff
-  if (user.role !== "SUPER_ADMIN" && user.companyId) {
+  if (["ADMIN", "STAFF"].includes(user.role) && user.companyId) {
     filter.companyId = user.companyId;
   }
 
@@ -1237,7 +1237,8 @@ export const getInvoiceStats = async (user = {}, query = {}) => {
     filter.vendorId = new mongoose.Types.ObjectId(query.vendorId);
   }
 
-  if (user.role !== "SUPER_ADMIN" && user.companyId) {
+  // Company boundaries for Admin/Staff
+  if (["ADMIN", "STAFF"].includes(user.role) && user.companyId) {
     filter.companyId = user.companyId;
   }
 

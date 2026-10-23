@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { getVendorProfile, VendorProfileData } from "../../api/dashboard.api";
+import Colors from "@/src/constants/color";
 
 export const VendorProfileScreen = () => {
   const router = useRouter();
@@ -133,9 +134,9 @@ export const VendorProfileScreen = () => {
             >
               <Text style={styles.avatarInitialsText}>{initials}</Text>
             </View>
-            <View style={styles.cameraBadge}>
+            {/* <View style={styles.cameraBadge}>
               <Ionicons name="camera" size={14} color="#786C62" />
-            </View>
+            </View> */}
           </View>
 
           <Text style={styles.vendorNameText} numberOfLines={1}>
@@ -151,7 +152,7 @@ export const VendorProfileScreen = () => {
           {profile?.rating !== undefined ? (
             <Text style={styles.ratingText}>
               ★ {profile.rating}
-              {profile.status ? ` — ${profile.status} Tier` : ""}
+              {profile.status ? ` — ${profile.status}` : ""}
             </Text>
           ) : null}
         </View>
@@ -275,7 +276,7 @@ export const VendorProfileScreen = () => {
           </View>
 
           {/* EDIT PROFILE BUTTON */}
-          <View style={styles.actionSection}>
+          {/* <View style={styles.actionSection}>
             <Pressable
               style={styles.editProfileButton}
               onPress={handleEditProfile}
@@ -284,7 +285,7 @@ export const VendorProfileScreen = () => {
             >
               <Text style={styles.editProfileButtonText}>Edit Profile</Text>
             </Pressable>
-          </View>
+          </View> */}
         </ScrollView>
       )}
     </View>
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#784500",
+    color: Colors.white,
     marginTop: 2,
   },
   centerContainer: {

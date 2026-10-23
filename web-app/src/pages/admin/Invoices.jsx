@@ -47,7 +47,7 @@ const Invoices = () => {
       setOverviewData(overviewRes?.data || overviewRes || []);
     } catch (err) {
       setError(
-        err.response?.data?.message || err.message || "Failed to load invoices data from platform service"
+        err.response?.data?.message || err.message || "Failed to load invoices data..."
       );
       setAllInvoices([]);
     } finally {
@@ -74,7 +74,7 @@ const Invoices = () => {
       } catch (err) {
         if (isMounted) {
           setError(
-            err.response?.data?.message || err.message || "Failed to load invoices data from platform service"
+            err.response?.data?.message || err.message || "Failed to load invoices data..."
           );
           setAllInvoices([]);
           setLoading(false);
@@ -305,7 +305,7 @@ const Invoices = () => {
           {/* 4. Invoice Table Card */}
           {loading ? (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
-              Loading invoices from platform service...
+              Loading invoices...
             </div>
           ) : (
             <InvoiceTable

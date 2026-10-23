@@ -178,7 +178,7 @@ const Vendors = () => {
           {loading && (
             <div className="bg-[#FAF7F5] border border-[#E8E2DE] text-[#817B77] px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-2">
               <FiLoader className="animate-spin text-base shrink-0" />
-              <span>Loading vendor records from backend...</span>
+              <span>Loading vendor details...</span>
             </div>
           )}
 
@@ -213,9 +213,6 @@ const Vendors = () => {
           ) : !loading && (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-[#817B77]">
               <p className="text-sm font-semibold">No vendors found</p>
-              <p className="text-xs mt-1">
-                Try adjusting your search query or filter settings.
-              </p>
             </div>
           )}
         </main>

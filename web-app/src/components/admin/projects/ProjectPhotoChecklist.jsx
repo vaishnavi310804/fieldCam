@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { FiPlus, FiCamera, FiCheckCircle } from "react-icons/fi";
+import { FiPlus, FiCamera, FiCheckCircle, FiX } from "react-icons/fi";
 
 const ProjectPhotoChecklist = ({
   checklistItems,
@@ -33,16 +33,35 @@ const ProjectPhotoChecklist = ({
       const ext = file.name.split(".").pop().toLowerCase();
       if (!validExtensions.includes(ext)) {
         setPhotoError(`Invalid format in "${file.name}". Only JPG, PNG, and HEIC are supported.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
         setPhotoError(`"${file.name}" exceeds the 5MB limit.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       validFiles.push(file);
     }
 
     setPhotos([...photos, ...validFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemovePhoto = (indexToRemove) => {
+    const fileToRemove = photos[indexToRemove];
+    if (fileToRemove && fileToRemove.preview) {
+      try {
+        URL.revokeObjectURL(fileToRemove.preview);
+      } catch {
+        // ignore
+      }
+    }
+    setPhotos(photos.filter((_, idx) => idx !== indexToRemove));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setPhotoError("");
   };
 
   return (
@@ -50,9 +69,16 @@ const ProjectPhotoChecklist = ({
       {/* Header & Dynamic Counter */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-[#3E3734]">Photo Checklist</h2>
-        <span className="text-xs font-semibold text-[#817B77]">
-          {completedCount} of {checklistItems.length} completed
-        </span>
+        <div className="flex items-center gap-2">
+          {photos.length > 0 && (
+            <span className="text-[11px] font-semibold text-[#8A817C] bg-[#FAF7F5] border border-[#E8E2DE] px-2 py-0.5 rounded-md">
+              {photos.length} {photos.length === 1 ? "photo" : "photos"} selected
+            </span>
+          )}
+          <span className="text-xs font-semibold text-[#817B77]">
+            {completedCount} of {checklistItems.length} completed
+          </span>
+        </div>
       </div>
 
       {/* Checklist Grid/List */}
@@ -108,12 +134,26 @@ const ProjectPhotoChecklist = ({
           <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-[#F2EBE5]">
             {photos.map((file, idx) => (
               <span
-                key={idx}
-                className="inline-flex items-center gap-1.5 bg-[#FAF7F5] border border-[#E8E2DE] px-2.5 py-1 rounded-lg text-[11px] font-medium text-[#3E3734]"
+                key={`${file.name}-${idx}`}
+                className="inline-flex items-center gap-1.5 bg-[#FAF7F5] border border-[#E8E2DE] px-2.5 py-1 rounded-lg text-[11px] font-medium text-[#3E3734] transition-all hover:border-[#D6CEC7]"
               >
-                <FiCamera className="text-xs text-[#817B77]" />
-                <span className="truncate max-w-[140px]">{file.name}</span>
-                <FiCheckCircle className="text-xs text-[#2E7D32]" />
+                <FiCamera className="text-xs text-[#817B77] shrink-0" />
+                <span className="truncate max-w-[140px]" title={file.name}>
+                  {file.name}
+                </span>
+                <FiCheckCircle className="text-xs text-[#2E7D32] shrink-0" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemovePhoto(idx);
+                  }}
+                  aria-label={`Remove photo ${file.name}`}
+                  title={`Remove ${file.name}`}
+                  className="p-0.5 text-[#817B77] hover:text-[#C62828] hover:bg-[#F2EBE5] rounded transition-colors cursor-pointer ml-0.5 focus:outline-none shrink-0"
+                >
+                  <FiX className="text-xs" />
+                </button>
               </span>
             ))}
           </div>

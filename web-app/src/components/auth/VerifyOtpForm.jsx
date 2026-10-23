@@ -150,7 +150,7 @@ const VerifyOtpForm = () => {
           <div className="relative">
             <FiKey
               size={14}
-              strokeWidth={1.7}
+              strokeWidth={1.2}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9AA9C2]"
             />
 

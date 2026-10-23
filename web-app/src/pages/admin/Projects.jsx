@@ -141,7 +141,7 @@ const Projects = () => {
           {/* 3. Project Table Card */}
           {loading ? (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
-              Loading projects from platform service...
+              Loading projects...
             </div>
           ) : (
             <ProjectTable

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { FiPaperclip, FiFileText, FiCheckCircle } from "react-icons/fi";
+import { FiPaperclip, FiFileText, FiCheckCircle, FiX } from "react-icons/fi";
 
 const ProjectDescription = ({
   description,
@@ -23,16 +23,27 @@ const ProjectDescription = ({
       const ext = file.name.split(".").pop().toLowerCase();
       if (!validExtensions.includes(ext)) {
         setAttachmentError(`Invalid format in "${file.name}". Only PDF, DOCX, and XLSX are supported.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
         setAttachmentError(`"${file.name}" exceeds the 10MB limit.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
       validFiles.push(file);
     }
 
     setAttachments([...attachments, ...validFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveAttachment = (indexToRemove) => {
+    setAttachments(attachments.filter((_, idx) => idx !== indexToRemove));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setAttachmentError("");
   };
 
   return (
@@ -88,12 +99,26 @@ const ProjectDescription = ({
           <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-[#F2EBE5]">
             {attachments.map((file, idx) => (
               <span
-                key={idx}
-                className="inline-flex items-center gap-1.5 bg-[#FAF7F5] border border-[#E8E2DE] px-2.5 py-1 rounded-lg text-[11px] font-medium text-[#3E3734]"
+                key={`${file.name}-${idx}`}
+                className="inline-flex items-center gap-1.5 bg-[#FAF7F5] border border-[#E8E2DE] px-2.5 py-1 rounded-lg text-[11px] font-medium text-[#3E3734] transition-all hover:border-[#D6CEC7]"
               >
-                <FiFileText className="text-xs text-[#817B77]" />
-                <span className="truncate max-w-[140px]">{file.name}</span>
-                <FiCheckCircle className="text-xs text-[#2E7D32]" />
+                <FiFileText className="text-xs text-[#817B77] shrink-0" />
+                <span className="truncate max-w-[140px]" title={file.name}>
+                  {file.name}
+                </span>
+                <FiCheckCircle className="text-xs text-[#2E7D32] shrink-0" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveAttachment(idx);
+                  }}
+                  aria-label={`Remove attachment ${file.name}`}
+                  title={`Remove ${file.name}`}
+                  className="p-0.5 text-[#817B77] hover:text-[#C62828] hover:bg-[#F2EBE5] rounded transition-colors cursor-pointer ml-0.5 focus:outline-none shrink-0"
+                >
+                  <FiX className="text-xs" />
+                </button>
               </span>
             ))}
           </div>

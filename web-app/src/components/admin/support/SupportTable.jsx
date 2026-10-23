@@ -283,9 +283,6 @@ const SupportTable = ({
                   className="py-12 px-6 text-center text-[#817B77]"
                 >
                   <p className="text-sm font-semibold">No tickets found</p>
-                  <p className="text-xs mt-1">
-                    Try adjusting your search query or filter settings.
-                  </p>
                 </td>
               </tr>
             )}

@@ -404,7 +404,7 @@ const VendorProjectDetails = () => {
           {loading && (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77] space-y-2 shadow-xs">
               <FiLoader className="animate-spin text-2xl mx-auto text-[#8A817C]" />
-              <p className="font-semibold">Loading project details from platform service...</p>
+              <p className="font-semibold">Loading project details...</p>
             </div>
           )}
 

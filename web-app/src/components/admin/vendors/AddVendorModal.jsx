@@ -204,7 +204,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g., Apex Field Co."
+                  placeholder="Company Name.."
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>
@@ -235,7 +235,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 Phone Number"
+                  placeholder="+91"
                   className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
                 />
               </div>
@@ -264,7 +264,7 @@ const AddVendorModal = ({ isOpen, onClose, onCreateVendor }) => {
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g., Austin, TX"
+                placeholder="Your Company Location.."
                 className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors"
               />
             </div>
