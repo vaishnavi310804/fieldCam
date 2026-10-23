@@ -343,3 +343,15 @@ export const assignStaffValidation = [
     .isMongoId()
     .withMessage("Staff ID must be a valid MongoDB ObjectId"),
 ];
+
+export const assignVendorValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Project ID is required"),
+
+  body("vendorId")
+    .notEmpty()
+    .withMessage("Vendor ID is required")
+    .isMongoId()
+    .withMessage("Vendor ID must be a valid MongoDB ObjectId"),
+];

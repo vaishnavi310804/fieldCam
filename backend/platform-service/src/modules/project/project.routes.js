@@ -9,6 +9,7 @@ import {
   deleteVendorPhotoValidation,
   submitVendorProjectValidation,
   assignStaffValidation,
+  assignVendorValidation,
 } from "./project.validation.js";
 import {
   createProjectController,
@@ -26,6 +27,7 @@ import {
   getStaffProjectsController,
   downloadProjectReportPdfController,
   revalidateVendorPhotoController,
+  assignVendorController,
 } from "./project.controller.js";
 import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.middleware.js";
 
@@ -156,6 +158,24 @@ router.post(
   protect,
   authorize("VENDOR", "STAFF"),
   revalidateVendorPhotoController
+);
+
+// POST or PATCH /api/projects/:id/assign - Assign project to a vendor (SUPER_ADMIN, ADMIN)
+router.post(
+  "/:id/assign",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN"),
+  assignVendorValidation,
+  validate,
+  assignVendorController
+);
+router.patch(
+  "/:id/assign",
+  protect,
+  authorize("SUPER_ADMIN", "ADMIN"),
+  assignVendorValidation,
+  validate,
+  assignVendorController
 );
 
 // POST /api/projects/:id/assign-staff - Vendor assigns project to a staff member (VENDOR)

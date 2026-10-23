@@ -67,4 +67,9 @@ export const acceptProject = async (projectId) => {
   return response.data;
 };
 
+export const assignVendorToProject = async (projectId, vendorId) => {
+  const response = await platformApi.post(`/projects/${projectId}/assign`, { vendorId });
+  return response.data;
+};
+
 

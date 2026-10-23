@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getProjects, updateProject } from "../../../services/projectService";
+import { getProjects, assignVendorToProject } from "../../../services/projectService";
 import {
   FiX,
   FiCheckCircle,
@@ -29,16 +29,15 @@ const AssignProjectModal = ({ isOpen, onClose, vendor, onAssignSuccess }) => {
       try {
         const res = await getProjects();
         const projectList = Array.isArray(res) ? res : res.data || [];
-        setProjects(projectList);
-
-        // Auto-select first unassigned project, or first project overall
-        const unassigned = projectList.find(
-          (p) => !p.vendorId || (typeof p.vendorId === "object" && !p.vendorId._id)
+        
+        // Only never-assigned projects are eligible for assignment
+        const unassignedProjects = projectList.filter(
+          (p) => !p.vendorId && (!p.status || p.status === "New") && !p.assignedAt
         );
-        if (unassigned) {
-          setSelectedProjectId(unassigned._id);
-        } else if (projectList.length > 0) {
-          setSelectedProjectId(projectList[0]._id);
+        setProjects(unassignedProjects);
+
+        if (unassignedProjects.length > 0) {
+          setSelectedProjectId(unassignedProjects[0]._id);
         }
       } catch (err) {
         setError(
@@ -73,9 +72,7 @@ const AssignProjectModal = ({ isOpen, onClose, vendor, onAssignSuccess }) => {
 
     try {
       setIsSubmitting(true);
-      await updateProject(selectedProjectId, {
-        vendorId: vendor._id,
-      });
+      await assignVendorToProject(selectedProjectId, vendor._id);
 
       if (onAssignSuccess) {
         await onAssignSuccess();
@@ -134,7 +131,7 @@ const AssignProjectModal = ({ isOpen, onClose, vendor, onAssignSuccess }) => {
             </div>
           ) : projects.length === 0 ? (
             <div className="py-8 text-center text-xs text-[#817B77]">
-              No projects found in system. Please create a project first.
+              No unassigned projects found in system. All projects have already been assigned to vendors.
             </div>
           ) : (
             <>
@@ -150,19 +147,12 @@ const AssignProjectModal = ({ isOpen, onClose, vendor, onAssignSuccess }) => {
                     disabled={isSubmitting}
                     className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC] transition-colors appearance-none cursor-pointer pr-10"
                   >
-                    <option value="">-- Choose a project --</option>
-                    {projects.map((p) => {
-                      const isAssigned = Boolean(p.vendorId);
-                      const currentVendor =
-                        p.vendorName || p.vendorId?.companyName || "Assigned";
-
-                      return (
-                        <option key={p._id} value={p._id}>
-                          {p.projectName} ({p.projectId || "Project"})
-                          {isAssigned ? ` • [Currently: ${currentVendor}]` : " • [Unassigned]"}
-                        </option>
-                      );
-                    })}
+                    <option value="">-- Choose an unassigned project --</option>
+                    {projects.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.projectName} ({p.projectId || "Project"}) • [Unassigned]
+                      </option>
+                    ))}
                   </select>
                   <FiChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#817B77] text-xs pointer-events-none" />
                 </div>

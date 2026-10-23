@@ -55,7 +55,7 @@ const VendorToolbar = ({
               onClick={onApproveVendor}
               className="bg-white hover:bg-[#F7F4F2] text-[#3E3734] border border-[#E8E2DE] px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors shrink-0"
             >
-              <FiUserCheck className="text-sm text-[#5141F5]" />
+              <FiUserCheck className="text-sm text-[#8A817C]" />
               <span>Approve Vendor</span>
             </button>
 

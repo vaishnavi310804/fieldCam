@@ -11,6 +11,7 @@ import {
   deleteVendorPhoto,
   submitVendorProject,
   assignProjectToStaff,
+  assignProjectToVendor,
   getStaffAssignedProjects,
   generateProjectReportPdf,
   revalidateVendorPhoto,
@@ -98,7 +99,7 @@ export const getProjectByIdController = async (req, res) => {
 
 export const updateProjectController = async (req, res) => {
   try {
-    const result = await updateProject(req.params.id, req.body);
+    const result = await updateProject(req.params.id, req.body, req.user);
 
     await logAuditEvent({
       actor: req.user,
@@ -395,6 +396,32 @@ export const revalidateVendorPhotoController = async (req, res) => {
     return res.status(statusCode).json({
       success: false,
       message: error.message || "Failed to revalidate photo",
+    });
+  }
+};
+
+export const assignVendorController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { vendorId } = req.body;
+
+    const result = await assignProjectToVendor(id, vendorId, req.user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Project assigned to vendor successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode =
+      error.statusCode ||
+      (error.message === "Project not found" || error.message.includes("Invalid project ID")
+        ? 404
+        : 400);
+
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to assign project to vendor",
     });
   }
 };

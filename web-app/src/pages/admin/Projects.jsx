@@ -148,6 +148,7 @@ const Projects = () => {
               projects={filteredProjects}
               totalCount={allProjects.length}
               onUpdateStatus={handleUpdateStatus}
+              onRefresh={loadProjects}
               isReadOnly={isReadOnly}
             />
           )}

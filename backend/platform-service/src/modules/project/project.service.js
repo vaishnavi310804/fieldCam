@@ -184,11 +184,17 @@ export const createProject = async (projectData, files = {}) => {
     if (!projectData.vendorName) {
       projectData.vendorName = vendor.companyName;
     }
+
+    projectData.assignedAt = new Date();
+    if (!projectData.status) {
+      projectData.status = "ASSIGNED";
+    }
   }
 
   // Ensure default status is New if not explicitly provided
   if (!projectData.status) {
     projectData.status = "New";
+    projectData.assignedAt = null;
   }
 
   // 6. Prevent duplicate projectId
@@ -403,7 +409,149 @@ export const getStaffAssignedProjects = async (staffUserId) => {
   return await Promise.all(projects.map((proj) => transformProjectMedia(proj)));
 };
 
-export const updateProject = async (id, updateData) => {
+export const isProjectAssigned = (project) => {
+  if (!project) return false;
+  return Boolean(
+    project.vendorId ||
+    project.assignedAt ||
+    (project.status && project.status !== "New")
+  );
+};
+
+export const assignProjectToVendor = async (projectId, vendorId, actorUser = null) => {
+  if (!projectId) {
+    const err = new Error("Project ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!vendorId) {
+    const err = new Error("Vendor ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 1. Load project
+  let project = null;
+  if (mongoose.Types.ObjectId.isValid(projectId)) {
+    project = await Project.findById(projectId);
+  }
+  if (!project) {
+    project = await Project.findOne({ projectId: projectId });
+  }
+
+  if (!project) {
+    const err = new Error("Project not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // 2. Determine whether it has ever been assigned to a vendor
+  if (isProjectAssigned(project)) {
+    const err = new Error("This project has already been assigned and cannot be reassigned.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // 3. Validate target vendor using existing business rules
+  if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+    const err = new Error("Invalid vendor ID format");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const vendor = await Vendor.findById(vendorId);
+  if (!vendor) {
+    const err = new Error("Referenced vendor does not exist");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (vendor.status !== "Active") {
+    const err = new Error("Referenced vendor is not active");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 4. Concurrency-safe atomic conditional update
+  // Matches ONLY if the project is still unassigned and in "New" status
+  const now = new Date();
+  const updatedProject = await Project.findOneAndUpdate(
+    {
+      _id: project._id,
+      vendorId: null,
+      assignedAt: null,
+      status: "New",
+    },
+    {
+      $set: {
+        vendorId: vendor._id,
+        vendorName: vendor.companyName,
+        status: "ASSIGNED",
+        assignedAt: now,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  )
+    .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
+    .populate("vendorId", "companyName contactName location rating status");
+
+  if (!updatedProject) {
+    // Another concurrent request assigned this project
+    const err = new Error("This project has already been assigned and cannot be reassigned.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // 5. Notify assigned vendor
+  try {
+    const vendorUserId = await getVendorUserId(vendor._id);
+    if (vendorUserId) {
+      await createNotification({
+        userId: vendorUserId,
+        title: "New Project Assigned",
+        body: `You have been assigned a new project: "${updatedProject.projectName}".`,
+        type: "PROJECT_UPDATED",
+        data: {
+          projectId: updatedProject.projectId,
+          projectMongoId: updatedProject._id.toString(),
+          status: "ASSIGNED",
+        },
+      });
+    }
+  } catch (notifErr) {
+    console.error("Failed to generate project assignment notification:", notifErr.message);
+  }
+
+  // 6. Side effect: Audit log
+  if (actorUser) {
+    try {
+      await logAuditEvent({
+        actor: actorUser,
+        action: "PROJECT_STATUS_CHANGED",
+        entityType: "Project",
+        entityId: updatedProject.projectId || updatedProject._id.toString(),
+        description: `Assigned project ${updatedProject.projectName || ""} (${updatedProject.projectId || ""}) to vendor ${vendor.companyName} with status ASSIGNED`.trim(),
+        metadata: {
+          projectId: updatedProject.projectId,
+          vendorId: vendor._id.toString(),
+          vendorName: vendor.companyName,
+          status: "ASSIGNED",
+          assignedAt: now,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Failed to log project assignment audit event:", auditErr.message);
+    }
+  }
+
+  return await transformProjectMedia(updatedProject);
+};
+
+export const updateProject = async (id, updateData, actorUser = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid project ID format");
   }
@@ -454,33 +602,66 @@ export const updateProject = async (id, updateData) => {
 
   // Changing vendorId check
   let isVendorAssignmentChanged = false;
-  if (updateData.vendorId && (!project.vendorId || updateData.vendorId.toString() !== project.vendorId.toString())) {
-    if (!mongoose.Types.ObjectId.isValid(updateData.vendorId)) {
-      throw new Error("Invalid vendor ID format");
-    }
+  if (updateData.vendorId !== undefined) {
+    const newVendorIdStr = updateData.vendorId ? updateData.vendorId.toString() : null;
+    const currentVendorIdStr = project.vendorId ? project.vendorId.toString() : null;
 
-    const vendor = await Vendor.findById(updateData.vendorId);
-    if (!vendor) {
-      throw new Error("Referenced vendor does not exist");
-    }
+    if (newVendorIdStr && newVendorIdStr !== currentVendorIdStr) {
+      // Reassignment guard: if project was ever assigned before, reject with 409
+      if (isProjectAssigned(project)) {
+        const err = new Error("This project has already been assigned and cannot be reassigned.");
+        err.statusCode = 409;
+        throw err;
+      }
 
-    if (vendor.status !== "Active") {
-      throw new Error("Referenced vendor is not active");
-    }
+      // Initial assignment: validate target vendor
+      if (!mongoose.Types.ObjectId.isValid(updateData.vendorId)) {
+        throw new Error("Invalid vendor ID format");
+      }
 
-    if (!updateData.vendorName) {
-      updateData.vendorName = vendor.companyName;
-    }
+      const vendor = await Vendor.findById(updateData.vendorId);
+      if (!vendor) {
+        throw new Error("Referenced vendor does not exist");
+      }
 
-    isVendorAssignmentChanged = true;
+      if (vendor.status !== "Active") {
+        throw new Error("Referenced vendor is not active");
+      }
+
+      if (!updateData.vendorName) {
+        updateData.vendorName = vendor.companyName;
+      }
+
+      updateData.status = "ASSIGNED";
+      updateData.assignedAt = new Date();
+      isVendorAssignmentChanged = true;
+    }
   }
 
-  const updatedProject = await Project.findByIdAndUpdate(id, updateData, {
+  // Concurrency-safe atomic conditional update if performing initial assignment
+  const filterQuery = { _id: id };
+  if (isVendorAssignmentChanged) {
+    filterQuery.vendorId = null;
+    filterQuery.assignedAt = null;
+    filterQuery.status = "New";
+  }
+
+  const updatedProject = await Project.findOneAndUpdate(filterQuery, updateData, {
     new: true,
     runValidators: true,
   })
     .populate("serviceId", "serviceCategory serviceTypeName defaultPrice status")
     .populate("vendorId", "companyName contactName location rating status");
+
+  if (!updatedProject && isVendorAssignmentChanged) {
+    const err = new Error("This project has already been assigned and cannot be reassigned.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  if (!updatedProject) {
+    throw new Error("Project not found");
+  }
 
   // Side effect: Notify assigned vendor if applicable
   if (updatedProject && updatedProject.vendorId) {
@@ -592,6 +773,18 @@ export const updateProjectStatus = async (
     const err = new Error(
       `Project is already in '${status}' status.`
     );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (status === "New" && (project.vendorId || project.assignedAt || project.status !== "New")) {
+    const err = new Error("Cannot reset status to 'New' for an assigned project.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (status === "ASSIGNED" && !project.vendorId) {
+    const err = new Error("Cannot transition to 'ASSIGNED' without an assigned vendor.");
     err.statusCode = 400;
     throw err;
   }
@@ -768,6 +961,9 @@ export const acceptProject = async (projectIdOrId, userId) => {
   }
 
   project.status = "ASSIGNED";
+  if (!project.assignedAt) {
+    project.assignedAt = new Date();
+  }
   await project.save();
 
   try {

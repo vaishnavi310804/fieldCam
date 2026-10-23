@@ -206,6 +206,11 @@ const projectSchema = new mongoose.Schema(
       trim: true,
     },
 
+    assignedAt: {
+      type: Date,
+      default: null,
+    },
+
     assignedStaffId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -303,6 +308,7 @@ const projectSchema = new mongoose.Schema(
 // Indexes
 projectSchema.index({ status: 1 });
 projectSchema.index({ vendorId: 1 });
+projectSchema.index({ assignedAt: 1 });
 projectSchema.index({ serviceId: 1 });
 projectSchema.index({ deadline: 1 });
 projectSchema.index({ createdAt: -1 });

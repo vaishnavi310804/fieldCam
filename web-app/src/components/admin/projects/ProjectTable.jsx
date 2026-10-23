@@ -15,7 +15,9 @@ import {
   FiDownload,
   FiMaximize2,
   FiCheckSquare,
+  FiUserPlus,
 } from "react-icons/fi";
+import AssignVendorModal from "./AssignVendorModal";
 
 const ALLOWED_STATUSES = [
   "New",
@@ -31,6 +33,7 @@ const ProjectTable = ({
   projects = [],
   totalCount = 0,
   onUpdateStatus,
+  onRefresh,
   isReadOnly = false,
 }) => {
   const navigate = useNavigate();
@@ -64,6 +67,25 @@ const ProjectTable = ({
   const handlePreviewImage = (url, title = "Photo Preview") => {
     setPreviewImage(url);
     setPreviewTitle(title);
+  };
+
+  // Vendor Assignment Modal State
+  const [assignModalProject, setAssignModalProject] = useState(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+
+  const handleOpenAssignModal = (project) => {
+    setAssignModalProject(project);
+    setIsAssignModalOpen(true);
+  };
+
+  const isNeverAssigned = (p) => {
+    if (!p) return false;
+    const hasVendor = Boolean(
+      p.vendorId && (typeof p.vendorId === "object" ? p.vendorId._id : p.vendorId)
+    );
+    const hasAssignedAt = Boolean(p.assignedAt);
+    const isNew = !p.status || p.status === "New";
+    return !hasVendor && !hasAssignedAt && isNew;
   };
 
   const handleSaveStatus = async (e) => {
@@ -202,7 +224,19 @@ const ProjectTable = ({
 
                     {/* Vendor */}
                     <td className="py-3.5 px-4 font-semibold text-[#3E3734]">
-                      {vName}
+                      {isNeverAssigned(project) && !isReadOnly ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAssignModal(project)}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8A817C] hover:text-[#3E3734] bg-[#FAF7F5] hover:bg-[#F2EBE5] border border-[#E8E2DE] px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                          title="Assign an active vendor to this project"
+                        >
+                          <FiUserPlus className="text-xs text-[#8A817C]" />
+                          <span>Assign Vendor</span>
+                        </button>
+                      ) : (
+                        <span>{vName}</span>
+                      )}
                     </td>
 
                     {/* Media Column */}
@@ -375,9 +409,26 @@ const ProjectTable = ({
               </div>
               <div>
                 <span className="font-semibold text-[#817B77]">Vendor:</span>{" "}
-                <span className="text-[#3E3734] font-medium">
-                  {selectedProject.vendorName || selectedProject.vendorId?.companyName || "Unassigned"}
-                </span>
+                {isNeverAssigned(selectedProject) && !isReadOnly ? (
+                  <span className="inline-flex items-center gap-2 mt-0.5">
+                    <span className="text-[#817B77] italic">Unassigned</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewModalOpen(false);
+                        handleOpenAssignModal(selectedProject);
+                      }}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8A817C] hover:text-[#3E3734] bg-[#FAF7F5] hover:bg-[#F2EBE5] border border-[#E8E2DE] px-2 py-0.5 rounded-md transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <FiUserPlus className="text-[10px]" />
+                      <span>Assign Vendor</span>
+                    </button>
+                  </span>
+                ) : (
+                  <span className="text-[#3E3734] font-medium">
+                    {selectedProject.vendorName || selectedProject.vendorId?.companyName || "Unassigned"}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="font-semibold text-[#817B77]">Location:</span>{" "}
@@ -609,7 +660,9 @@ const ProjectTable = ({
                 onChange={(e) => setNewStatus(e.target.value)}
                 className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] font-medium outline-none focus:border-[#C8B5AC]"
               >
-                {ALLOWED_STATUSES.map((st) => (
+                {ALLOWED_STATUSES.filter(
+                  (st) => isNeverAssigned(statusModalProject) || st !== "New"
+                ).map((st) => (
                   <option key={st} value={st}>
                     {st}
                   </option>
@@ -653,6 +706,21 @@ const ProjectTable = ({
           </form>
         </div>
       )}
+
+      {/* Assign Vendor Modal for Never-Assigned Projects */}
+      <AssignVendorModal
+        isOpen={isAssignModalOpen}
+        onClose={() => {
+          setIsAssignModalOpen(false);
+          setAssignModalProject(null);
+        }}
+        project={assignModalProject}
+        onAssignSuccess={async () => {
+          if (onRefresh) {
+            await onRefresh();
+          }
+        }}
+      />
     </div>
   );
 };
