@@ -268,11 +268,9 @@ const styles = StyleSheet.create({
   channelBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    // backgroundColor: "#FFFFFF",
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EAE4DF",
     gap: 8,
   },
   statusDot: {

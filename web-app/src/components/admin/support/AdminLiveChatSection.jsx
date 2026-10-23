@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   FiMessageSquare,
   FiSend,
   FiLoader,
   FiAlertCircle,
   FiUser,
-  FiClock,
   FiRefreshCw,
 } from "react-icons/fi";
 import {
@@ -29,9 +28,17 @@ const AdminLiveChatSection = () => {
   const isFetchingListRef = useRef(false);
   const isFetchingMessagesRef = useRef(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   // 1. Fetch conversations list
@@ -189,9 +196,9 @@ const AdminLiveChatSection = () => {
   };
 
   return (
-    <div className="bg-white border border-[#E8E2DE] rounded-2xl shadow-xs overflow-hidden flex flex-col md:flex-row h-[650px]">
+    <div className="flex-1 min-h-0 bg-white border border-[#E8E2DE] rounded-2xl shadow-xs overflow-hidden flex flex-col md:flex-row">
       {/* LEFT COLUMN: Vendor Conversations List */}
-      <div className="w-full md:w-80 border-r border-[#E8E2DE] flex flex-col shrink-0 bg-[#FAF7F5]">
+      <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[#E8E2DE] flex flex-col shrink-0 bg-[#FAF7F5] min-h-0 h-44 sm:h-52 md:h-auto">
         {/* List Header */}
         <div className="p-4 border-b border-[#E8E2DE] flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2">
@@ -211,7 +218,7 @@ const AdminLiveChatSection = () => {
         </div>
 
         {/* Conversations Scrollable List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-[#EAE4DF]/60">
+        <div className="flex-1 overflow-y-auto divide-y divide-[#EAE4DF]/60 min-h-0">
           {loadingList ? (
             <div className="p-8 text-center text-xs text-[#817B77] flex flex-col items-center gap-2">
               <FiLoader className="animate-spin text-base text-[#C87A65]" />
@@ -290,9 +297,9 @@ const AdminLiveChatSection = () => {
       </div>
 
       {/* RIGHT COLUMN: Active Conversation & Reply */}
-      <div className="flex-1 flex flex-col bg-[#FAF8F6] min-w-0">
+      <div className="flex-1 flex flex-col bg-[#FAF8F6] min-w-0 min-h-0">
         {!selectedConvId ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-[#817B77] space-y-2">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-[#817B77] space-y-2 min-h-0">
             <div className="w-12 h-12 rounded-2xl bg-[#E8E2DE] text-[#3E3734] flex items-center justify-center text-xl shadow-2xs">
               <FiMessageSquare />
             </div>
@@ -356,7 +363,10 @@ const AdminLiveChatSection = () => {
             )}
 
             {/* Message Stream */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 p-4 overflow-y-auto space-y-3 min-h-0"
+            >
               {loadingMessages ? (
                 <div className="h-full flex flex-col items-center justify-center text-[#817B77] space-y-2">
                   <FiLoader className="text-2xl animate-spin text-[#C87A65]" />

@@ -107,16 +107,22 @@ const Support = () => {
     });
   }, [allTickets, searchTerm, activeFilter]);
 
+  const isChatTab = user?.role === "ADMIN" && activeTab === "chat";
+
   return (
-    <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
+    <div
+      className={`min-h-screen ${
+        isChatTab ? "h-screen" : ""
+      } bg-[#221F1E] text-[#3E3734] font-sans antialiased flex flex-col`}
+    >
       {/* Fixed Sidebar */}
       <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
       {/* Main Container Area */}
       <div
-        className={`min-h-screen bg-[#EEE9E6] flex flex-col transition-all duration-300 ${
+        className={`bg-[#EEE9E6] flex flex-col transition-all duration-300 ${
           collapsed ? "lg:ml-16" : "lg:ml-[170px]"
-        } ml-0`}
+        } ml-0 ${isChatTab ? "h-screen" : "min-h-screen"}`}
       >
         {/* Support Page Header */}
         <AdminHeader
@@ -126,10 +132,14 @@ const Support = () => {
         />
 
         {/* Support Page Body */}
-        <main className="flex-1 p-6 space-y-5">
+        <main
+          className={`flex-1 flex flex-col min-h-0 ${
+            isChatTab ? "p-4 md:p-6 gap-3 md:gap-4" : "p-6 space-y-5"
+          }`}
+        >
           {/* Error Banner */}
           {error && (
-            <div className="bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
+            <div className="shrink-0 bg-[#FFEBEE] border border-[#C62828]/20 text-[#C62828] p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2">
                 <FiAlertCircle className="text-base shrink-0" />
                 <span>{error}</span>
@@ -146,7 +156,7 @@ const Support = () => {
 
           {/* Navigation Section Tabs for ADMIN role */}
           {user?.role === "ADMIN" && (
-            <div className="flex items-center gap-2 border-b border-[#E8E2DE] pb-1">
+            <div className="shrink-0 flex items-center gap-2 border-b border-[#E8E2DE] pb-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("tickets")}
@@ -173,7 +183,7 @@ const Support = () => {
             </div>
           )}
 
-          {user?.role === "ADMIN" && activeTab === "chat" ? (
+          {isChatTab ? (
             <AdminLiveChatSection />
           ) : (
             <>

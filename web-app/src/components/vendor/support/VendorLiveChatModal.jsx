@@ -197,7 +197,7 @@ const VendorLiveChatModal = ({ isOpen, onClose }) => {
                   Send a message below to chat with our Support team. An agent will respond shortly.
                 </p>
               </div>
-              <div className="text-[11px] text-[#817B77] bg-white border border-[#EAE4DF] px-3 py-1.5 rounded-xl font-medium shadow-2xs">
+              <div className="text-[11px] text-[#817B77] px-3 py-1.5 rounded-xl font-medium">
                 Available Monday – Friday, 9:00 AM – 6:00 PM
               </div>
             </div>
