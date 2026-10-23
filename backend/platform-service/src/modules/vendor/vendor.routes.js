@@ -12,7 +12,6 @@ import {
   getVendorsController,
   getVendorByIdController,
   getMyVendorProfileController,
-  updateMyVendorProfileController,
   updateVendorController,
   updateVendorStatusController,
   getVendorStatsController,
@@ -37,14 +36,6 @@ router.get(
   protect,
   authorize("VENDOR", "SUPER_ADMIN", "ADMIN"),
   getMyVendorProfileController
-);
-
-// PUT /api/vendors/me - Update authenticated vendor profile (VENDOR)
-router.put(
-  "/me",
-  protect,
-  authorize("VENDOR"),
-  updateMyVendorProfileController
 );
 
 // GET /api/vendors/me/staff - Read staff belonging to the authenticated vendor (VENDOR, SUPER_ADMIN, ADMIN)

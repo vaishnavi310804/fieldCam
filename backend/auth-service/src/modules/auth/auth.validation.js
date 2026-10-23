@@ -179,14 +179,6 @@ export const updateProfileValidation = [
     .optional({ checkFalsy: true })
     .trim(),
 
-  body("city")
-    .optional({ checkFalsy: true })
-    .trim(),
-
-  body("country")
-    .optional({ checkFalsy: true })
-    .trim(),
-
   body("timezone")
     .optional({ checkFalsy: true })
     .trim(),

@@ -32,7 +32,7 @@ import { formatCurrency } from "@/src/utils/currency.utils";
 const { width } = Dimensions.get("window");
 
 const VendorDashboardScreen = () => {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<VendorDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -46,14 +46,13 @@ const VendorDashboardScreen = () => {
       setError(null);
       const res = await dashboardApi.getVendorDashboardData();
       setData(res);
-      refreshUser().catch(() => {});
     } catch (err: any) {
       setError(err?.message || "Failed to load vendor dashboard data.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [refreshUser]);
+  }, []);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -70,9 +69,8 @@ const VendorDashboardScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData(false);
       fetchUnreadCount();
-    }, [fetchDashboardData, fetchUnreadCount])
+    }, [fetchUnreadCount])
   );
 
   const onRefresh = () => {
@@ -186,8 +184,8 @@ const VendorDashboardScreen = () => {
       >
         {/* HEADER AREA */}
         <VendorDashboardHeader
-          name={vendor?.userId?.name || user?.name || vendor?.contactName || vendor?.companyName || "Vendor Partner"}
-          initials={vendor?.initials || (vendor?.userId?.name || user?.name || vendor?.contactName || "VD").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() || "VD"}
+          name={vendor?.contactName || vendor?.companyName || user?.name || "Vendor Partner"}
+          initials={vendor?.initials || user?.name?.slice(0, 2).toUpperCase() || "VD"}
           notificationCount={unreadCount}
           onNotificationPress={() => router.push("/notifications" as any)}
           onAvatarPress={() => router.push("/profile" as any)}

@@ -3,7 +3,6 @@ import {
   getVendors,
   getVendorById,
   getMyVendorProfile,
-  updateMyVendorProfile,
   updateVendor,
   updateVendorStatus,
   getVendorStats,
@@ -24,22 +23,6 @@ export const getMyVendorProfileController = async (req, res) => {
     return res.status(404).json({
       success: false,
       message: error.message || "Vendor profile not found for authenticated user",
-    });
-  }
-};
-
-export const updateMyVendorProfileController = async (req, res) => {
-  try {
-    const result = await updateMyVendorProfile(req.user.id, req.body);
-    return res.status(200).json({
-      success: true,
-      message: "Vendor profile updated successfully",
-      data: result,
-    });
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message || "Failed to update vendor profile",
     });
   }
 };

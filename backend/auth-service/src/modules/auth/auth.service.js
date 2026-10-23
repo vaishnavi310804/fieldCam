@@ -1,5 +1,4 @@
 import User from "./auth.model.js";
-import Vendor from "./vendor.model.js";
 import {
   generateOTP,
   hashOTP,
@@ -409,30 +408,7 @@ export const getProfile = async (userId) => {
   if (!user) {
     throw new Error("User not found");
   }
-
-  // Self-heal: If user has role VENDOR and missing location, pull location from Vendor document
-  if (user.role === "VENDOR" && !user.location) {
-    try {
-      const vendor = await Vendor.findOne({ userId });
-      if (vendor && vendor.location) {
-        user.location = vendor.location;
-        await user.save();
-      }
-    } catch {
-      // Non-blocking self-heal
-    }
-  }
-
-  const userObj = user.toObject();
-  if (userObj.location) {
-    const [city = "", country = ""] = userObj.location.split(",").map((s) => s.trim());
-    userObj.city = city;
-    userObj.country = country;
-  } else {
-    userObj.city = "";
-    userObj.country = "";
-  }
-  return userObj;
+  return user.toObject();
 };
 
 export const updateProfile = async (userId, updateData) => {
@@ -460,13 +436,6 @@ export const updateProfile = async (userId, updateData) => {
     }
   });
 
-  // Handle explicit city & country fields if provided
-  if (updateData.location === undefined && (updateData.city !== undefined || updateData.country !== undefined)) {
-    const city = updateData.city !== undefined ? updateData.city.trim() : "";
-    const country = updateData.country !== undefined ? updateData.country.trim() : "";
-    user.location = [city, country].filter(Boolean).join(", ");
-  }
-
   // Name Synchronization:
   const effectiveFirstName =
     updateData.firstName !== undefined ? updateData.firstName : user.firstName;
@@ -482,43 +451,12 @@ export const updateProfile = async (userId, updateData) => {
 
   await user.save();
 
-  // Cross-Platform Synchronization: If user is VENDOR, synchronize Vendor document in fieldCam-db
-  try {
-    const vendor = await Vendor.findOne({ userId: user._id });
-    if (vendor) {
-      if (user.name) {
-        vendor.contactName = user.name;
-        const words = user.name.trim().split(/\s+/);
-        if (words.length >= 2) {
-          vendor.initials = (words[0][0] + words[1][0]).toUpperCase();
-        } else if (words[0]) {
-          vendor.initials = words[0].slice(0, 2).toUpperCase();
-        }
-      }
-      if (user.location) {
-        vendor.location = user.location;
-      }
-      await vendor.save();
-    }
-  } catch (vendorSyncErr) {
-    console.warn("Failed to synchronize vendor record in auth.service:", vendorSyncErr.message);
-  }
-
   const userObject = user.toObject();
   delete userObject.password;
   delete userObject.registrationOtpHash;
   delete userObject.registrationOtpExpires;
   delete userObject.resetOtpHash;
   delete userObject.resetOtpExpires;
-
-  if (userObject.location) {
-    const [city = "", country = ""] = userObject.location.split(",").map((s) => s.trim());
-    userObject.city = city;
-    userObject.country = country;
-  } else {
-    userObject.city = "";
-    userObject.country = "";
-  }
 
   return userObject;
 };

@@ -97,17 +97,9 @@ export const createVendor = async (vendorData, adminUser = null) => {
         .digest("hex");
       const registrationOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      const contactFullName = (vendorData.contactName || vendorData.companyName || "").trim();
-      const nameParts = contactFullName.split(/\s+/);
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
-
       // 4. Create platform User authentication record in INACTIVE state without password
       const newUser = await User.create({
-        name: contactFullName,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        location: vendorData.location ? vendorData.location.trim() : undefined,
+        name: vendorData.contactName || vendorData.companyName,
         email: normalizedEmail,
         phone: vendorData.phone ? vendorData.phone.trim() : undefined,
         role: "VENDOR",
@@ -423,70 +415,6 @@ export const getMyVendorProfile = async (userId) => {
   return await getVendorById(vendor._id.toString());
 };
 
-export const updateMyVendorProfile = async (userId, updateData) => {
-  const vendor = await Vendor.findOne({ userId });
-  if (!vendor) {
-    throw new Error("Vendor profile not found for authenticated user");
-  }
-
-  // Location update
-  if (updateData.location !== undefined) {
-    vendor.location = (updateData.location || "").trim();
-  } else if (updateData.city !== undefined || updateData.country !== undefined) {
-    const city = updateData.city !== undefined ? updateData.city.trim() : "";
-    const country = updateData.country !== undefined ? updateData.country.trim() : "";
-    vendor.location = [city, country].filter(Boolean).join(", ");
-  }
-
-  // User fields update
-  const user = await User.findById(userId);
-  if (user) {
-    const allowedUserFields = [
-      "firstName",
-      "lastName",
-      "phone",
-      "timezone",
-      "title",
-      "department",
-      "bio",
-      "socialLinks",
-    ];
-    allowedUserFields.forEach((field) => {
-      if (updateData[field] !== undefined) {
-        user[field] = updateData[field];
-      }
-    });
-
-    const effectiveFirstName =
-      updateData.firstName !== undefined ? updateData.firstName : user.firstName;
-    const effectiveLastName =
-      updateData.lastName !== undefined ? updateData.lastName : user.lastName;
-
-    if (effectiveFirstName || effectiveLastName) {
-      const combinedName = `${effectiveFirstName || ""} ${effectiveLastName || ""}`.trim();
-      if (combinedName) {
-        user.name = combinedName;
-        vendor.contactName = combinedName;
-        const words = combinedName.split(/\s+/);
-        if (words.length >= 2) {
-          vendor.initials = (words[0][0] + words[1][0]).toUpperCase();
-        } else if (words[0]) {
-          vendor.initials = words[0].slice(0, 2).toUpperCase();
-        }
-      }
-    }
-
-    if (vendor.location) {
-      user.location = vendor.location;
-    }
-
-    await user.save();
-  }
-
-  await vendor.save();
-  return await getVendorById(vendor._id.toString());
-};
-
 export const getVendorById = async (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new Error("Invalid vendor ID format");
@@ -494,7 +422,7 @@ export const getVendorById = async (id) => {
 
   const vendor = await Vendor.findById(id).populate(
     "userId",
-    "name firstName lastName email phone role status location timezone title department bio socialLinks"
+    "name email phone role status"
   );
 
   if (!vendor) {
@@ -502,25 +430,6 @@ export const getVendorById = async (id) => {
   }
 
   const vendorObj = vendor.toObject();
-
-  // Ensure contactName reflects the latest user name if synchronized
-  if (vendorObj.userId?.name && vendorObj.contactName !== vendorObj.userId.name) {
-    vendorObj.contactName = vendorObj.userId.name;
-  }
-
-  // Derive city & country from vendor or user location
-  const loc = vendorObj.location || vendorObj.userId?.location || "";
-  if (loc) {
-    const [city = "", country = ""] = loc.split(",").map((s) => s.trim());
-    vendorObj.city = city;
-    vendorObj.country = country;
-    if (!vendorObj.location) {
-      vendorObj.location = loc;
-    }
-  } else {
-    vendorObj.city = "";
-    vendorObj.country = "";
-  }
   const vendorObjectId = new mongoose.Types.ObjectId(id);
 
   // Calculate live project metrics and fetch company subscription for this vendor

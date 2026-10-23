@@ -57,7 +57,7 @@ export const previewDraftStore = {
     const vendorCompanyName =
       draft.vendorObj?.companyName || user?.companyName || "Authorized Vendor";
     const vendorContactName =
-      (draft.vendorObj as any)?.userId?.name || user?.name || draft.vendorObj?.contactName || "Vendor Contact";
+      draft.vendorObj?.contactName || user?.name || "Vendor Contact";
     const vendorLoc = draft.vendorObj?.location || "FieldCam Network";
 
     const projectTitle =

@@ -98,8 +98,6 @@ export interface VendorProfileData {
   initials?: string;
   avatarBg?: string;
   location?: string;
-  city?: string;
-  country?: string;
   services?: string[];
   rating?: number;
   status?: string;
@@ -108,12 +106,6 @@ export interface VendorProfileData {
     name: string;
     email: string;
     phone?: string;
-    firstName?: string;
-    lastName?: string;
-    location?: string;
-    title?: string;
-    department?: string;
-    bio?: string;
   };
   projectStats?: VendorProjectStats;
   projects?: VendorProjectItem[];
@@ -192,30 +184,6 @@ export const getVendorProfile = async (): Promise<VendorProfileData> => {
 
   if (!response.data.success || !response.data.data) {
     throw new Error(response.data.message || "Failed to fetch vendor profile");
-  }
-
-  return response.data.data;
-};
-
-export const updateVendorProfile = async (payload: {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  city?: string;
-  country?: string;
-  location?: string;
-  title?: string;
-  department?: string;
-  bio?: string;
-}): Promise<VendorProfileData> => {
-  const response = await platformClient.put<{
-    success: boolean;
-    data: VendorProfileData;
-    message?: string;
-  }>("/vendors/me", payload);
-
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || "Failed to update vendor profile");
   }
 
   return response.data.data;
@@ -565,7 +533,6 @@ export const updateVendorStaffStatus = async (
 
 export const dashboardApi = {
   getVendorProfile,
-  updateVendorProfile,
   getVendorProjects,
   acceptProject,
   rejectProject,

@@ -14,8 +14,6 @@ interface AuthContextType {
   login: (credentials: MobileLoginPayload) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  updateUser: (updatedUser: FieldCamUser) => void;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,19 +74,6 @@ export const AuthProvider = ({
     setUser(null);
   };
 
-  const updateUser = (updatedUser: FieldCamUser) => {
-    setUser(updatedUser);
-  };
-
-  const refreshUser = async () => {
-    try {
-      const currentUser = await authApi.getCurrentUser();
-      setUser(currentUser);
-    } catch (err) {
-      console.warn("Failed to refresh user profile in AuthContext:", err);
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -98,8 +83,6 @@ export const AuthProvider = ({
         login,
         logout,
         checkAuth,
-        updateUser,
-        refreshUser,
       }}
     >
       {children}

@@ -16,30 +16,6 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    initials: {
-      type: String,
-      trim: true,
-    },
-    avatarBg: {
-      type: String,
-      default: "#C87A65",
-    },
-    location: {
-      type: String,
-      trim: true,
-    },
-    services: {
-      type: [String],
-      default: [],
-    },
-    rating: {
-      type: Number,
-      default: 4,
-    },
-    joinedDate: {
-      type: Date,
-      default: Date.now,
-    },
     status: {
       type: String,
       enum: {

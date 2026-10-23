@@ -87,7 +87,7 @@ export const VendorSettingsScreen = () => {
   };
 
   const contactName =
-    profile?.userId?.name || user?.name || profile?.contactName || "Vendor Partner";
+    profile?.contactName || profile?.userId?.name || user?.name || "Vendor Partner";
   const companyName = profile?.companyName || "";
   const initials =
     profile?.initials ||
