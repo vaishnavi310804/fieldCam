@@ -9,11 +9,15 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { VendorStaffItem, VendorTeamMemberItem } from "@/src/api/dashboard.api";
+import {
+  updateVendorStaffStatus,
+  VendorStaffItem,
+  VendorTeamMemberItem,
+} from "@/src/api/dashboard.api";
 
 export interface StaffCardActionsProps {
   member: VendorStaffItem | VendorTeamMemberItem;
-  onRefreshNeeded?: () => void;
+  onRefreshNeeded?: () => void | Promise<void>;
 }
 
 export const StaffCardActions: React.FC<StaffCardActionsProps> = ({
@@ -29,8 +33,8 @@ export const StaffCardActions: React.FC<StaffCardActionsProps> = ({
     member.status ||
     (member as VendorTeamMemberItem).userId?.status ||
     "ACTIVE"
-  ).toLowerCase();
-  const isActive = rawStatus === "active";
+  ).toUpperCase();
+  const isActive = rawStatus === "ACTIVE";
 
   const handleAssignProject = () => {
     if (assignLoading || editLoading || statusLoading) return;
@@ -50,17 +54,49 @@ export const StaffCardActions: React.FC<StaffCardActionsProps> = ({
 
   const handleToggleStatus = () => {
     if (assignLoading || editLoading || statusLoading) return;
-    setStatusLoading(true);
-
     const actionText = isActive ? "Deactivate" : "Activate";
+    const newStatus = isActive ? "INACTIVE" : "ACTIVE";
+    const name =
+      (member as VendorStaffItem).name ||
+      (member as VendorTeamMemberItem).contactName ||
+      (member as VendorTeamMemberItem).userId?.name ||
+      "this staff member";
 
-    setTimeout(() => {
-      setStatusLoading(false);
-      Alert.alert(
-        `${actionText} Staff`,
-        `Staff account ${actionText.toLowerCase()} requires backend status update endpoint support.`
-      );
-    }, 300);
+    Alert.alert(
+      `${actionText} Staff`,
+      `Are you sure you want to ${actionText.toLowerCase()} ${name}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: actionText,
+          style: isActive ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              setStatusLoading(true);
+              await updateVendorStaffStatus(member._id, newStatus);
+              Alert.alert(
+                "Success",
+                `Staff account status updated to ${newStatus === "ACTIVE" ? "Active" : "Inactive"}.`
+              );
+              if (onRefreshNeeded) {
+                await onRefreshNeeded();
+              }
+            } catch (err: any) {
+              const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                `Failed to ${actionText.toLowerCase()} staff member.`;
+              Alert.alert("Update Failed", msg);
+            } finally {
+              setStatusLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -137,9 +173,9 @@ export const StaffCardActions: React.FC<StaffCardActionsProps> = ({
             styles.actionLabel,
             isActive ? styles.deactivateLabelText : styles.activateLabelText,
           ]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
-          {isActive ? "Deactivate" : "Activate"}
+          {isActive ? "Deactivate Staff" : "Activate Staff"}
         </Text>
       </Pressable>
     </View>

@@ -3,7 +3,6 @@ import StaffSidebar from "../../components/staff/StaffSidebar";
 import StaffHeader from "../../components/staff/StaffHeader";
 import StaffRecentActivity from "../../components/staff/StaffRecentActivity";
 import { getStaffProjects } from "../../services/projectService";
-import { useAuth } from "../../context/AuthContext";
 import {
   FiBriefcase,
   FiClock,
@@ -16,7 +15,6 @@ import {
 } from "react-icons/fi";
 
 const StaffDashboard = () => {
-  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [assignedProjects, setAssignedProjects] = useState([]);
@@ -31,7 +29,19 @@ const StaffDashboard = () => {
       const assigned = Array.isArray(res) ? res : res?.data || [];
       setAssignedProjects(assigned);
     } catch (err) {
-      if (err?.response?.status === 401) return;
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      const msg = err?.response?.data?.message || "";
+      if (
+        status === 401 ||
+        (status === 403 &&
+          (code === "ACCOUNT_INACTIVE" ||
+            code === "COMPANY_SUSPENDED" ||
+            msg.toLowerCase().includes("account is not active") ||
+            msg.toLowerCase().includes("company has been suspended")))
+      ) {
+        return;
+      }
       setError(
         err.response?.data?.message ||
           err.message ||
@@ -43,6 +53,7 @@ const StaffDashboard = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStaffDashboardData();
   }, []);
 
@@ -63,8 +74,6 @@ const StaffDashboard = () => {
   const completedCount = assignedProjects.filter(
     (p) => (p.status || "").toUpperCase() === "APPROVED" || (p.status || "").toUpperCase() === "COMPLETED"
   ).length;
-
-  const staffDisplayName = user?.name || user?.email?.split("@")[0] || "Staff Member";
 
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">

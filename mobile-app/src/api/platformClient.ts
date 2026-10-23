@@ -33,17 +33,21 @@ platformClient.interceptors.response.use(
     const errorCode = error.response?.data?.code;
     const errorMessage = error.response?.data?.message || "";
 
-    const isSuspended =
+    const isSuspendedOrInactive =
       status === 403 &&
       (errorCode === "COMPANY_SUSPENDED" ||
+        errorCode === "ACCOUNT_INACTIVE" ||
         errorMessage.toLowerCase().includes("company has been suspended") ||
         errorMessage.toLowerCase().includes("company account has been suspended") ||
-        errorMessage.toLowerCase().includes("company account is suspended"));
+        errorMessage.toLowerCase().includes("company account is suspended") ||
+        errorMessage.toLowerCase().includes("account is not active") ||
+        errorMessage.toLowerCase().includes("account is inactive") ||
+        errorMessage.toLowerCase().includes("account has been deactivated"));
 
-    if (status === 401 || isSuspended) {
+    if (status === 401 || isSuspendedOrInactive) {
       await triggerUnauthorized(
-        isSuspended
-          ? errorMessage || "Your company has been suspended. Please contact administrator."
+        isSuspendedOrInactive
+          ? errorMessage || "Account is not active or company suspended. Please contact administrator."
           : undefined
       );
     }

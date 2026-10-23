@@ -10,22 +10,23 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/src/constants/color";
-import { VendorStaffItem } from "@/src/api/dashboard.api";
+import { updateVendorStaffStatus, VendorStaffItem } from "@/src/api/dashboard.api";
 
 export interface StaffDetailsActionsProps {
   staff: VendorStaffItem;
-  onRefreshNeeded?: () => void;
+  onRefreshNeeded?: () => void | Promise<void>;
 }
 
 export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
   staff,
+  onRefreshNeeded,
 }) => {
   const router = useRouter();
   const [assignLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
 
-  const rawStatus = (staff.status || "ACTIVE").toLowerCase();
-  const isActive = rawStatus === "active";
+  const rawStatus = (staff.status || "ACTIVE").toUpperCase();
+  const isActive = rawStatus === "ACTIVE";
 
   const handleAssignProject = () => {
     if (assignLoading || statusLoading) return;
@@ -45,16 +46,45 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
 
   const handleToggleStatus = () => {
     if (assignLoading || statusLoading) return;
-    setStatusLoading(true);
     const actionText = isActive ? "Deactivate" : "Activate";
+    const newStatus = isActive ? "INACTIVE" : "ACTIVE";
+    const staffName = staff.name || "this staff member";
 
-    setTimeout(() => {
-      setStatusLoading(false);
-      Alert.alert(
-        `${actionText} Staff`,
-        `Staff account ${actionText.toLowerCase()} requires backend status update endpoint support.`
-      );
-    }, 300);
+    Alert.alert(
+      `${actionText} Staff`,
+      `Are you sure you want to ${actionText.toLowerCase()} ${staffName}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: actionText,
+          style: isActive ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              setStatusLoading(true);
+              await updateVendorStaffStatus(staff._id, newStatus);
+              Alert.alert(
+                "Success",
+                `Staff account status updated to ${newStatus === "ACTIVE" ? "Active" : "Inactive"}.`
+              );
+              if (onRefreshNeeded) {
+                await onRefreshNeeded();
+              }
+            } catch (err: any) {
+              const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                `Failed to ${actionText.toLowerCase()} staff member.`;
+              Alert.alert("Update Failed", msg);
+            } finally {
+              setStatusLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -121,7 +151,7 @@ export const StaffDetailsActions: React.FC<StaffDetailsActionsProps> = ({
                   isActive ? styles.deactivateText : styles.activateText,
                 ]}
               >
-                {isActive ? "Deactivate" : "Activate"}
+                {isActive ? "Deactivate Staff" : "Activate Staff"}
               </Text>
             </>
           )}

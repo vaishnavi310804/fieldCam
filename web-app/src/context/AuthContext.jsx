@@ -133,8 +133,18 @@ export function AuthProvider({ children }) {
         }
 
         if (isMounted) {
-          // If 401 Unauthorized: token was rejected by backend -> log out
-          if (err.response?.status === 401) {
+          const status = err.response?.status;
+          const errorCode = err.response?.data?.code;
+          const errorMessage = err.response?.data?.message || "";
+          const isSuspendedOrInactive =
+            status === 401 ||
+            (status === 403 &&
+              (errorCode === "ACCOUNT_INACTIVE" ||
+                errorCode === "COMPANY_SUSPENDED" ||
+                errorMessage.toLowerCase().includes("account is not active") ||
+                errorMessage.toLowerCase().includes("company has been suspended")));
+
+          if (isSuspendedOrInactive) {
             logout();
           } else {
             // Unrelated network failure (offline/timeout) or 5xx: preserve session

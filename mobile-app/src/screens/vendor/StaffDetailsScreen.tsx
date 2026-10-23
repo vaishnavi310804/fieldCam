@@ -44,7 +44,7 @@ export const StaffDetailsScreen: React.FC = () => {
         if (found) {
           setStaff(found);
         } else {
-          setError("Staff member not found or no longer active.");
+          setError("Staff member not found.");
         }
       } catch (err: any) {
         setError(err?.message || "Failed to load staff details.");

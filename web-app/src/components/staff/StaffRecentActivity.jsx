@@ -118,6 +118,19 @@ const StaffRecentActivity = () => {
 
       setActivities(sortedList);
     } catch (err) {
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      const msg = err?.response?.data?.message || "";
+      if (
+        status === 401 ||
+        (status === 403 &&
+          (code === "ACCOUNT_INACTIVE" ||
+            code === "COMPANY_SUSPENDED" ||
+            msg.toLowerCase().includes("account is not active") ||
+            msg.toLowerCase().includes("company has been suspended")))
+      ) {
+        return;
+      }
       console.error("Error fetching staff audit logs:", err);
       setError(
         err.response?.data?.message ||
@@ -130,6 +143,7 @@ const StaffRecentActivity = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStaffActivityLogs();
   }, []);
 

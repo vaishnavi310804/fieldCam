@@ -7,6 +7,10 @@ export const setOnUnauthorizedCallback = (callback) => {
   onUnauthorizedCallback = callback;
 };
 
+export const _resetUnauthorizedState = () => {
+  isHandlingUnauthorized = false;
+};
+
 export const handleResponseError = (error) => {
   const status = error?.response?.status;
   const url = error?.config?.url || "";
@@ -20,19 +24,32 @@ export const handleResponseError = (error) => {
       errorMessage.toLowerCase().includes("company account has been suspended") ||
       errorMessage.toLowerCase().includes("company account is suspended"));
 
-  // 401 Unauthorized or 403 Company Suspended
-  if (status === 401 || isCompanySuspended) {
+  const isAccountInactive =
+    status === 403 &&
+    (errorCode === "ACCOUNT_INACTIVE" ||
+      errorMessage.toLowerCase().includes("account is not active") ||
+      errorMessage.toLowerCase().includes("account is inactive") ||
+      errorMessage.toLowerCase().includes("account has been deactivated"));
+
+  const shouldTerminateSession =
+    status === 401 || isCompanySuspended || isAccountInactive;
+
+  // 401 Unauthorized or 403 Company Suspended / Account Inactive
+  if (shouldTerminateSession) {
     // Do not intercept login endpoint failures (e.g. invalid password during login)
     if (!url.includes("/auth/login") && !url.includes("/auth/mobile/login")) {
       // Prevent multiple simultaneous failures from triggering duplicate logout operations
       if (!isHandlingUnauthorized) {
         isHandlingUnauthorized = true;
 
-        if (isCompanySuspended) {
+        if (isCompanySuspended || isAccountInactive) {
           try {
             sessionStorage.setItem(
               "fieldcam_suspension_message",
-              errorMessage || "Your company has been suspended. Access has been disabled."
+              errorMessage ||
+                (isAccountInactive
+                  ? "Account is not active. Please contact administrator"
+                  : "Your company has been suspended. Access has been disabled.")
             );
           } catch {
             // Non-blocking
@@ -50,6 +67,15 @@ export const handleResponseError = (error) => {
           } catch (e) {
             console.error("Error in onUnauthorizedCallback:", e);
           }
+        }
+
+        // Ensure navigation to login even if outside React Router tree
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          setTimeout(() => {
+            if (window.location.pathname !== "/login") {
+              window.location.replace("/login");
+            }
+          }, 50);
         }
 
         // Reset debounce guard after current batch of requests settles

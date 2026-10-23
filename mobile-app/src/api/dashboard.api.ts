@@ -496,6 +496,25 @@ export const updateVendorStaff = async (
   return response.data.data;
 };
 
+export const updateVendorStaffStatus = async (
+  staffId: string,
+  status: "ACTIVE" | "INACTIVE"
+): Promise<VendorStaffItem> => {
+  const response = await platformClient.patch<{
+    success: boolean;
+    message?: string;
+    data: VendorStaffItem;
+  }>(`/vendors/me/staff/${staffId}/status`, { status });
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(
+      response.data.message || `Failed to update staff status to ${status}`
+    );
+  }
+
+  return response.data.data;
+};
+
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
@@ -510,6 +529,7 @@ export const dashboardApi = {
   assignProjectToStaff,
   downloadProjectReportPdf,
   updateVendorStaff,
+  updateVendorStaffStatus,
 };
 
 export default dashboardApi;

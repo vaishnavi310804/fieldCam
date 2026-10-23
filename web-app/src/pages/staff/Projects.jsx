@@ -3,7 +3,6 @@ import StaffSidebar from "../../components/staff/StaffSidebar";
 import StaffHeader from "../../components/staff/StaffHeader";
 import StaffProjectCard from "../../components/staff/StaffProjectCard";
 import { getStaffProjects } from "../../services/projectService";
-import { useAuth } from "../../context/AuthContext";
 import {
   FiBriefcase,
   FiLoader,
@@ -12,7 +11,6 @@ import {
 } from "react-icons/fi";
 
 const StaffProjects = () => {
-  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [projects, setProjects] = useState([]);
@@ -27,6 +25,19 @@ const StaffProjects = () => {
       const projData = Array.isArray(res) ? res : res?.data || [];
       setProjects(projData);
     } catch (err) {
+      const status = err?.response?.status;
+      const code = err?.response?.data?.code;
+      const msg = err?.response?.data?.message || "";
+      if (
+        status === 401 ||
+        (status === 403 &&
+          (code === "ACCOUNT_INACTIVE" ||
+            code === "COMPANY_SUSPENDED" ||
+            msg.toLowerCase().includes("account is not active") ||
+            msg.toLowerCase().includes("company has been suspended")))
+      ) {
+        return;
+      }
       setError(
         err.response?.data?.message || err.message || "Unable to load your projects. Please try again."
       );
@@ -36,6 +47,7 @@ const StaffProjects = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStaffProjects();
   }, []);
 
