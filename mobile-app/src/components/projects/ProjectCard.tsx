@@ -16,6 +16,7 @@ export interface ProjectCardProps {
   project: ProjectCardData;
   onPress?: () => void;
   onAcceptPress?: () => void;
+  onDeclinePress?: () => void;
   showAcceptButton?: boolean;
 }
 
@@ -84,6 +85,7 @@ export const ProjectCard = ({
   project,
   onPress,
   onAcceptPress,
+  onDeclinePress,
   showAcceptButton = false,
 }: ProjectCardProps) => {
   const badge = getStatusBadgeStyle(project.status);
@@ -155,16 +157,32 @@ export const ProjectCard = ({
           </View>
         ) : null}
 
-        {/* Presentational Accept Button for NEW projects */}
+        {/* Presentational Accept & Decline Buttons for NEW projects */}
         {(showAcceptButton || project.status.toUpperCase() === "NEW") ? (
-          <Pressable
-            style={styles.acceptButton}
-            onPress={onAcceptPress}
-            accessibilityRole="button"
-            accessibilityLabel="Accept Project"
-          >
-            <Text style={styles.acceptButtonText}>Accept Project</Text>
-          </Pressable>
+          <View style={styles.actionButtonsRow}>
+            <Pressable
+              style={styles.declineButton}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onDeclinePress?.();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Decline Project"
+            >
+              <Text style={styles.declineButtonText}>Decline</Text>
+            </Pressable>
+            <Pressable
+              style={styles.acceptButton}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onAcceptPress?.();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Accept Project"
+            >
+              <Text style={styles.acceptButtonText}>Accept Project</Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
     </Pressable>
@@ -289,8 +307,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#736458",
     borderRadius: 3,
   },
-  acceptButton: {
+  actionButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
     marginTop: 12,
+  },
+  declineButton: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  declineButtonText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  acceptButton: {
+    flex: 2,
     backgroundColor: Colors.primary,
     paddingVertical: 10,
     borderRadius: 12,

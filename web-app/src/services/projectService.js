@@ -73,6 +73,8 @@ export const rejectProject = async (projectId, reason = "") => {
   return response.data;
 };
 
+export const declineProject = rejectProject;
+
 export const assignVendorToProject = async (projectId, vendorId) => {
   const response = await platformApi.post(`/projects/${projectId}/assign`, { vendorId });
   return response.data;

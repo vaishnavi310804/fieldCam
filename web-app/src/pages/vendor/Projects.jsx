@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import VendorSidebar from "../../components/vendor/VendorSidebar";
 import VendorHeader from "../../components/vendor/VendorHeader";
 import VendorProjectCard from "../../components/vendor/VendorProjectCard";
-import { getProjects, acceptProject } from "../../services/projectService";
+import { getProjects, acceptProject, declineProject } from "../../services/projectService";
 import { getMyVendorProfile } from "../../services/vendorService";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -28,10 +28,37 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Acceptance feedback state
+  // Acceptance & Decline feedback state
   const [acceptingProjectId, setAcceptingProjectId] = useState(null);
+  const [decliningProjectId, setDecliningProjectId] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
+
+  const handleDeclineProject = async (project) => {
+    const targetId = project._id || project.id || project.projectId;
+    if (!targetId || acceptingProjectId || decliningProjectId) return;
+
+    const confirmDecline = window.confirm(
+      `Are you sure you want to decline project "${project.projectName || project.projectId}"? This assignment will be cleared and returned to the Admin for reassignment.`
+    );
+    if (!confirmDecline) return;
+
+    try {
+      setDecliningProjectId(targetId);
+      setActionError(null);
+      await declineProject(targetId, "Declined by vendor from projects dashboard");
+      setActionSuccess(
+        `Project "${project.projectName || project.projectId}" assignment declined.`
+      );
+      await loadVendorProjects();
+    } catch (err) {
+      setActionError(
+        err.response?.data?.message || err.message || "Failed to decline project."
+      );
+    } finally {
+      setDecliningProjectId(null);
+    }
+  };
 
   const handleAcceptProject = async (project) => {
     const targetId = project._id || project.id || project.projectId;
@@ -384,6 +411,8 @@ const Projects = () => {
                   project={project}
                   onAcceptProject={handleAcceptProject}
                   isAccepting={acceptingProjectId === (project._id || project.id)}
+                  onDeclineProject={handleDeclineProject}
+                  isDeclining={decliningProjectId === (project._id || project.id)}
                 />
               ))}
             </div>

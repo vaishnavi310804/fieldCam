@@ -16,6 +16,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import {
   getVendorProjects,
   acceptProject,
+  rejectProject,
   VendorProjectItem,
 } from "@/src/api/dashboard.api";
 import { notificationsApi } from "@/src/api/notifications.api";
@@ -125,6 +126,39 @@ export const VendorProjectsScreen = () => {
     } finally {
       setAcceptingId(null);
     }
+  };
+
+  const handleDeclineProject = async (targetId: string) => {
+    Alert.alert(
+      "Decline Assignment",
+      "Are you sure you want to decline this project assignment? This assignment will be cleared and returned to the Admin for reassignment.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setAcceptingId(targetId);
+              await rejectProject(targetId, "Declined by vendor via project list");
+              Alert.alert(
+                "Declined",
+                "You have declined this project assignment.",
+              );
+              await fetchProjectsData(false);
+              await fetchUnreadCount();
+            } catch (err: any) {
+              Alert.alert(
+                "Decline Failed",
+                err?.message || "Could not decline project.",
+              );
+            } finally {
+              setAcceptingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Filter projects by selected tab & search query
@@ -246,6 +280,9 @@ export const VendorProjectsScreen = () => {
               }
               onAcceptPress={() =>
                 handleAcceptProject(item.id || item.projectId)
+              }
+              onDeclinePress={() =>
+                handleDeclineProject(item.id || item.projectId)
               }
               showAcceptButton={acceptingId === (item.id || item.projectId)}
             />

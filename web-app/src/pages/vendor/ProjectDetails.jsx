@@ -107,8 +107,12 @@ const VendorProjectDetails = () => {
       setRejectError(null);
       setAcceptError(null);
       await rejectProject(targetId, "Declined by vendor from project details");
-      setRejectSuccess("Project assignment declined.");
-      await fetchProjectData();
+      setRejectSuccess(
+        "Project assignment declined successfully. Redirecting to projects list..."
+      );
+      setTimeout(() => {
+        navigate("/vendor/projects");
+      }, 1200);
     } catch (err) {
       setRejectError(
         err.response?.data?.message ||
@@ -389,25 +393,47 @@ const VendorProjectDetails = () => {
               </button>
 
               {project && project.status === "New" && (
-                <button
-                  type="button"
-                  disabled={isAccepting}
-                  onClick={handleAcceptProject}
-                  className="flex items-center gap-1.5 bg-[#1565C0] hover:bg-[#0D47A1] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-                  title="Accept this assigned project"
-                >
-                  {isAccepting ? (
-                    <>
-                      <FiLoader className="animate-spin text-xs" />
-                      <span>Accepting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiCheckCircle className="text-xs" />
-                      <span>Accept Project</span>
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={isAccepting || isRejecting}
+                    onClick={handleRejectProject}
+                    className="flex items-center gap-1.5 bg-white border border-[#E8E2DE] hover:bg-[#FAF7F5] text-[#C62828] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                    title="Decline this assigned project"
+                  >
+                    {isRejecting ? (
+                      <>
+                        <FiLoader className="animate-spin text-xs" />
+                        <span>Declining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiX className="text-xs" />
+                        <span>Decline</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isAccepting || isRejecting}
+                    onClick={handleAcceptProject}
+                    className="flex items-center gap-1.5 bg-[#1565C0] hover:bg-[#0D47A1] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                    title="Accept this assigned project"
+                  >
+                    {isAccepting ? (
+                      <>
+                        <FiLoader className="animate-spin text-xs" />
+                        <span>Accepting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiCheckCircle className="text-xs" />
+                        <span>Accept Project</span>
+                      </>
+                    )}
+                  </button>
+                </>
               )}
 
               {project && project.status === "ASSIGNED" && (

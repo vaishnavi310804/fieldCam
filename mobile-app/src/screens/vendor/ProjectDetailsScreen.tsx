@@ -275,8 +275,16 @@ export const ProjectDetailsScreen = () => {
             try {
               setIsAccepting(true);
               await rejectProject(targetId, "Declined by vendor via mobile app");
-              Alert.alert("Declined", "You have declined this project assignment.");
-              await fetchProjectData(false);
+              Alert.alert(
+                "Declined",
+                "You have declined this project assignment.",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => router.back(),
+                  },
+                ]
+              );
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Could not decline project.");
             } finally {
@@ -692,13 +700,14 @@ export const ProjectDetailsScreen = () => {
               {isNew ? (
                 <View style={styles.actionRow}>
                   <Pressable
-                    style={[styles.timelineIconButton, { borderColor: "#DC2626", backgroundColor: "#FEF2F2" }]}
+                    style={[styles.declineActionButton, isAccepting && styles.disabledButton]}
                     onPress={handleRejectProject}
                     disabled={isAccepting}
                     accessibilityRole="button"
                     accessibilityLabel="Decline Project"
                   >
-                    <Ionicons name="close-outline" size={22} color="#DC2626" />
+                    <Ionicons name="close-circle-outline" size={18} color="#DC2626" style={styles.btnIcon} />
+                    <Text style={styles.declineActionText}>Decline</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.primaryActionButton, styles.primaryActionFlex, isAccepting && styles.disabledButton]}
@@ -710,7 +719,10 @@ export const ProjectDetailsScreen = () => {
                     {isAccepting ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.primaryActionText}>Accept Project</Text>
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+                        <Text style={styles.primaryActionText}>Accept Project</Text>
+                      </>
                     )}
                   </Pressable>
                 </View>
@@ -1311,5 +1323,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  declineActionButton: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  declineActionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#DC2626",
   },
 });

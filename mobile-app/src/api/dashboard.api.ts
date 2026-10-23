@@ -236,6 +236,8 @@ export const rejectProject = async (projectId: string, reason?: string): Promise
   return response.data.data;
 };
 
+export const declineProject = rejectProject;
+
 export const getProjectById = async (id: string): Promise<VendorProjectItem> => {
   const response = await platformClient.get<{
     success: boolean;
@@ -532,6 +534,9 @@ export const updateVendorStaffStatus = async (
 export const dashboardApi = {
   getVendorProfile,
   getVendorProjects,
+  acceptProject,
+  rejectProject,
+  declineProject,
   getVendorInvoices,
   getVendorSupportStats,
   getVendorDashboardData,
