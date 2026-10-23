@@ -5,6 +5,7 @@ import VendorSupportActionCards from "../../components/vendor/support/VendorSupp
 import VendorSupportStats from "../../components/vendor/support/VendorSupportStats";
 import VendorSupportTicketTable from "../../components/vendor/support/VendorSupportTicketTable";
 import VendorCreateTicketModal from "../../components/vendor/support/VendorCreateTicketModal";
+import VendorLiveChatModal from "../../components/vendor/support/VendorLiveChatModal";
 import {
   getSupportTickets,
   getSupportStats,
@@ -25,6 +26,7 @@ const Support = () => {
   const [error, setError] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -147,6 +149,7 @@ const Support = () => {
           {/* Section 1: Compact Action Cards (2x2 Grid) */}
           <VendorSupportActionCards
             onOpenRaiseTicket={() => setIsModalOpen(true)}
+            onOpenLiveChat={() => setIsLiveChatOpen(true)}
           />
 
           {/* Section 2: Compact Horizontal Statistics Row (4 Cards) */}
@@ -156,6 +159,12 @@ const Support = () => {
           <VendorSupportTicketTable tickets={tickets} loading={loading} />
         </main>
       </div>
+
+      {/* Live Chat Modal */}
+      <VendorLiveChatModal
+        isOpen={isLiveChatOpen}
+        onClose={() => setIsLiveChatOpen(false)}
+      />
 
       {/* Raise Ticket Modal */}
       <VendorCreateTicketModal

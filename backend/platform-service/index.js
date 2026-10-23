@@ -12,6 +12,7 @@ import auditRoutes from "./src/modules/audit/audit.routes.js";
 import notificationRoutes from "./src/modules/notification/notification.routes.js";
 import dashboardRoutes from "./src/modules/dashboard/dashboard.routes.js";
 import subscriptionRoutes from "./src/modules/subscription/subscription.routes.js";
+import chatRoutes from "./src/modules/chat/chat.routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/vendors", vendorRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/chat", chatRoutes);
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);

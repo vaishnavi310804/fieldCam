@@ -38,6 +38,7 @@ export default function AppLayout() {
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="raise-invoice" options={{ href: null }} />
       <Tabs.Screen name="invoice-preview" options={{ href: null }} />
+      <Tabs.Screen name="live-chat" options={{ href: null }} />
     </Tabs>
   );
 }

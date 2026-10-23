@@ -6,7 +6,7 @@ import {
   FiHelpCircle,
 } from "react-icons/fi";
 
-const VendorSupportActionCards = ({ onOpenRaiseTicket }) => {
+const VendorSupportActionCards = ({ onOpenRaiseTicket, onOpenLiveChat }) => {
   const cards = [
     {
       id: "raise-ticket",
@@ -28,7 +28,8 @@ const VendorSupportActionCards = ({ onOpenRaiseTicket }) => {
       accentCircleBg: "bg-[#E8F5E9]/40",
       badge: "Online",
       badgeClass: "bg-[#E8F5E9] text-[#2E7D32]",
-      isPrimary: false,
+      onClick: onOpenLiveChat,
+      isPrimary: true,
     },
     {
       id: "phone-support",

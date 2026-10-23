@@ -64,10 +64,7 @@ export const VendorSupportScreen = () => {
 
   // Action card handlers (truthful feedback for features without dedicated backend endpoints)
   const handleLiveChat = () => {
-    Alert.alert(
-      "Live Chat",
-      "Live Support Chat is currently offline. Please click '+ New Ticket' to submit a support request."
-    );
+    router.push("/(app)/live-chat" as any);
   };
 
   const handleCallSupport = () => {

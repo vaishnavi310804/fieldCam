@@ -5,6 +5,7 @@ import SupportStats from "../../components/admin/support/SupportStats";
 import SupportToolbar from "../../components/admin/support/SupportToolbar";
 import SupportTable from "../../components/admin/support/SupportTable";
 import CreateSupportTicketModal from "../../components/admin/support/CreateSupportTicketModal";
+import AdminLiveChatSection from "../../components/admin/support/AdminLiveChatSection";
 import {
   getSupportTickets,
   getSupportStats,
@@ -13,13 +14,14 @@ import {
   updateSupportTicketStatus,
 } from "../../services/supportService";
 import { useAuth } from "../../context/AuthContext";
-import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
+import { FiAlertCircle, FiRefreshCw, FiMessageSquare } from "react-icons/fi";
 
 const Support = () => {
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activeTab, setActiveTab] = useState("tickets"); // "tickets" | "chat"
 
   const [allTickets, setAllTickets] = useState([]);
   const [statsData, setStatsData] = useState({});
@@ -142,31 +144,66 @@ const Support = () => {
             </div>
           )}
 
-          {/* 1. KPI Cards Row (SuperAdmin & Admin only) */}
-          {!isReadOnly && <SupportStats statsData={statsData} />}
-
-          {/* 2. Toolbar (Search Input & Filter Tabs) */}
-          <SupportToolbar
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            activeFilter={activeFilter}
-            setActiveFilter={setActiveFilter}
-            onOpenCreateModal={() => setCreateModalOpen(true)}
-            isReadOnly={isReadOnly}
-          />
-
-          {/* 3. Support Tickets Table Card */}
-          {loading ? (
-            <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
-              Loading support tickets...
+          {/* Navigation Section Tabs for ADMIN role */}
+          {user?.role === "ADMIN" && (
+            <div className="flex items-center gap-2 border-b border-[#E8E2DE] pb-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab("tickets")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "tickets"
+                    ? "bg-[#3E3734] text-white shadow-xs"
+                    : "bg-white text-[#817B77] border border-[#E8E2DE] hover:bg-[#FAF7F5]"
+                }`}
+              >
+                Support Tickets
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("chat")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === "chat"
+                    ? "bg-[#3E3734] text-white shadow-xs"
+                    : "bg-white text-[#817B77] border border-[#E8E2DE] hover:bg-[#FAF7F5]"
+                }`}
+              >
+                <FiMessageSquare size={13} />
+                <span>Live Chat</span>
+              </button>
             </div>
+          )}
+
+          {user?.role === "ADMIN" && activeTab === "chat" ? (
+            <AdminLiveChatSection />
           ) : (
-            <SupportTable
-              tickets={filteredTickets}
-              onUpdateStatus={handleUpdateStatus}
-              onEditTicket={handleEditTicket}
-              isReadOnly={isReadOnly}
-            />
+            <>
+              {/* 1. KPI Cards Row (SuperAdmin & Admin only) */}
+              {!isReadOnly && <SupportStats statsData={statsData} />}
+
+              {/* 2. Toolbar (Search Input & Filter Tabs) */}
+              <SupportToolbar
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                activeFilter={activeFilter}
+                setActiveFilter={setActiveFilter}
+                onOpenCreateModal={() => setCreateModalOpen(true)}
+                isReadOnly={isReadOnly}
+              />
+
+              {/* 3. Support Tickets Table Card */}
+              {loading ? (
+                <div className="bg-white border border-[#E8E2DE] rounded-2xl p-12 text-center text-xs text-[#817B77]">
+                  Loading support tickets...
+                </div>
+              ) : (
+                <SupportTable
+                  tickets={filteredTickets}
+                  onUpdateStatus={handleUpdateStatus}
+                  onEditTicket={handleEditTicket}
+                  isReadOnly={isReadOnly}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

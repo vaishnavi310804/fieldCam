@@ -331,19 +331,6 @@ const VendorCreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                 Please include as many details as possible to help us resolve your issue quickly
               </p>
             </div>
-
-            {/* What Happens Next Info Panel */}
-            <div className="bg-[#E3F2FD]/50 border border-[#BBDEFB] rounded-2xl p-4 text-xs space-y-1.5">
-              <div className="flex items-center gap-2 text-[#1565C0] font-bold">
-                <FiInfo className="text-sm shrink-0" />
-                <span>What happens next?</span>
-              </div>
-              <ul className="text-[11px] text-[#1E88E5] font-medium space-y-1 pl-6 list-disc">
-                <li>You'll receive a confirmation with your ticket number</li>
-                <li>Our support team will review your ticket within 2-4 hours</li>
-                <li>You can track the status of your ticket in the table below</li>
-              </ul>
-            </div>
           </form>
         </div>
 

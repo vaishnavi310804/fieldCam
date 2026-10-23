@@ -18,7 +18,6 @@ import { PageHeader } from "@/src/components/navigation/PageHeader";
 import { TicketCategorySelector } from "@/src/components/support/TicketCategorySelector";
 import { TicketPrioritySelector } from "@/src/components/support/TicketPrioritySelector";
 import { RelatedProjectSelector } from "@/src/components/support/RelatedProjectSelector";
-import { TicketAttachmentPicker } from "@/src/components/support/TicketAttachmentPicker";
 import { createSupportTicket } from "@/src/api/support.api";
 
  const NewTicketScreen = () => {
@@ -123,16 +122,12 @@ import { createSupportTicket } from "@/src/api/support.api";
           />
 
           {/* Related Work Order / Project Section (Optional) */}
-          <Text style={styles.label}>Related Work Order (Optional)</Text>
+          <Text style={styles.label}>Related Work (Optional)</Text>
           <RelatedProjectSelector
             selectedProjectId={selectedProjectId}
             onSelectProject={(projId) => setSelectedProjectId(projId)}
             disabled={isSubmitting}
           />
-
-          {/* Attachments Section */}
-          <Text style={styles.label}>Attachments</Text>
-          <TicketAttachmentPicker disabled={isSubmitting} />
 
           {/* Submit Button */}
           <View style={styles.submitContainer}>
