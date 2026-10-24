@@ -1,53 +1,70 @@
-import { FiUsers, FiUserCheck, FiClock, FiAward, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
+import {
+  FiUsers,
+  FiUserCheck,
+  FiClock,
+  FiAward,
+  FiTrendingUp,
+  FiTrendingDown,
+} from "react-icons/fi";
 
-const stats = [
-  {
-    id: "total_vendors",
-    label: "Total Vendors",
-    value: "8",
-    change: "+2 vs last month",
-    isPositive: true,
-    icon: FiUsers,
-    circleBg: "bg-[#F2EBE5]",
-    iconColor: "text-[#817B77]",
-  },
-  {
-    id: "active_vendors",
-    label: "Active Vendors",
-    value: "6",
-    change: "+1 vs last month",
-    isPositive: true,
-    icon: FiUserCheck,
-    circleBg: "bg-[#E8F5E9]",
-    iconColor: "text-[#2E7D32]",
-  },
-  {
-    id: "avg_completion_time",
-    label: "Avg. Completion Time",
-    value: "4.2d",
-    change: "-0.3d vs last month",
-    isPositive: true,
-    icon: FiClock,
-    circleBg: "bg-[#FCECE7]",
-    iconColor: "text-[#C87A65]",
-  },
-  {
-    id: "avg_approval_score",
-    label: "Avg. Approval Score",
-    value: "87%",
-    change: "+3% vs last month",
-    isPositive: true,
-    icon: FiAward,
-    circleBg: "bg-[#E3F2FD]",
-    iconColor: "text-[#1565C0]",
-  },
-];
+const AnalyticsStats = ({ kpis = null, loading = false }) => {
+  const statsConfig = [
+    {
+      id: "total_vendors",
+      label: "Total Vendors",
+      value: loading ? "..." : kpis?.totalVendors?.value ?? "0",
+      change: kpis?.totalVendors?.change ?? "N/A",
+      isPositive: kpis?.totalVendors?.isPositive,
+      isNeutral: kpis?.totalVendors?.isNeutral ?? true,
+      icon: FiUsers,
+      circleBg: "bg-[#F2EBE5]",
+      iconColor: "text-[#817B77]",
+    },
+    {
+      id: "active_vendors",
+      label: "Active Vendors",
+      value: loading ? "..." : kpis?.activeVendors?.value ?? "0",
+      change: kpis?.activeVendors?.change ?? "N/A",
+      isPositive: kpis?.activeVendors?.isPositive,
+      isNeutral: kpis?.activeVendors?.isNeutral ?? true,
+      icon: FiUserCheck,
+      circleBg: "bg-[#E8F5E9]",
+      iconColor: "text-[#2E7D32]",
+    },
+    {
+      id: "avg_completion_time",
+      label: "Avg. Completion Time",
+      value: loading ? "..." : kpis?.avgCompletionTime?.value ?? "N/A",
+      change: kpis?.avgCompletionTime?.change ?? "N/A",
+      isPositive: kpis?.avgCompletionTime?.isPositive,
+      isNeutral: kpis?.avgCompletionTime?.isNeutral ?? true,
+      icon: FiClock,
+      circleBg: "bg-[#FCECE7]",
+      iconColor: "text-[#C87A65]",
+    },
+    {
+      id: "avg_approval_score",
+      label: "Avg. Approval Score",
+      value: loading ? "..." : kpis?.avgApprovalScore?.value ?? "N/A",
+      change: kpis?.avgApprovalScore?.change ?? "N/A",
+      isPositive: kpis?.avgApprovalScore?.isPositive,
+      isNeutral: true,
+      icon: FiAward,
+      circleBg: "bg-[#E3F2FD]",
+      iconColor: "text-[#1565C0]",
+    },
+  ];
 
-const AnalyticsStats = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      {stats.map((stat) => {
+      {statsConfig.map((stat) => {
         const Icon = stat.icon;
+        const showChangeTrend =
+          !loading &&
+          stat.change &&
+          stat.change !== "N/A" &&
+          !stat.isNeutral &&
+          stat.isPositive !== null;
 
         return (
           <div
@@ -74,13 +91,29 @@ const AnalyticsStats = () => {
             </div>
 
             {/* Bottom row: Change Indicator */}
-            <div className="flex items-center gap-1 text-xs font-semibold text-[#2E7D32] mt-4">
-              {stat.isPositive ? (
-                <FiTrendingUp className="text-xs" />
+            <div className="flex items-center gap-1 text-xs font-semibold mt-4">
+              {loading ? (
+                <span className="text-[#817B77] text-xs font-normal">
+                  Loading metrics...
+                </span>
+              ) : showChangeTrend ? (
+                <div
+                  className={`flex items-center gap-1 ${
+                    stat.isPositive ? "text-[#2E7D32]" : "text-[#C62828]"
+                  }`}
+                >
+                  {stat.isPositive ? (
+                    <FiTrendingUp className="text-xs" />
+                  ) : (
+                    <FiTrendingDown className="text-xs" />
+                  )}
+                  <span>{stat.change}</span>
+                </div>
               ) : (
-                <FiTrendingDown className="text-xs" />
+                <span className="text-[#817B77] font-normal text-xs">
+                  {stat.change === "N/A" ? "No prior comparison" : stat.change}
+                </span>
               )}
-              <span>{stat.change}</span>
             </div>
           </div>
         );

@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useNavigation } from "expo-router";
 import Colors from "@/src/constants/color";
 import { PageHeader } from "@/src/components/navigation/PageHeader";
 import {
@@ -22,9 +23,11 @@ import {
 } from "@/src/api/chat.api";
 
 export const VendorLiveChatScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [, setConversation] = useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState<string>("");
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -32,6 +35,37 @@ export const VendorLiveChatScreen: React.FC = () => {
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const isFetchingRef = useRef<boolean>(false);
+
+  // Track soft-keyboard visibility to toggle bottom tab bar and container padding
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Hide bottom tab bar while typing so it doesn't overlap composer; restore on dismissal/unmount
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: isKeyboardVisible ? { display: "none" } : undefined,
+    });
+
+    return () => {
+      navigation.setOptions({
+        tabBarStyle: undefined,
+      });
+    };
+  }, [isKeyboardVisible, navigation]);
 
   const fetchChat = useCallback(async (isInitial = false) => {
     if (isFetchingRef.current) return;
@@ -77,7 +111,7 @@ export const VendorLiveChatScreen: React.FC = () => {
     }, [fetchChat])
   );
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or when keyboard opens
   useEffect(() => {
     if (messages.length > 0) {
       const timer = setTimeout(() => {
@@ -85,7 +119,7 @@ export const VendorLiveChatScreen: React.FC = () => {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [messages.length]);
+  }, [messages.length, isKeyboardVisible]);
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
@@ -154,7 +188,12 @@ export const VendorLiveChatScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.screenContainer}>
+    <View
+      style={[
+        styles.screenContainer,
+        isKeyboardVisible && styles.screenContainerKeyboard,
+      ]}
+    >
       <PageHeader
         title="Live Chat"
         showBackButton={true}
@@ -163,8 +202,8 @@ export const VendorLiveChatScreen: React.FC = () => {
 
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={0}
       >
         {/* Support Online Banner */}
         <View style={styles.channelBanner}>
@@ -214,8 +253,11 @@ export const VendorLiveChatScreen: React.FC = () => {
             data={messages}
             keyExtractor={(item) => item._id}
             renderItem={renderMessageItem}
+            style={styles.messageList}
             contentContainerStyle={styles.messageListContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           />
         )}
 
@@ -262,7 +304,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F6F3",
     paddingBottom: 120,
   },
+  screenContainerKeyboard: {
+    paddingBottom: 0,
+  },
   keyboardContainer: {
+    flex: 1,
+  },
+  messageList: {
     flex: 1,
   },
   channelBanner: {
@@ -407,6 +455,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.gray,
     gap: 8,
+    backgroundColor: "#F9F6F3",
   },
   textInput: {
     flex: 1,
