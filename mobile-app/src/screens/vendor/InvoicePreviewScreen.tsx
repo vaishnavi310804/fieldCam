@@ -18,6 +18,7 @@ import { invoicesApi, InvoiceListItem } from "@/src/api/invoices.api";
 import { InvoicePreviewDetails } from "@/src/components/invoices/InvoicePreviewDetails";
 import { useAuth } from "@/src/context/AuthContext";
 import { previewDraftStore } from "@/src/utils/previewDraftStore";
+import Colors from "@/src/constants/color";
 
 export const InvoicePreviewScreen: React.FC = () => {
   const { user } = useAuth();
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#00B894",
+    backgroundColor: Colors.primary,
     borderRadius: 18,
     paddingVertical: 14,
     gap: 6,

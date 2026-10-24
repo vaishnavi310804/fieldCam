@@ -234,7 +234,7 @@ export const EditStaffScreen: React.FC = () => {
                   <Ionicons name="call-outline" size={18} color="#9CA3AF" />
                   <TextInput
                     style={styles.textInput}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="+91"
                     placeholderTextColor="#9CA3AF"
                     value={phone}
                     onChangeText={setPhone}

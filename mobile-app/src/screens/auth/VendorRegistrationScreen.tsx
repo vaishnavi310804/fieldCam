@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   noticeContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF0FF",
+    backgroundColor: Colors.light,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   noticeText: {
     flex: 1,
     fontSize: 11,
-    color: "#4338CA",
+    color: Colors.white,
     lineHeight: 15,
   },
 

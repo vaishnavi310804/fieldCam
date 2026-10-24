@@ -194,7 +194,7 @@ const VendorLiveChatModal = ({ isOpen, onClose }) => {
                   Start a conversation
                 </h3>
                 <p className="text-xs text-[#817B77] max-w-xs mt-1">
-                  Send a message below to chat with our Support team. An agent will respond shortly.
+                  Send a message below to chat with our Support team. We will respond shortly.
                 </p>
               </div>
               <div className="text-[11px] text-[#817B77] px-3 py-1.5 rounded-xl font-medium">

@@ -102,7 +102,7 @@ export const AddStaffForm = ({ onSubmit, isLoading }: AddStaffFormProps) => {
             <Ionicons name="call-outline" size={18} color="#9CA3AF" />
             <TextInput
               style={styles.textInput}
-              placeholder="+1 (555) 000-0000"
+              placeholder="+91"
               placeholderTextColor="#9CA3AF"
               value={phone}
               onChangeText={setPhone}
@@ -219,7 +219,7 @@ export const AddStaffForm = ({ onSubmit, isLoading }: AddStaffFormProps) => {
           <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
           <Text style={styles.infoBoxText}>
             {inviteMethod === "Email"
-              ? "An email invitation with a signup link and registration OTP will be sent to the staff member's email address."
+              ? "An email invitation with registration OTP will be sent to the staff member's email address."
               : "A text message notification will be prepared for the staff member's phone number. (Note: Email signup link is also sent)."}
           </Text>
         </View>
@@ -244,7 +244,7 @@ export const AddStaffForm = ({ onSubmit, isLoading }: AddStaffFormProps) => {
       </Pressable>
 
       <Text style={styles.subtextNotice}>
-        The staff member will receive a link to set up their account
+        The staff member will receive a mail to set up their account
       </Text>
     </View>
   );

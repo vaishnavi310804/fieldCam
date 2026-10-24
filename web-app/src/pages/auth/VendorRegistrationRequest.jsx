@@ -161,8 +161,8 @@ const VendorRegistrationRequest = () => {
             </h1>
 
             <p className="text-white/80 text-sm leading-6 max-w-lg">
-              Join our network of verified inspection vendors. Submit your registration request
-              to get reviewed and onboarded by FieldCam administrative operations.
+              Join our network of verified vendors. Submit your registration request
+              to get reviewed and onboarded by FieldCam administrative.
             </p>
 
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/15">

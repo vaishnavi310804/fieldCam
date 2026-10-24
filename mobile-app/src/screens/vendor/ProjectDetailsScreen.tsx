@@ -706,7 +706,7 @@ export const ProjectDetailsScreen = () => {
                     accessibilityRole="button"
                     accessibilityLabel="Decline Project"
                   >
-                    <Ionicons name="close-circle-outline" size={18} color="#DC2626" style={styles.btnIcon} />
+                    <Ionicons name="close-circle-outline" size={18} color="#928880" style={styles.btnIcon} />
                     <Text style={styles.declineActionText}>Decline</Text>
                   </Pressable>
                   <Pressable
@@ -1320,17 +1320,17 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   primaryActionText: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   declineActionButton: {
-    backgroundColor: "#FEF2F2",
+    backgroundColor: Colors.light,
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 18,
     borderWidth: 1,
-    borderColor: "#FECACA",
+    borderColor: Colors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1338,6 +1338,6 @@ const styles = StyleSheet.create({
   declineActionText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#DC2626",
+    color: Colors.primary,
   },
 });

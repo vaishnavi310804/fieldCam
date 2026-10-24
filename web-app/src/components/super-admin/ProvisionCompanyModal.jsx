@@ -247,7 +247,7 @@ const ProvisionCompanyModal = ({
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+1 (555) 019-2834"
+                  placeholder="+91"
                   className="w-full h-9 bg-[#F8F7FF] border border-[#E5E7EB] rounded-lg pl-9 pr-3 text-xs text-[#2D3436] placeholder:text-[#9CA3AF] outline-none focus:border-[#5141F5] focus:bg-white transition"
                 />
               </div>
