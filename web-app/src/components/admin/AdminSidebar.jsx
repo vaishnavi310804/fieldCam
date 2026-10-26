@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FiGrid,
@@ -11,16 +11,22 @@ import {
 } from "react-icons/fi";
 import fieldCamLogo from "../../assets/fieldCamLogo.png";
 import { usePermissions } from "../../hooks/usePermissions";
+import { ADMIN_NAV_MODULE_MAPPING } from "../../utils/permissions";
 
-const navItems = [
-  { id: "dashboard", module: "DASHBOARD", label: "Dashboard", icon: FiGrid, path: "/admin/dashboard" },
-  { id: "projects", module: "PROJECTS", label: "Projects", icon: FiFolder, path: "/admin/projects" },
-  { id: "vendors", module: "VENDORS", label: "Vendors", icon: FiUsers, path: "/admin/vendors" },
-  { id: "invoices", module: "INVOICES", label: "Invoices", icon: FiFileText, path: "/admin/invoices" },
-  { id: "analytics", module: "ANALYTICS", label: "Analytics", icon: FiBarChart2, path: "/admin/analytics" },
-  { id: "services", module: "SERVICES", label: "Services", icon: FiTool, path: "/admin/services" },
-  { id: "support", module: "SUPPORT", label: "Support", icon: FiHeadphones, path: "/admin/support" },
-];
+const ICON_MAP = {
+  dashboard: FiGrid,
+  projects: FiFolder,
+  vendors: FiUsers,
+  invoices: FiFileText,
+  analytics: FiBarChart2,
+  services: FiTool,
+  support: FiHeadphones,
+};
+
+export const navItems = ADMIN_NAV_MODULE_MAPPING.map((item) => ({
+  ...item,
+  icon: ICON_MAP[item.id] || FiGrid,
+}));
 
 const AdminSidebar = ({
   collapsed: propCollapsed,
@@ -36,7 +42,17 @@ const AdminSidebar = ({
   const setCollapsed = propSetCollapsed || setInternalCollapsed;
   const { canAccessModule } = usePermissions();
 
-  const visibleNavItems = navItems.filter((item) => canAccessModule(item.module));
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => canAccessModule(item.module)),
+    [canAccessModule]
+  );
+
+  const logoDestination = useMemo(() => {
+    if (visibleNavItems.some((item) => item.id === "dashboard")) {
+      return "/admin/dashboard";
+    }
+    return visibleNavItems[0]?.path || "/admin/dashboard";
+  }, [visibleNavItems]);
 
   const activeTab = location.pathname.startsWith("/admin/services")
     ? "services"
@@ -74,7 +90,7 @@ const AdminSidebar = ({
           }`}
         >
           <Link
-            to="/admin/dashboard"
+            to={logoDestination}
             className="flex items-center gap-2 overflow-hidden"
           >
             <img

@@ -222,9 +222,6 @@ const ReassignAdminRoleModal = ({
                     )}
                   </select>
                 </div>
-                <p className="text-[10px] text-[#817B77] mt-1">
-                  Updating this role immediately invalidates the administrator's permission cache.
-                </p>
               </div>
             </>
           )}

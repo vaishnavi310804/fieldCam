@@ -13,8 +13,7 @@ export const createAdminValidation = [
     .notEmpty()
     .withMessage("Email is required")
     .isEmail()
-    .withMessage("Please enter a valid email address")
-    .normalizeEmail(),
+    .withMessage("Please enter a valid email address"),
 
   body("phone")
     .trim()

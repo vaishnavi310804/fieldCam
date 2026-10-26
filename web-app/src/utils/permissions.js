@@ -24,6 +24,20 @@ export const MODULE_ACTIONS = Object.freeze({
 });
 
 /**
+ * Authoritative regular Admin business-module navigation items and their
+ * canonical module mapping (VIEW permission required for display).
+ */
+export const ADMIN_NAV_MODULE_MAPPING = Object.freeze([
+  Object.freeze({ id: "dashboard", module: PERMISSION_MODULES.DASHBOARD, label: "Dashboard", path: "/admin/dashboard" }),
+  Object.freeze({ id: "projects", module: PERMISSION_MODULES.PROJECTS, label: "Projects", path: "/admin/projects" }),
+  Object.freeze({ id: "vendors", module: PERMISSION_MODULES.VENDORS, label: "Vendors", path: "/admin/vendors" }),
+  Object.freeze({ id: "invoices", module: PERMISSION_MODULES.INVOICES, label: "Invoices", path: "/admin/invoices" }),
+  Object.freeze({ id: "analytics", module: PERMISSION_MODULES.ANALYTICS, label: "Analytics", path: "/admin/analytics" }),
+  Object.freeze({ id: "services", module: PERMISSION_MODULES.SERVICES, label: "Services", path: "/admin/services" }),
+  Object.freeze({ id: "support", module: PERMISSION_MODULES.SUPPORT, label: "Support", path: "/admin/support" }),
+]);
+
+/**
  * Checks if a given module identifier is valid and supported.
  * Case-insensitive.
  *
