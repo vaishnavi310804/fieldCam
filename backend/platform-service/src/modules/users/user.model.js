@@ -138,6 +138,11 @@ const userSchema = new mongoose.Schema(
       github: { type: String, trim: true, default: null },
       website: { type: String, trim: true, default: null },
     },
+
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -251,6 +251,15 @@ export const webLoginUser = async (credentials) => {
     userObject.companyId = companyVerification.company._id;
   }
 
+  const loginTimestamp = new Date();
+  try {
+    await User.findByIdAndUpdate(user._id, { lastLogin: loginTimestamp });
+    userObject.lastLogin = loginTimestamp;
+  } catch (updateErr) {
+    console.warn("Failed to persist lastLogin timestamp:", updateErr.message || updateErr);
+    userObject.lastLogin = user.lastLogin || null;
+  }
+
   return {
     user: userObject,
     accessToken,
@@ -307,6 +316,15 @@ export const mobileLoginUser = async (credentials) => {
   delete userObject.password;
   if (companyVerification.company?._id && !userObject.companyId) {
     userObject.companyId = companyVerification.company._id;
+  }
+
+  const loginTimestamp = new Date();
+  try {
+    await User.findByIdAndUpdate(user._id, { lastLogin: loginTimestamp });
+    userObject.lastLogin = loginTimestamp;
+  } catch (updateErr) {
+    console.warn("Failed to persist lastLogin timestamp:", updateErr.message || updateErr);
+    userObject.lastLogin = user.lastLogin || null;
   }
 
   return {

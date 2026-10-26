@@ -27,7 +27,7 @@ const VendorHeader = ({ title = "Dashboard", vendorName = "", searchTerm = "", s
       <div>
         <h1 className="text-base font-bold text-[#3E3734] leading-tight">{title}</h1>
         <p className="text-[11px] text-[#817B77]">
-          Welcome back, <span className="font-semibold text-[#3E3734]">{displayName}</span>. Here's your overview.
+          Welcome back, <span className="font-semibold text-[#3E3734]">{displayName}</span>.
         </p>
       </div>
 

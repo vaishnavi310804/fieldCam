@@ -262,8 +262,7 @@ const VendorProfile = () => {
           {/* Section 1: Profile Hero / Vendor Header Card */}
           <div className="bg-white rounded-2xl border border-[#E8E2DE] shadow-xs overflow-hidden">
             {/* Top Cover Banner */}
-            <div className="h-32 bg-gradient-to-r from-[#D8C7C0] via-[#E8DED8] to-[#C8B5AC] relative flex items-center justify-center">
-              <FiImage className="text-4xl text-[#3E3734]/15" />
+            <div className="h-20 bg-gradient-to-r from-[#D8C7C0] via-[#E8DED8] to-[#C8B5AC] relative flex items-center justify-center">
             </div>
 
             {/* Profile Info Row */}
