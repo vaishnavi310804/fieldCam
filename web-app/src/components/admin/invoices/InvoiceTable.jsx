@@ -19,6 +19,7 @@ import {
   FiCalendar,
   FiMail,
 } from "react-icons/fi";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const InvoiceTable = ({
   invoices = [],
@@ -28,6 +29,7 @@ const InvoiceTable = ({
   onDownloadPdf,
   isReadOnly = false,
 }) => {
+  const { can } = usePermissions();
   // View Details Modal State
   const [viewInvoice, setViewInvoice] = useState(null);
 
@@ -104,6 +106,7 @@ const InvoiceTable = ({
   // Handler: Submit Review (Approve or Reject)
   const handleSubmitReview = async (e) => {
     e.preventDefault();
+    if (!can("INVOICES", "REVIEW")) return;
     if (!reviewModalInvoice || !onReviewInvoice) return;
     setReviewError("");
 
@@ -153,6 +156,7 @@ const InvoiceTable = ({
   // Handler: Submit Send
   const handleSubmitSend = async (e) => {
     e.preventDefault();
+    if (!can("INVOICES", "SEND")) return;
     if (!sendModalInvoice || !onSendInvoice) return;
     setSendError("");
 
@@ -200,6 +204,7 @@ const InvoiceTable = ({
   // Handler: Submit Payment
   const handleSubmitPayment = async (e) => {
     e.preventDefault();
+    if (!can("INVOICES", "RECORD_PAYMENT")) return;
     if (!paymentModalInvoice || !onRecordPayment) return;
     setPaymentError("");
 
@@ -278,7 +283,10 @@ const InvoiceTable = ({
                     ? row.amount
                     : Number(row.totalAmount || row.amount || 0);
 
-                const isReviewable = !isReadOnly && ["Submitted", "Pending"].includes(row.status);
+                const isReviewable =
+                  !isReadOnly &&
+                  ["Submitted", "Pending"].includes(row.status) &&
+                  can("INVOICES", "REVIEW");
                 const isPdfEligible = Boolean(
                   onDownloadPdf &&
                     ["Submitted", "Pending", "Approved", "Sent", "Paid", "Rejected"].includes(row.status)
@@ -669,7 +677,7 @@ const InvoiceTable = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {!isReadOnly && ["Submitted", "Pending"].includes(viewInvoice.status) && (
+                {!isReadOnly && ["Submitted", "Pending"].includes(viewInvoice.status) && can("INVOICES", "REVIEW") && (
                   <>
                     <button
                       onClick={() => handleOpenReview(viewInvoice, "REJECT")}
@@ -688,7 +696,7 @@ const InvoiceTable = ({
                   </>
                 )}
 
-                {!isReadOnly && viewInvoice.status === "Approved" && (
+                {!isReadOnly && viewInvoice.status === "Approved" && can("INVOICES", "SEND") && (
                   <button
                     onClick={() => handleOpenSend(viewInvoice)}
                     className="bg-[#1565C0] hover:bg-[#0D47A1] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
@@ -698,7 +706,7 @@ const InvoiceTable = ({
                   </button>
                 )}
 
-                {!isReadOnly && ["Sent", "Pending"].includes(viewInvoice.status) && (
+                {!isReadOnly && ["Sent", "Pending"].includes(viewInvoice.status) && can("INVOICES", "RECORD_PAYMENT") && (
                   <button
                     onClick={() => handleOpenPayment(viewInvoice)}
                     className="bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"

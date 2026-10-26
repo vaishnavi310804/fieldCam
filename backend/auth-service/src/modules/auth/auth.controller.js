@@ -10,6 +10,7 @@ import {
   resetPassword,
   getProfile,
   updateProfile,
+  getEffectivePermissions,
 } from "./auth.service.js";
 
 export const sendRegistrationOTPController = async (req, res) => {
@@ -185,6 +186,24 @@ export const getProfileController = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || "Failed to retrieve profile",
+    });
+  }
+};
+
+export const getEffectivePermissionsController = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await getEffectivePermissions(userId);
+    return res.status(200).json({
+      success: true,
+      message: "Effective permissions retrieved successfully",
+      data: result,
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({
+      success: false,
+      message: error.message || "Failed to retrieve effective permissions",
     });
   }
 };

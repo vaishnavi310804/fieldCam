@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, authorize, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import validate from "../../middleware/validate.js";
 import {
   createVendorValidation,
@@ -22,11 +23,11 @@ import {
 
 const router = Router();
 
-// GET /api/vendors - Read all vendors (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/vendors - Read all vendors (Admin: VENDORS:VIEW, Vendor: scoped)
 router.get(
   "/",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "VIEW", { allowRoles: ["VENDOR"] }),
   getVendorsController
 );
 
@@ -46,7 +47,7 @@ router.get(
   getVendorStaffController
 );
 
-// PATCH /api/vendors/me/staff/:id/status - Update staff member status (VENDOR)
+// PATCH /api/vendors/me/staff/:id/status - Update staff member status (VENDOR only)
 router.patch(
   "/me/staff/:id/status",
   protect,
@@ -64,47 +65,47 @@ router.put(
   updateVendorStaffController
 );
 
-// GET /api/vendors/stats - Vendor summary metrics (SUPER_ADMIN, ADMIN)
+// GET /api/vendors/stats - Vendor summary metrics (Admin: VENDORS:VIEW)
 router.get(
   "/stats",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "VIEW"),
   getVendorStatsController
 );
 
-// GET /api/vendors/:id - Read single vendor details (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/vendors/:id - Read single vendor details (Admin: VENDORS:VIEW, Vendor: scoped)
 router.get(
   "/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "VIEW", { allowRoles: ["VENDOR"] }),
   getVendorByIdController
 );
 
-// POST /api/vendors - Create vendor profile (SUPER_ADMIN, ADMIN)
+// POST /api/vendors - Create vendor profile (Admin: VENDORS:CREATE)
 router.post(
   "/",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "CREATE"),
   createVendorValidation,
   validate,
   createVendorController
 );
 
-// PUT /api/vendors/:id - Update vendor profile (SUPER_ADMIN, ADMIN)
+// PUT /api/vendors/:id - Update vendor profile (Admin: VENDORS:EDIT)
 router.put(
   "/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "EDIT"),
   updateVendorValidation,
   validate,
   updateVendorController
 );
 
-// PATCH /api/vendors/:id/status - Update vendor status (SUPER_ADMIN, ADMIN)
+// PATCH /api/vendors/:id/status - Update vendor status (Admin: VENDORS:STATUS)
 router.patch(
   "/:id/status",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "STATUS"),
   updateVendorStatusValidation,
   validate,
   updateVendorStatusController

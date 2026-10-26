@@ -10,15 +10,16 @@ import {
   FiHeadphones,
 } from "react-icons/fi";
 import fieldCamLogo from "../../assets/fieldCamLogo.png";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: FiGrid, path: "/admin/dashboard" },
-  { id: "projects", label: "Projects", icon: FiFolder, path: "/admin/projects" },
-  { id: "vendors", label: "Vendors", icon: FiUsers, path: "/admin/vendors" },
-  { id: "invoices", label: "Invoices", icon: FiFileText, path: "/admin/invoices" },
-  { id: "analytics", label: "Analytics", icon: FiBarChart2, path: "/admin/analytics" },
-  { id: "services", label: "Services", icon: FiTool, path: "/admin/services" },
-  { id: "support", label: "Support", icon: FiHeadphones, path: "/admin/support" },
+  { id: "dashboard", module: "DASHBOARD", label: "Dashboard", icon: FiGrid, path: "/admin/dashboard" },
+  { id: "projects", module: "PROJECTS", label: "Projects", icon: FiFolder, path: "/admin/projects" },
+  { id: "vendors", module: "VENDORS", label: "Vendors", icon: FiUsers, path: "/admin/vendors" },
+  { id: "invoices", module: "INVOICES", label: "Invoices", icon: FiFileText, path: "/admin/invoices" },
+  { id: "analytics", module: "ANALYTICS", label: "Analytics", icon: FiBarChart2, path: "/admin/analytics" },
+  { id: "services", module: "SERVICES", label: "Services", icon: FiTool, path: "/admin/services" },
+  { id: "support", module: "SUPPORT", label: "Support", icon: FiHeadphones, path: "/admin/support" },
 ];
 
 const AdminSidebar = ({
@@ -33,6 +34,9 @@ const AdminSidebar = ({
     propCollapsed !== undefined ? propCollapsed : internalCollapsed;
 
   const setCollapsed = propSetCollapsed || setInternalCollapsed;
+  const { canAccessModule } = usePermissions();
+
+  const visibleNavItems = navItems.filter((item) => canAccessModule(item.module));
 
   const activeTab = location.pathname.startsWith("/admin/services")
     ? "services"
@@ -85,27 +89,33 @@ const AdminSidebar = ({
 
         {/* Navigation */}
         <nav className="space-y-1.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
+          {visibleNavItems.length > 0 ? (
+            visibleNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-[#C8B5AC] text-[#3E3734] font-semibold shadow-sm"
-                    : "text-[#817B77] hover:bg-[#EAE4DF] hover:text-[#4A423F]"
-                } ${collapsed ? "justify-center px-0" : ""}`}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="text-base shrink-0" />
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                    isActive
+                      ? "bg-[#C8B5AC] text-[#3E3734] font-semibold shadow-sm"
+                      : "text-[#817B77] hover:bg-[#EAE4DF] hover:text-[#4A423F]"
+                  } ${collapsed ? "justify-center px-0" : ""}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon className="text-base shrink-0" />
 
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            );
-          })}
+                  {!collapsed && <span>{item.label}</span>}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3 py-4 text-center text-xs text-[#817B77]">
+              {!collapsed && <span>No accessible modules</span>}
+            </div>
+          )}
         </nav>
       </div>
     </aside>

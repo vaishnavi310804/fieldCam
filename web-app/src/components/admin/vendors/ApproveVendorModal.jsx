@@ -23,10 +23,12 @@ import {
   rejectVendorRegistration,
 } from "../../../services/vendorRegistrationService";
 import { getSubscriptionPlans } from "../../../services/subscriptionService";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const STATUS_FILTERS = ["All", "Pending", "Approved", "Rejected"];
 
 const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
+  const { can } = usePermissions();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -99,6 +101,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
   };
 
   const handleConfirmApprove = async () => {
+    if (!can("VENDORS", "REGISTRATIONS_REVIEW")) return;
     if (!selectedRequestForApprove || isProcessingAction) return;
 
     try {
@@ -145,6 +148,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
   };
 
   const handleConfirmReject = async () => {
+    if (!can("VENDORS", "REGISTRATIONS_REVIEW")) return;
     if (!selectedRequestForReject || isProcessingAction) return;
 
     try {
@@ -432,7 +436,7 @@ const ApproveVendorModal = ({ isOpen, onClose, onVendorApproved }) => {
                     </div>
 
                     {/* Action Buttons for PENDING requests */}
-                    {isPending && (
+                    {isPending && can("VENDORS", "REGISTRATIONS_REVIEW") && (
                       <div className="pt-3 border-t border-[#F0EBE8] flex items-center justify-end gap-2 mt-2">
                         <button
                           type="button"

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import validate from "../../middleware/validate.js";
 import {
   submitRegistrationValidation,
@@ -24,37 +25,37 @@ router.post(
   submitRegistrationController
 );
 
-// GET /api/vendor-registrations - List all registration requests (ADMIN only)
+// GET /api/vendor-registrations - List all registration requests (Admin: VENDORS:REGISTRATIONS_REVIEW)
 router.get(
   "/",
   protect,
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "REGISTRATIONS_REVIEW"),
   getRegistrationsController
 );
 
-// GET /api/vendor-registrations/:id - Read single registration request (ADMIN only)
+// GET /api/vendor-registrations/:id - Read single registration request (Admin: VENDORS:REGISTRATIONS_REVIEW)
 router.get(
   "/:id",
   protect,
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "REGISTRATIONS_REVIEW"),
   getRegistrationByIdController
 );
 
-// POST /api/vendor-registrations/:id/approve - Approve request and provision vendor (ADMIN only)
+// POST /api/vendor-registrations/:id/approve - Approve request and provision vendor (Admin: VENDORS:REGISTRATIONS_REVIEW)
 router.post(
   "/:id/approve",
   protect,
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "REGISTRATIONS_REVIEW"),
   approveRegistrationValidation,
   validate,
   approveRegistrationController
 );
 
-// POST /api/vendor-registrations/:id/reject - Reject request and notify applicant (ADMIN only)
+// POST /api/vendor-registrations/:id/reject - Reject request and notify applicant (Admin: VENDORS:REGISTRATIONS_REVIEW)
 router.post(
   "/:id/reject",
   protect,
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.VENDORS, "REGISTRATIONS_REVIEW"),
   rejectRegistrationValidation,
   validate,
   rejectRegistrationController

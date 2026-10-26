@@ -9,6 +9,8 @@ import VendorRegistrationRequest from "../pages/auth/VendorRegistrationRequest";
 import SuperAdminDashboard from "../pages/super-admin/Dashboard";
 import SuperAdminCompanies from "../pages/super-admin/Companies";
 import SuperAdminSubscriptions from "../pages/super-admin/Subscriptions";
+import SuperAdminRoles from "../pages/super-admin/Roles";
+import SuperAdminAdminUsers from "../pages/super-admin/AdminUsers";
 import SuperAdminSettings from "../pages/super-admin/SystemSettings";
 import EditEmailTemplate from "../pages/super-admin/EditEmailTemplate";
 import AdminDashboard from "../pages/admin/Dashboard";
@@ -56,21 +58,41 @@ const AppRoutes = () => {
         <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
         <Route path="/super-admin/companies" element={<SuperAdminCompanies />} />
         <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
+        <Route path="/super-admin/roles" element={<SuperAdminRoles />} />
+        <Route path="/super-admin/admin-users" element={<SuperAdminAdminUsers />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
         <Route path="/super-admin/settings/email-templates/:templateId" element={<EditEmailTemplate />} />
       </Route>
 
       {/* Admin Protected Routes */}
       <Route element={<ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN"]} />}>
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/projects" element={<AdminProjects />} />
-        <Route path="/admin/projects/new" element={<CreateProject />} />
-        <Route path="/admin/projects/:id/review" element={<ReviewSubmission />} />
-        <Route path="/admin/vendors" element={<AdminVendors />} />
-        <Route path="/admin/invoices" element={<AdminInvoices />} />
-        <Route path="/admin/analytics" element={<AdminAnalytics />} />
-        <Route path="/admin/services" element={<AdminServices />} />
-        <Route path="/admin/support" element={<AdminSupport />} />
+        <Route element={<ProtectedRoute requiredModule="DASHBOARD" />}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="PROJECTS" />}>
+          <Route path="/admin/projects" element={<AdminProjects />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredPermission={{ module: "PROJECTS", action: "CREATE" }} />}>
+          <Route path="/admin/projects/new" element={<CreateProject />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredPermission={{ module: "PROJECTS", action: "REVIEW" }} />}>
+          <Route path="/admin/projects/:id/review" element={<ReviewSubmission />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="VENDORS" />}>
+          <Route path="/admin/vendors" element={<AdminVendors />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="INVOICES" />}>
+          <Route path="/admin/invoices" element={<AdminInvoices />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="ANALYTICS" />}>
+          <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="SERVICES" />}>
+          <Route path="/admin/services" element={<AdminServices />} />
+        </Route>
+        <Route element={<ProtectedRoute requiredModule="SUPPORT" />}>
+          <Route path="/admin/support" element={<AdminSupport />} />
+        </Route>
         <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/admin/activity" element={<AdminActivity />} />
       </Route>

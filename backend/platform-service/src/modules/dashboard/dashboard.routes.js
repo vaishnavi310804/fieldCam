@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, authorize, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import {
   getAdminDashboardStatsController,
   getSuperAdminDashboardStatsController,
@@ -7,11 +8,11 @@ import {
 
 const router = Router();
 
-// GET /api/dashboard/stats - Aggregate Admin Dashboard metrics (SUPER_ADMIN, ADMIN)
+// GET /api/dashboard/stats - Aggregate Admin Dashboard metrics (SUPER_ADMIN, ADMIN with DASHBOARD:VIEW)
 router.get(
   "/stats",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.DASHBOARD, "VIEW"),
   getAdminDashboardStatsController
 );
 

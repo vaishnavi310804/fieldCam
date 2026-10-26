@@ -6,10 +6,12 @@ import ProjectFilters from "../../components/admin/projects/ProjectFilters";
 import ProjectTable from "../../components/admin/projects/ProjectTable";
 import { getProjects, updateProjectStatus } from "../../services/projectService";
 import { useAuth } from "../../context/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 
 const Projects = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -41,6 +43,7 @@ const Projects = () => {
   }, []);
 
   const handleUpdateStatus = async (id, status, rejectionReason) => {
+    if (!can("PROJECTS", "REVIEW")) return;
     await updateProjectStatus(id, status, rejectionReason);
     // Refresh projects list after status mutation
     await loadProjects();

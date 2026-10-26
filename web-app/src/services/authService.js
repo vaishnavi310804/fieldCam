@@ -65,5 +65,10 @@ export const resetPassword = async ({ resetToken, newPassword }) => {
   return response.data;
 };
 
+export const getMyPermissions = async () => {
+  const response = await authApi.get("/auth/me/permissions");
+  return response.data;
+};
+
 
 

@@ -11,6 +11,7 @@ import {
   FiAlertTriangle,
 } from "react-icons/fi";
 import VendorStatusBadge from "./VendorStatusBadge";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const VendorCard = ({
   vendor,
@@ -19,6 +20,7 @@ const VendorCard = ({
   onAssignProject,
   onViewProfile,
 }) => {
+  const { can } = usePermissions();
   const company = vendor.companyName || vendor.company || "Unnamed Vendor";
   const contact = vendor.contactName || vendor.contact || "No Contact";
   const initials =
@@ -156,7 +158,7 @@ const VendorCard = ({
           <span>View Profile</span>
         </button>
 
-        {!readOnly && (
+        {!readOnly && can("PROJECTS", "ASSIGN") && (
           <button
             onClick={() => onAssignProject && onAssignProject(vendor)}
             className="flex-1 py-2 px-3 rounded-xl bg-[#8A817C] hover:bg-[#6E6763] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
@@ -166,7 +168,7 @@ const VendorCard = ({
           </button>
         )}
 
-        {!readOnly && onStatusChange && (
+        {!readOnly && onStatusChange && can("VENDORS", "STATUS") && (
           <button
             onClick={() => {
               const nextStatus =
@@ -177,7 +179,7 @@ const VendorCard = ({
                   : "Active";
               onStatusChange(vendor._id, nextStatus);
             }}
-            className="p-2.5 text-[#A39A94] hover:text-[#3E3734] hover:bg-[#F2EBE5] rounded-xl border border-[#E8E2DE] transition-colors"
+            className="p-2.5 text-[#A39A94] hover:text-[#3E3734] hover:bg-[#F2EBE5] rounded-xl border border-[#E8E2DE] transition-colors cursor-pointer"
             title={`Toggle status (Current: ${vendor.status})`}
             aria-label="Toggle vendor status"
           >

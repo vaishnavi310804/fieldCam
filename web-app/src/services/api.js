@@ -90,7 +90,8 @@ export const handleResponseError = (error) => {
 };
 
 export const authApi = axios.create({
-  baseURL: "https://fieldcam-auth-service-bhzm.onrender.com/api",
+  baseURL: "http://192.168.29.120:5000/api",
+  // baseURL: "https://fieldcam-auth-service-bhzm.onrender.com/api",
 });
 
 authApi.interceptors.request.use(
@@ -112,7 +113,8 @@ authApi.interceptors.response.use(
 );
 
 export const platformApi = axios.create({
-  baseURL: "https://fieldcam-platform-service.onrender.com/api",
+  baseURL: "http://192.168.29.120:5001/api",
+  // baseURL: "https://fieldcam-platform-service.onrender.com/api",
 });
 
 platformApi.interceptors.request.use(

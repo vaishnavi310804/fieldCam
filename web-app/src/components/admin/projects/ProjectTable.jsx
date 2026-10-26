@@ -18,6 +18,7 @@ import {
   FiUserPlus,
 } from "react-icons/fi";
 import AssignVendorModal from "./AssignVendorModal";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const ALLOWED_STATUSES = [
   "New",
@@ -37,6 +38,7 @@ const ProjectTable = ({
   isReadOnly = false,
 }) => {
   const navigate = useNavigate();
+  const { can } = usePermissions();
 
   // Modal State
   const [selectedProject, setSelectedProject] = useState(null);
@@ -58,6 +60,7 @@ const ProjectTable = ({
   };
 
   const handleOpenStatusModal = (project) => {
+    if (!can("PROJECTS", "REVIEW")) return;
     setStatusModalProject(project);
     setNewStatus(project.status || "New");
     setRejectionReason(project.rejectionReason || "");
@@ -74,6 +77,7 @@ const ProjectTable = ({
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   const handleOpenAssignModal = (project) => {
+    if (!can("PROJECTS", "ASSIGN")) return;
     setAssignModalProject(project);
     setIsAssignModalOpen(true);
   };
@@ -90,6 +94,7 @@ const ProjectTable = ({
 
   const handleSaveStatus = async (e) => {
     e.preventDefault();
+    if (!can("PROJECTS", "REVIEW")) return;
     setStatusError("");
 
     if (newStatus === "Rejected" && !rejectionReason.trim()) {
@@ -224,7 +229,7 @@ const ProjectTable = ({
 
                     {/* Vendor */}
                     <td className="py-3.5 px-4 font-semibold text-[#3E3734]">
-                      {isNeverAssigned(project) && !isReadOnly ? (
+                      {isNeverAssigned(project) && !isReadOnly && can("PROJECTS", "ASSIGN") ? (
                         <button
                           type="button"
                           onClick={() => handleOpenAssignModal(project)}
@@ -319,16 +324,18 @@ const ProjectTable = ({
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          title="Review Submission"
-                          onClick={() =>
-                            navigate(`/admin/projects/${project._id || project.id}/review`)
-                          }
-                          className="bg-[#FAF7F5] hover:bg-[#EAE4DF] border border-[#E8E2DE] text-[#3E3734] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-xs cursor-pointer"
-                        >
-                          <FiCheckSquare className="text-xs text-[#8A817C]" />
-                          <span>Review</span>
-                        </button>
+                        {can("PROJECTS", "REVIEW") && (
+                          <button
+                            title="Review Submission"
+                            onClick={() =>
+                              navigate(`/admin/projects/${project._id || project.id}/review`)
+                            }
+                            className="bg-[#FAF7F5] hover:bg-[#EAE4DF] border border-[#E8E2DE] text-[#3E3734] px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold shadow-xs cursor-pointer"
+                          >
+                            <FiCheckSquare className="text-xs text-[#8A817C]" />
+                            <span>Review</span>
+                          </button>
+                        )}
                         <button
                           title="View Quick Modal"
                           onClick={() => handleOpenViewModal(project)}
@@ -336,7 +343,7 @@ const ProjectTable = ({
                         >
                           <FiEye className="text-sm" />
                         </button>
-                        {!isReadOnly && (
+                        {!isReadOnly && can("PROJECTS", "REVIEW") && (
                           <button
                             title="Update Status"
                             onClick={() => handleOpenStatusModal(project)}
@@ -416,7 +423,7 @@ const ProjectTable = ({
               </div>
               <div>
                 <span className="font-semibold text-[#817B77]">Vendor:</span>{" "}
-                {isNeverAssigned(selectedProject) && !isReadOnly ? (
+                {isNeverAssigned(selectedProject) && !isReadOnly && can("PROJECTS", "ASSIGN") ? (
                   <span className="inline-flex items-center gap-2 mt-0.5">
                     <span className="text-[#817B77] italic">Unassigned</span>
                     <button

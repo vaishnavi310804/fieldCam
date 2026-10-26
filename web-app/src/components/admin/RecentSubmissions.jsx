@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { FiMapPin, FiCalendar, FiMoreHorizontal, FiFolder } from "react-icons/fi";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const getStatusStyle = (status) => {
   switch (status) {
@@ -20,17 +21,21 @@ const getStatusStyle = (status) => {
 };
 
 const RecentSubmissions = ({ submissions = [], loading = false }) => {
+  const { canAccessModule } = usePermissions();
+
   return (
     <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-[#3E3734]">Recent Submissions</h2>
-        <Link
-          to="/admin/projects"
-          className="bg-[#F2EBE5] hover:bg-[#EAE4DF] text-[#6E6763] hover:text-[#3E3734] px-3 py-1 rounded-full text-xs font-semibold transition-colors"
-        >
-          View All
-        </Link>
+        {canAccessModule("PROJECTS") && (
+          <Link
+            to="/admin/projects"
+            className="bg-[#F2EBE5] hover:bg-[#EAE4DF] text-[#6E6763] hover:text-[#3E3734] px-3 py-1 rounded-full text-xs font-semibold transition-colors"
+          >
+            View All
+          </Link>
+        )}
       </div>
 
       {/* Content area */}
@@ -108,12 +113,18 @@ const RecentSubmissions = ({ submissions = [], loading = false }) => {
 
                     {/* Actions Menu */}
                     <td className="py-3 text-right">
-                      <Link
-                        to={`/admin/projects`}
-                        className="text-[#A39A94] hover:text-[#3E3734] p-1 rounded-md hover:bg-[#EAE4DF]/50 transition-colors inline-block"
-                      >
-                        <FiMoreHorizontal className="text-base" />
-                      </Link>
+                      {canAccessModule("PROJECTS") ? (
+                        <Link
+                          to={`/admin/projects`}
+                          className="text-[#A39A94] hover:text-[#3E3734] p-1 rounded-md hover:bg-[#EAE4DF]/50 transition-colors inline-block"
+                        >
+                          <FiMoreHorizontal className="text-base" />
+                        </Link>
+                      ) : (
+                        <span className="p-1 inline-block text-[#D1C9C5]">
+                          <FiMoreHorizontal className="text-base opacity-40 cursor-not-allowed" />
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

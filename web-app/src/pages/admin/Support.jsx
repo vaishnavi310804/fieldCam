@@ -14,10 +14,12 @@ import {
   updateSupportTicketStatus,
 } from "../../services/supportService";
 import { useAuth } from "../../context/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { FiAlertCircle, FiRefreshCw, FiMessageSquare } from "react-icons/fi";
 
 const Support = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -63,16 +65,19 @@ const Support = () => {
   }, [user]);
 
   const handleCreateTicket = async (payload) => {
+    if (!can("SUPPORT", "CREATE")) return;
     await createSupportTicket(payload);
     await loadData();
   };
 
   const handleUpdateStatus = async (id, status) => {
+    if (!can("SUPPORT", "STATUS")) return;
     await updateSupportTicketStatus(id, status);
     await loadData();
   };
 
   const handleEditTicket = async (id, updateData) => {
+    if (!can("SUPPORT", "EDIT")) return;
     await updateSupportTicket(id, updateData);
     await loadData();
   };
@@ -107,7 +112,8 @@ const Support = () => {
     });
   }, [allTickets, searchTerm, activeFilter]);
 
-  const isChatTab = user?.role === "ADMIN" && activeTab === "chat";
+  const canChat = can("SUPPORT", "CHAT");
+  const isChatTab = canChat && activeTab === "chat";
 
   return (
     <div
@@ -154,8 +160,8 @@ const Support = () => {
             </div>
           )}
 
-          {/* Navigation Section Tabs for ADMIN role */}
-          {user?.role === "ADMIN" && (
+          {/* Navigation Section Tabs when user has CHAT permission */}
+          {canChat && (
             <div className="shrink-0 flex items-center gap-2 border-b border-[#E8E2DE] pb-1">
               <button
                 type="button"

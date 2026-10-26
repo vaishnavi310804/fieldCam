@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import validate from "../../middleware/validate.js";
 import {
   createTicketValidation,
@@ -17,55 +18,55 @@ import {
 
 const router = Router();
 
-// GET /api/support/tickets - Read support tickets (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/support/tickets - Read support tickets (Admin: SUPPORT:VIEW, Vendor: scoped)
 router.get(
   "/tickets",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "VIEW", { allowRoles: ["VENDOR"] }),
   getTicketsController
 );
 
-// GET /api/support/stats - Aggregate support ticket statistics (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/support/stats - Aggregate support ticket statistics (Admin: SUPPORT:VIEW, Vendor: scoped)
 router.get(
   "/stats",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "VIEW", { allowRoles: ["VENDOR"] }),
   getTicketStatsController
 );
 
-// GET /api/support/tickets/:id - Read single support ticket details by Mongo _id or ticketId (SUPER_ADMIN, ADMIN, VENDOR)
+// GET /api/support/tickets/:id - Read single support ticket details (Admin: SUPPORT:VIEW, Vendor: scoped)
 router.get(
   "/tickets/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "VIEW", { allowRoles: ["VENDOR"] }),
   getTicketByIdController
 );
 
-// POST /api/support/tickets - Create a new support ticket (SUPER_ADMIN, ADMIN, VENDOR)
+// POST /api/support/tickets - Create a new support ticket (Admin: SUPPORT:CREATE, Vendor: create ticket)
 router.post(
   "/tickets",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "CREATE", { allowRoles: ["VENDOR"] }),
   createTicketValidation,
   validate,
   createTicketController
 );
 
-// PUT /api/support/tickets/:id - Update existing support ticket (SUPER_ADMIN, ADMIN)
+// PUT /api/support/tickets/:id - Update existing support ticket (Admin: SUPPORT:EDIT)
 router.put(
   "/tickets/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "EDIT"),
   updateTicketValidation,
   validate,
   updateTicketController
 );
 
-// PATCH /api/support/tickets/:id/status - Update ticket status (SUPER_ADMIN, ADMIN)
+// PATCH /api/support/tickets/:id/status - Update ticket status (Admin: SUPPORT:STATUS)
 router.patch(
   "/tickets/:id/status",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "STATUS"),
   updateTicketStatusValidation,
   validate,
   updateTicketStatusController

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TicketPriorityBadge from "./TicketPriorityBadge";
 import TicketStatusBadge from "./TicketStatusBadge";
+import { usePermissions } from "../../../hooks/usePermissions";
 import {
   FiChevronDown,
   FiEye,
@@ -19,6 +20,7 @@ const SupportTable = ({
   onEditTicket,
   isReadOnly = false,
 }) => {
+  const { can } = usePermissions();
   // View Modal State
   const [viewTicket, setViewTicket] = useState(null);
 
@@ -40,12 +42,14 @@ const SupportTable = ({
   };
 
   const handleOpenStatus = (ticket) => {
+    if (!can("SUPPORT", "STATUS")) return;
     setStatusTicket(ticket);
     setNewStatus(ticket.status || "Open");
     setStatusError("");
   };
 
   const handleOpenEdit = (ticket) => {
+    if (!can("SUPPORT", "EDIT")) return;
     setEditTicket(ticket);
     setEditPriority(ticket.priority || "Medium");
     setEditStatus(ticket.status || "Open");
@@ -54,6 +58,7 @@ const SupportTable = ({
 
   const handleSaveStatus = async (e) => {
     e.preventDefault();
+    if (!can("SUPPORT", "STATUS")) return;
     setStatusError("");
     try {
       setIsSubmittingStatus(true);
@@ -70,6 +75,7 @@ const SupportTable = ({
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
+    if (!can("SUPPORT", "EDIT")) return;
     setEditError("");
 
     try {
@@ -243,32 +249,36 @@ const SupportTable = ({
                         {!isReadOnly && (
                           <>
                             {/* 2. Change Status */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenStatus(row);
-                              }}
-                              aria-label="Change status"
-                              title="Change status"
-                              className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#2E7D32] hover:bg-[#E8F5E9]/60 focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 transition-colors cursor-pointer"
-                            >
-                              <FiCheckCircle className="text-sm shrink-0" />
-                            </button>
+                            {can("SUPPORT", "STATUS") && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenStatus(row);
+                                }}
+                                aria-label="Change status"
+                                title="Change status"
+                                className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#2E7D32] hover:bg-[#E8F5E9]/60 focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 transition-colors cursor-pointer"
+                              >
+                                <FiCheckCircle className="text-sm shrink-0" />
+                              </button>
+                            )}
 
                             {/* 3. Edit Ticket */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenEdit(row);
-                              }}
-                              aria-label="Edit ticket"
-                              title="Edit ticket"
-                              className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#D97706] hover:bg-[#FEF3C7]/60 focus:outline-none focus:ring-2 focus:ring-[#D97706]/30 transition-colors cursor-pointer"
-                            >
-                              <FiEdit2 className="text-sm shrink-0" />
-                            </button>
+                            {can("SUPPORT", "EDIT") && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEdit(row);
+                                }}
+                                aria-label="Edit ticket"
+                                title="Edit ticket"
+                                className="p-1.5 rounded-lg text-[#6E6763] hover:text-[#D97706] hover:bg-[#FEF3C7]/60 focus:outline-none focus:ring-2 focus:ring-[#D97706]/30 transition-colors cursor-pointer"
+                              >
+                                <FiEdit2 className="text-sm shrink-0" />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>

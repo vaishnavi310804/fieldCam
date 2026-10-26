@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiDownload, FiPlus } from "react-icons/fi";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const ProjectToolbar = ({ searchTerm, setSearchTerm, isReadOnly = false }) => {
   const navigate = useNavigate();
+  const { can } = usePermissions();
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
@@ -21,16 +23,18 @@ const ProjectToolbar = ({ searchTerm, setSearchTerm, isReadOnly = false }) => {
       {/* Action Buttons */}
       <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
         {/* Export Button */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 bg-white border border-[#E8E2DE] hover:bg-[#F7F4F2] text-[#4A423F] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
-        >
-          <FiDownload className="text-sm" />
-          <span>Export</span>
-        </button>
+        {can("PROJECTS", "EXPORT") && (
+          <button
+            type="button"
+            className="flex items-center gap-1.5 bg-white border border-[#E8E2DE] hover:bg-[#F7F4F2] text-[#4A423F] px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
+          >
+            <FiDownload className="text-sm" />
+            <span>Export</span>
+          </button>
+        )}
 
         {/* New Project Button */}
-        {!isReadOnly && (
+        {!isReadOnly && can("PROJECTS", "CREATE") && (
           <button
             type="button"
             onClick={() => navigate("/admin/projects/new")}

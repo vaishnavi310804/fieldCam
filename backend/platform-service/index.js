@@ -15,6 +15,8 @@ import subscriptionRoutes from "./src/modules/subscription/subscription.routes.j
 import chatRoutes from "./src/modules/chat/chat.routes.js";
 import vendorRegistrationRoutes from "./src/modules/vendorRegistration/vendorRegistration.routes.js";
 import analyticsRoutes from "./src/modules/analytics/analytics.routes.js";
+import roleRoutes from "./src/modules/roles/role.routes.js";
+import adminUserRoutes from "./src/modules/adminUsers/adminUser.routes.js";
 
 const app = express();
 
@@ -41,6 +43,9 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/vendor-registrations", vendorRegistrationRoutes);
 app.use("/api/vendor-registration-requests", vendorRegistrationRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/roles", roleRoutes);
+app.use("/api/admin-users", adminUserRoutes);
+app.use("/api/admins", adminUserRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

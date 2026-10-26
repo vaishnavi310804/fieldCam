@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, authorize, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import validate from "../../middleware/validate.js";
 import {
   createProjectValidation,
@@ -34,14 +35,15 @@ import { handleUpload, handleVendorPhotoUpload } from "../../middleware/upload.m
 
 const router = Router();
 
+// GET /api/projects - List projects (Admin: PROJECTS:VIEW, Vendor: own projects)
 router.get(
   "/",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "VIEW", { allowRoles: ["VENDOR"] }),
   getProjectsController
 );
 
-// GET /api/projects/staff/me - Get projects assigned to the authenticated staff member (STAFF)
+// GET /api/projects/staff/me - Get projects assigned to authenticated staff member (STAFF)
 router.get(
   "/staff/me",
   protect,
@@ -77,66 +79,70 @@ router.post(
   rejectProjectController
 );
 
-// GET /api/projects/:id/report/pdf - Download project report PDF (SUPER_ADMIN, ADMIN, VENDOR, STAFF)
+// GET /api/projects/:id/report/pdf - Download project report PDF (Admin: PROJECTS:EXPORT, Vendor/Staff: scoped)
 router.get(
   "/:id/report/pdf",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "EXPORT", { allowRoles: ["VENDOR", "STAFF"] }),
   downloadProjectReportPdfController
 );
 
-// GET /api/projects/:id - Read single project details (SUPER_ADMIN, ADMIN, VENDOR, STAFF)
+// GET /api/projects/:id - Read single project details (Admin: PROJECTS:VIEW, Vendor/Staff: scoped)
 router.get(
   "/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR", "STAFF"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "VIEW", { allowRoles: ["VENDOR", "STAFF"] }),
   getProjectByIdController
 );
 
-// POST /api/projects - Create a new project (SUPER_ADMIN, ADMIN)
+// POST /api/projects - Create a new project (Admin: PROJECTS:CREATE)
 router.post(
   "/",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "CREATE"),
   handleUpload,
   createProjectValidation,
   validate,
   createProjectController
 );
 
-// PUT /api/projects/:id - Update existing project (SUPER_ADMIN, ADMIN)
+// PUT /api/projects/:id - Update existing project (Admin: PROJECTS:EDIT)
 router.put(
   "/:id",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "EDIT"),
   updateProjectValidation,
   validate,
   updateProjectController
 );
 
-// PATCH /api/projects/:id/status - Update project status (SUPER_ADMIN, ADMIN)
+// PATCH /api/projects/:id/status - Review project / status transition (Admin: PROJECTS:REVIEW)
 router.patch(
   "/:id/status",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "REVIEW"),
   updateProjectStatusValidation,
   validate,
   updateProjectStatusController
 );
+
+// GET /api/projects/:id/notes - Read project notes (Admin: PROJECTS:VIEW, Vendor: scoped)
 router.get(
   "/:id/notes",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "VIEW", { allowRoles: ["VENDOR"] }),
   getProjectNotesController
 );
+
+// POST /api/projects/:id/notes - Add project note (Admin: PROJECTS:EDIT, Vendor: scoped)
 router.post(
   "/:id/notes",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN", "VENDOR"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "EDIT", { allowRoles: ["VENDOR"] }),
   addProjectNoteController
 );
 
-// POST /api/projects/:id/photos - Vendor or assigned Staff uploads photo for a checklist item (VENDOR, STAFF)
+// POST /api/projects/:id/photos - Vendor or assigned Staff uploads photo (VENDOR, STAFF)
 router.post(
   "/:id/photos",
   protect,
@@ -167,7 +173,7 @@ router.delete(
   deleteVendorPhotoController
 );
 
-// POST /api/projects/:id/photos/:photoId/revalidate - Vendor or assigned Staff revalidates photo with AI (VENDOR, STAFF)
+// POST /api/projects/:id/photos/:photoId/revalidate - Vendor or assigned Staff revalidates photo (VENDOR, STAFF)
 router.post(
   "/:id/photos/:photoId/revalidate",
   protect,
@@ -175,11 +181,11 @@ router.post(
   revalidateVendorPhotoController
 );
 
-// POST or PATCH /api/projects/:id/assign - Assign project to a vendor (SUPER_ADMIN, ADMIN)
+// POST or PATCH /api/projects/:id/assign - Assign project to a vendor (Admin: PROJECTS:ASSIGN)
 router.post(
   "/:id/assign",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "ASSIGN"),
   assignVendorValidation,
   validate,
   assignVendorController
@@ -187,7 +193,7 @@ router.post(
 router.patch(
   "/:id/assign",
   protect,
-  authorize("SUPER_ADMIN", "ADMIN"),
+  requirePermission(PERMISSION_MODULES.PROJECTS, "ASSIGN"),
   assignVendorValidation,
   validate,
   assignVendorController

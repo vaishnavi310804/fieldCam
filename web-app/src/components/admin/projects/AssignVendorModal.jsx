@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getVendors } from "../../../services/vendorService";
 import { assignVendorToProject } from "../../../services/projectService";
+import { usePermissions } from "../../../hooks/usePermissions";
 import {
   FiX,
   FiCheckCircle,
@@ -13,6 +14,7 @@ import {
 } from "react-icons/fi";
 
 const AssignVendorModal = ({ isOpen, onClose, project, onAssignSuccess }) => {
+  const { can } = usePermissions();
   const [vendors, setVendors] = useState([]);
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [loadingVendors, setLoadingVendors] = useState(false);
@@ -52,6 +54,7 @@ const AssignVendorModal = ({ isOpen, onClose, project, onAssignSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!can("PROJECTS", "ASSIGN")) return;
     setError("");
 
     if (!selectedVendorId) {
@@ -224,7 +227,7 @@ const AssignVendorModal = ({ isOpen, onClose, project, onAssignSuccess }) => {
 
             <button
               type="submit"
-              disabled={isSubmitting || loadingVendors || !selectedVendorId}
+              disabled={isSubmitting || loadingVendors || !selectedVendorId || !can("PROJECTS", "ASSIGN")}
               className="bg-[#8A817C] hover:bg-[#6E6763] text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
             >
               <FiCheckCircle className="text-xs" />

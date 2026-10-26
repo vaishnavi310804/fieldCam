@@ -7,6 +7,7 @@ import StaffHeader from "../../components/staff/StaffHeader";
 import ProjectStatusBadge from "../../components/admin/projects/ProjectStatusBadge";
 import { getProjectById, updateProjectStatus, getProjectHistory } from "../../services/projectService";
 import { useAuth } from "../../context/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -31,6 +32,7 @@ import {
 const ReviewSubmission = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const { can } = usePermissions();
   const isStaff = user?.role === "STAFF";
 
   const [collapsed, setCollapsed] = useState(false);
@@ -106,6 +108,7 @@ const ReviewSubmission = () => {
   };
 
   const handleReviewAction = async (targetStatus) => {
+    if (!isStaff && !can("PROJECTS", "REVIEW")) return;
     setActionMessage(null);
 
     if (targetStatus === "Rejected" && !adminComments.trim()) {
@@ -796,7 +799,7 @@ const ReviewSubmission = () => {
                 )}
 
                 {/* Active Review Action Panel (For Submitted / Under Review / Reviewable states) */}
-                {!isStaff && !isTerminalOrLocked && !isInProgress && !isNewOrAssigned && (
+                {!isStaff && !isTerminalOrLocked && !isInProgress && !isNewOrAssigned && can("PROJECTS", "REVIEW") && (
                   <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4">
                     <div className="flex items-center justify-between border-b border-[#F2EBE5] pb-3">
                       <h2 className="text-sm font-bold text-[#3E3734]">

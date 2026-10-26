@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { protect, authorize } from "../../middleware/auth.middleware.js";
+import { protect, authorize, requirePermission } from "../../middleware/auth.middleware.js";
+import { PERMISSION_MODULES } from "../roles/role.model.js";
 import validate from "../../middleware/validate.js";
 import {
   sendMessageValidation,
@@ -39,20 +40,20 @@ router.post(
 );
 
 // -------------------------------------------------------------
-// Admin Live Chat Endpoints (Strictly ADMIN role)
+// Admin Live Chat Endpoints (Admin: SUPPORT:CHAT)
 // -------------------------------------------------------------
 
 // GET /api/chat/admin/conversations - List all vendor conversations
 router.get(
   "/admin/conversations",
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "CHAT"),
   getAdminConversationsController
 );
 
 // GET /api/chat/admin/conversations/:id/messages - Read messages for a specific conversation
 router.get(
   "/admin/conversations/:id/messages",
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "CHAT"),
   conversationIdParamValidation,
   validate,
   getAdminConversationMessagesController
@@ -61,7 +62,7 @@ router.get(
 // POST /api/chat/admin/conversations/:id/messages - Send Admin reply to a specific conversation
 router.post(
   "/admin/conversations/:id/messages",
-  authorize("ADMIN"),
+  requirePermission(PERMISSION_MODULES.SUPPORT, "CHAT"),
   conversationIdParamValidation,
   sendMessageValidation,
   validate,

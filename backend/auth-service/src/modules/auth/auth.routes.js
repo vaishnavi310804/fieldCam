@@ -12,6 +12,7 @@ import {
   resetPasswordController,
   getProfileController,
   updateProfileController,
+  getEffectivePermissionsController,
 } from "./auth.controller.js";
 
 import {
@@ -32,6 +33,8 @@ import { protect } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 
+router.get("/me/permissions", protect, getEffectivePermissionsController);
+router.get("/permissions", protect, getEffectivePermissionsController);
 router.get("/me", protect, getProfileController);
 router.put(
   "/me",

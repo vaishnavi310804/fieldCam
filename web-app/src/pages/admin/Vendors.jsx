@@ -9,6 +9,7 @@ import ApproveVendorModal from "../../components/admin/vendors/ApproveVendorModa
 import AssignProjectModal from "../../components/admin/vendors/AssignProjectModal";
 import VendorProfileModal from "../../components/admin/vendors/VendorProfileModal";
 import { useAuth } from "../../context/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import {
   getVendors,
   getVendorStats,
@@ -19,6 +20,7 @@ import { FiLoader, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
 
 const Vendors = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const readOnly = user?.role === "VENDOR";
 
   const [collapsed, setCollapsed] = useState(false);
@@ -71,7 +73,7 @@ const Vendors = () => {
   }, []);
 
   const handleCreateVendor = async (payload) => {
-    if (readOnly) return;
+    if (readOnly || !can("VENDORS", "CREATE")) return;
     try {
       setError("");
       await createVendor(payload);
@@ -86,7 +88,7 @@ const Vendors = () => {
   };
 
   const handleAssignProject = (vendor) => {
-    if (readOnly) return;
+    if (readOnly || !can("PROJECTS", "ASSIGN")) return;
     setSelectedVendorForAssign(vendor);
     setIsAssignModalOpen(true);
   };
@@ -103,7 +105,7 @@ const Vendors = () => {
   };
 
   const handleStatusChange = async (vendorId, newStatus) => {
-    if (readOnly) return;
+    if (readOnly || !can("VENDORS", "STATUS")) return;
 
     try {
       setError("");

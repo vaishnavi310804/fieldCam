@@ -35,6 +35,11 @@ export const createUserByAdminValidation = [
     .optional({ nullable: true })
     .isMongoId()
     .withMessage("Invalid company ID"),
+
+  body("roleId")
+    .optional({ nullable: true })
+    .isMongoId()
+    .withMessage("Invalid role ID"),
 ];
 
 export const webLoginValidation = [

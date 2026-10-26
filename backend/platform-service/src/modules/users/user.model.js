@@ -39,6 +39,12 @@ const userSchema = new mongoose.Schema(
       default: "STAFF",
     },
 
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      default: null,
+    },
+
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,

@@ -12,13 +12,21 @@ import {
   updateService,
   updateServiceStatus,
 } from "../../services/serviceService";
+import { usePermissions } from "../../hooks/usePermissions";
 import { FiCheckCircle, FiAlertCircle, FiPlus, FiTag, FiToggleLeft, FiToggleRight, FiLoader } from "react-icons/fi";
 
 const DEFAULT_CHECKLIST = [];
 
 const Services = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const readOnly = user?.role === "VENDOR";
+
+  const canEdit = can("SERVICES", "EDIT");
+  const canCreate = can("SERVICES", "CREATE");
+  const canStatus = can("SERVICES", "STATUS");
+  const canSaveCurrent = selectedServiceId ? canEdit : canCreate;
+  const isFormEditable = !readOnly && canSaveCurrent;
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -84,6 +92,7 @@ const Services = () => {
   };
 
   const handleCreateNew = () => {
+    if (readOnly || !canCreate) return;
     setSelectedServiceId(null);
     setServiceCategory("Maintenance");
     setServiceTypeName("");
@@ -101,7 +110,7 @@ const Services = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (readOnly) return;
+    if (readOnly || !canSaveCurrent) return;
 
     setSaveSuccess(false);
     setValidationError("");
@@ -161,7 +170,7 @@ const Services = () => {
   };
 
   const handleToggleStatus = async () => {
-    if (!selectedServiceId || readOnly) return;
+    if (!selectedServiceId || readOnly || !canStatus) return;
     const newStatus = currentStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE";
 
     try {
@@ -219,7 +228,7 @@ const Services = () => {
             </div>
 
             {/* Action Buttons */}
-            {!readOnly && (
+            {!readOnly && canSaveCurrent && (
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -280,7 +289,7 @@ const Services = () => {
 
             {!readOnly && (
               <div className="flex items-center gap-2">
-                {selectedServiceId && (
+                {selectedServiceId && canStatus && (
                   <button
                     type="button"
                     onClick={handleToggleStatus}
@@ -300,14 +309,16 @@ const Services = () => {
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleCreateNew}
-                  className="bg-[#F2EBE5] hover:bg-[#E8E2DE] text-[#3E3734] px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1"
-                >
-                  <FiPlus className="text-xs" />
-                  <span>New Service</span>
-                </button>
+                {canCreate && (
+                  <button
+                    type="button"
+                    onClick={handleCreateNew}
+                    className="bg-[#F2EBE5] hover:bg-[#E8E2DE] text-[#3E3734] px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <FiPlus className="text-xs" />
+                    <span>New Service</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -352,13 +363,13 @@ const Services = () => {
                 setServiceTypeName={setServiceTypeName}
                 defaultPrice={defaultPrice}
                 setDefaultPrice={setDefaultPrice}
-                readOnly={readOnly}
+                readOnly={!isFormEditable}
               />
 
               <PhotoChecklist
                 checklistItems={checklistItems}
                 setChecklistItems={setChecklistItems}
-                readOnly={readOnly}
+                readOnly={!isFormEditable}
               />
             </div>
 

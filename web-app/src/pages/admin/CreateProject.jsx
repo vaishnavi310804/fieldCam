@@ -9,6 +9,7 @@ import ProjectDescription from "../../components/admin/projects/ProjectDescripti
 import { getServices } from "../../services/serviceService";
 import { getVendors } from "../../services/vendorService";
 import { createProject } from "../../services/projectService";
+import { usePermissions } from "../../hooks/usePermissions";
 import { FiCheckCircle, FiAlertCircle, FiSend } from "react-icons/fi";
 
 const initialChecklist = [
@@ -24,6 +25,7 @@ const initialChecklist = [
 
 const CreateProject = () => {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
 
   // Dynamic Options State from API
@@ -83,6 +85,7 @@ const CreateProject = () => {
 
   const handleInitializeProject = async (e) => {
     e.preventDefault();
+    if (!can("PROJECTS", "CREATE")) return;
     setSaveSuccess(false);
     setValidationError("");
 
@@ -277,15 +280,17 @@ const CreateProject = () => {
                   Cancel
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleInitializeProject}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-1.5 bg-[#8A817C] hover:bg-[#6E6763] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
-                >
-                  <FiSend className="text-xs" />
-                  <span>{isSubmitting ? "Creating..." : "Initialize Project"}</span>
-                </button>
+                {can("PROJECTS", "CREATE") && (
+                  <button
+                    type="button"
+                    onClick={handleInitializeProject}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-1.5 bg-[#8A817C] hover:bg-[#6E6763] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    <FiSend className="text-xs" />
+                    <span>{isSubmitting ? "Creating..." : "Initialize Project"}</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -11,6 +11,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiShield,
+  FiUsers,
 } from "react-icons/fi";
 
 const SuperAdminSidebar = ({
@@ -49,6 +50,18 @@ const SuperAdminSidebar = ({
       label: "Subscriptions",
       icon: FiFileText,
       path: "/super-admin/subscriptions",
+    },
+    {
+      id: "roles",
+      label: "Roles & Access",
+      icon: FiShield,
+      path: "/super-admin/roles",
+    },
+    {
+      id: "admin-users",
+      label: "Admin Users",
+      icon: FiUsers,
+      path: "/super-admin/admin-users",
     },
     // {
     //   id: "settings",

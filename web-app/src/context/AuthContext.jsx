@@ -1,6 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { getProfile } from "../services/authService";
 import { setOnUnauthorizedCallback } from "../services/api";
+import {
+  normalizePermissions,
+  checkIsSuperAdmin,
+  checkPermission,
+  checkModuleAccess,
+} from "../utils/permissions";
 
 const AuthContext = createContext();
 
@@ -164,6 +170,29 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = !loading && !!token && !!user;
 
+  // Derive permissions directly from the authenticated user
+  const permissionMap = useMemo(() => {
+    return normalizePermissions(user?.permissions);
+  }, [user?.permissions]);
+
+  const isSuperAdmin = useMemo(() => {
+    return checkIsSuperAdmin(user);
+  }, [user]);
+
+  const can = useCallback(
+    (module, action) => {
+      return checkPermission(user, permissionMap, module, action);
+    },
+    [user, permissionMap]
+  );
+
+  const canAccessModule = useCallback(
+    (module) => {
+      return checkModuleAccess(user, permissionMap, module);
+    },
+    [user, permissionMap]
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -174,6 +203,12 @@ export function AuthProvider({ children }) {
         logout,
         updateUser,
         isAuthenticated,
+        // RBAC Permissions helpers & metadata
+        can,
+        canAccessModule,
+        isSuperAdmin,
+        roleDetails: user?.roleDetails || null,
+        permissions: Array.isArray(user?.permissions) ? user.permissions : [],
       }}
     >
       {children}

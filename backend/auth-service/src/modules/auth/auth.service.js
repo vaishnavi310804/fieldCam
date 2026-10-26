@@ -1,4 +1,6 @@
 import User from "./auth.model.js";
+import Role from "../roles/role.model.js";
+import { resolveEffectivePermissions } from "../roles/rolePermissionResolver.js";
 import {
   generateOTP,
   hashOTP,
@@ -17,7 +19,14 @@ import {
 import { checkUserAndCompanyStatus } from "./companyStatus.js";
 
 export const createUserByAdmin = async (userData, currentUser = null) => {
-  let { name, email, phone, role, companyId } = userData;
+  let { name, email, phone, role, companyId, roleId } = userData;
+
+  // Never permit creating SUPER_ADMIN accounts through user creation
+  if (role === "SUPER_ADMIN") {
+    const err = new Error("Creating SUPER_ADMIN accounts through user creation is not permitted.");
+    err.statusCode = 403;
+    throw err;
+  }
 
   if (currentUser) {
     if (currentUser.role === "STAFF") {
@@ -40,6 +49,42 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
       if (!currentUser.companyId) {
         await User.findByIdAndUpdate(currentUser._id, { companyId: vendorCompanyId });
       }
+    }
+
+    if (currentUser.role === "ADMIN") {
+      if (role === "ADMIN" || role === "SUPER_ADMIN") {
+        const err = new Error("Only Super Admins can create Admin users.");
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+  } else {
+    if (role === "ADMIN" || role === "SUPER_ADMIN") {
+      const err = new Error("Only Super Admins can create Admin users.");
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
+  // Admin users must be created by Super Admin and require a valid roleId
+  if (role === "ADMIN") {
+    if (!currentUser || currentUser.role !== "SUPER_ADMIN") {
+      const err = new Error("Only Super Admins can create Admin users.");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (!roleId) {
+      const err = new Error("Role ID is required for Admin user creation.");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const roleDoc = await Role.findById(roleId);
+    if (!roleDoc) {
+      const err = new Error("The specified role does not exist.");
+      err.statusCode = 400;
+      throw err;
     }
   }
 
@@ -75,6 +120,7 @@ export const createUserByAdmin = async (userData, currentUser = null) => {
       email: email.toLowerCase(),
       phone: phone ? phone.trim().replace(/[\s-]/g, "") : undefined,
       role: role || "STAFF",
+      roleId: role === "ADMIN" ? roleId : null,
       companyId: companyId || null,
       isVerified: false,
       status: "INACTIVE",
@@ -260,8 +306,17 @@ export const webLoginUser = async (credentials) => {
     userObject.lastLogin = user.lastLogin || null;
   }
 
+  // Resolve role details and effective permissions for web sessions
+  const effective = await resolveEffectivePermissions(userObject);
+  const enrichedUser = {
+    ...userObject,
+    roleDetails: effective.roleDetails,
+    permissions: effective.permissions,
+    isSuperAdmin: effective.isSuperAdmin,
+  };
+
   return {
-    user: userObject,
+    user: enrichedUser,
     accessToken,
   };
 };
@@ -426,7 +481,39 @@ export const getProfile = async (userId) => {
   if (!user) {
     throw new Error("User not found");
   }
-  return user.toObject();
+  const userObject = user.toObject();
+
+  // Resolve role details and effective permissions
+  const effective = await resolveEffectivePermissions(userObject);
+
+  return {
+    ...userObject,
+    roleDetails: effective.roleDetails,
+    permissions: effective.permissions,
+    isSuperAdmin: effective.isSuperAdmin,
+  };
+};
+
+export const getEffectivePermissions = async (userId) => {
+  const user = await User.findById(userId).select(
+    "name email role roleId status companyId isVerified"
+  );
+  if (!user) {
+    const err = new Error("User not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const effective = await resolveEffectivePermissions(user);
+
+  return {
+    userId: user._id.toString(),
+    role: user.role,
+    roleId: user.roleId ? user.roleId.toString() : null,
+    roleDetails: effective.roleDetails,
+    permissions: effective.permissions,
+    isSuperAdmin: effective.isSuperAdmin,
+  };
 };
 
 export const updateProfile = async (userId, updateData) => {

@@ -15,10 +15,12 @@ import {
   downloadInvoicePdf,
 } from "../../services/invoiceService";
 import { useAuth } from "../../context/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { FiAlertCircle, FiCheckCircle, FiRefreshCw, FiX } from "react-icons/fi";
 
 const Invoices = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -89,6 +91,7 @@ const Invoices = () => {
   }, []);
 
   const handleReviewInvoice = async (id, payload) => {
+    if (!can("INVOICES", "REVIEW")) return;
     try {
       const res = await reviewInvoice(id, payload);
       setActionFeedback({
@@ -104,6 +107,7 @@ const Invoices = () => {
   };
 
   const handleSendInvoice = async (id, payload) => {
+    if (!can("INVOICES", "SEND")) return;
     try {
       const res = await sendInvoice(id, payload);
       setActionFeedback({
@@ -119,6 +123,7 @@ const Invoices = () => {
   };
 
   const handleRecordPayment = async (id, payload) => {
+    if (!can("INVOICES", "RECORD_PAYMENT")) return;
     try {
       const res = await recordInvoicePayment(id, payload);
       setActionFeedback({
