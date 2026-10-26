@@ -956,18 +956,17 @@ export const sendInvoice = async (id, options = {}, user = {}) => {
 
   // Only transition upon confirmed success
   invoice.status = "Sent";
-  invoice.sentAt = sendResult.sentAt || new Date();
-  invoice.sentTo = sendResult.recipient;
-  invoice.reviewHistory.push({
-    action: "SENT",
-    actorId: user.id || null,
-    actorRole: user.role || "ADMIN",
-    actorEmail: user.email || null,
-    reason: `Delivered to ${sendResult.recipient}${
-      sendResult.messageId ? ` (Message ID: ${sendResult.messageId})` : ""
-    }`,
-    timestamp: new Date(),
-  });
+invoice.sentAt = sendResult.sentAt || new Date();
+invoice.sentTo = sendResult.recipient;
+
+invoice.reviewHistory.push({
+  action: "SENT",
+  actorId: user.id || null,
+  actorRole: user.role || "ADMIN",
+  actorEmail: user.email || null,
+  reason: `Delivered to ${sendResult.recipient}`,
+  timestamp: new Date(),
+});
 
   await invoice.save();
 

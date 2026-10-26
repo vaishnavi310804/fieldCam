@@ -213,6 +213,20 @@ const ReviewSubmission = () => {
   const totalChecklist = project?.checklistItems?.length || 0;
   const completedChecklist = project?.checklistItems?.filter((c) => c.checked)?.length || 0;
 
+  // Collect finite numeric confidence values and compute arithmetic mean
+  const validPhotoConfidences = Array.isArray(project?.photos)
+    ? project.photos
+        .map((p) => p?.aiValidation?.subject?.confidence)
+        .filter((c) => typeof c === "number" && Number.isFinite(c))
+    : [];
+  const verifiedPhotosCount = validPhotoConfidences.length;
+  const avgConfidenceScore =
+    verifiedPhotosCount > 0
+      ? Math.round(
+          (validPhotoConfidences.reduce((sum, val) => sum + val, 0) / verifiedPhotosCount) * 100
+        )
+      : null;
+
   // Authoritative project status & review state
   const rawStatus = (project?.status || "").trim();
   const normalizedStatus = rawStatus.toUpperCase().replace(/\s+/g, "");
@@ -442,6 +456,15 @@ const ReviewSubmission = () => {
                               <span>Category: {photo.category || "General"}</span>
                               <span>{formatDateTime(photo.uploadedAt)}</span>
                             </div>
+                            {typeof photo?.aiValidation?.subject?.confidence === "number" &&
+                              Number.isFinite(photo.aiValidation.subject.confidence) && (
+                                <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-[#F2EBE5] text-[10px]">
+                                  <span className="font-semibold text-[#817B77]">AI Match Confidence</span>
+                                  <span className="font-bold text-[#2E7D32]">
+                                    {Math.round(photo.aiValidation.subject.confidence * 100)}%
+                                  </span>
+                                </div>
+                              )}
                           </div>
                         </div>
                       ))}
@@ -899,12 +922,23 @@ const ReviewSubmission = () => {
                     <span className="block text-[10px] font-bold text-[#A39A94] uppercase">
                       CONFIDENCE SCORE
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-bold text-[#817B77]">N/A</span>
-                      <span className="text-[11px] text-[#817B77] italic">
-                        (AI confidence model not computed for this service)
-                      </span>
-                    </div>
+                    {avgConfidenceScore !== null ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-[#2E7D32]">
+                          {avgConfidenceScore}%
+                        </span>
+                        <span className="text-[11px] text-[#817B77]">
+                          Based on {verifiedPhotosCount} verified photo(s)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-bold text-[#817B77]">N/A</span>
+                        <span className="text-[11px] text-[#817B77] italic">
+                          No photo verification scores available
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quality Checks (Derived Real Data) */}
