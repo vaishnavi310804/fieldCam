@@ -364,7 +364,7 @@ const Services = () => {
 
             {/* Right Column (Workflow Rules & Configuration Summary) */}
             <div className="lg:col-span-1 space-y-5">
-              <WorkflowRules
+              {/* <WorkflowRules
                 serviceLogic={serviceLogic}
                 setServiceLogic={setServiceLogic}
                 requireSignature={requireSignature}
@@ -376,7 +376,7 @@ const Services = () => {
                 processingMode={processingMode}
                 setProcessingMode={setProcessingMode}
                 readOnly={readOnly}
-              />
+              /> */}
 
               <ConfigurationSummary
                 serviceCategory={serviceCategory}

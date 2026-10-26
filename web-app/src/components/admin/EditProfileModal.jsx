@@ -20,10 +20,7 @@ import {
 
 const TIMEZONE_OPTIONS = [
   "",
-  "UTC",
   "America/New_York (EST/EDT)",
-  "America/Chicago (CST/CDT)",
-  "America/Denver (MST/MDT)",
   "America/Los_Angeles (PST/PDT)",
   "Europe/London (GMT/BST)",
   "Asia/Kolkata (IST)",
@@ -211,34 +208,21 @@ const EditProfileModal = ({ isOpen, onClose }) => {
           )}
 
           {/* Profile Photo Section (Display Only - Upload disabled for Step 3) */}
-          <div className="bg-white border border-[#E8E2DE] rounded-2xl p-4 flex items-center gap-4 shadow-2xs">
+          <div className="bg-white border border-[#E8E2DE] rounded-2xl p-2 flex items-center gap-4 shadow-2xs">
             {user?.profileImage ? (
               <img
                 src={user.profileImage}
                 alt={displayName}
-                className="w-16 h-16 rounded-2xl object-cover border border-[#E8E2DE] shadow-xs"
+                className="w-12 h-12 rounded-2xl object-cover border border-[#E8E2DE] shadow-xs"
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-[#C8B5AC] text-white flex items-center justify-center font-bold text-xl border border-white shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-[#C8B5AC] text-white flex items-center justify-center font-bold text-xl border border-white shadow-xs">
                 {displayName.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div>
-              <h3 className="text-xs font-bold text-[#3E3734]">Profile Photo</h3>
-              <p className="text-[11px] text-[#817B77] mt-0.5">
-                JPG or PNG. Max 5MB.
-              </p>
-
-              {/* Upload control disabled per Step 3 requirement */}
-              <button
-                type="button"
-                disabled
-                title="Photo upload functionality will be available in a separate update"
-                className="text-xs font-semibold text-[#C8B5AC] cursor-not-allowed opacity-60 mt-1 inline-block"
-              >
-                Upload new photo
-              </button>
+              <h3 className="text-xs font-bold text-[#3E3734]">Profile Details</h3>
             </div>
           </div>
 
@@ -366,7 +350,7 @@ const EditProfileModal = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Timezone */}
-                <div>
+                {/* <div>
                   <label className="block text-[11px] font-bold text-[#6E6763] uppercase tracking-wider mb-1">
                     Timezone
                   </label>
@@ -385,7 +369,7 @@ const EditProfileModal = ({ isOpen, onClose }) => {
                       ))}
                     </select>
                   </div>
-                </div>
+                </div> */}
               </div>
             )}
 

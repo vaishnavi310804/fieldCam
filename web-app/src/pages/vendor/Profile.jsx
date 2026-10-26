@@ -29,6 +29,10 @@ import {
   FiGrid,
   FiLifeBuoy,
   FiFolder,
+  FiLinkedin,
+  FiTwitter,
+  FiGithub,
+  FiExternalLink,
 } from "react-icons/fi";
 
 const getEventConfig = (action, entityType) => {
@@ -148,6 +152,12 @@ const VendorProfile = () => {
     user?.email?.split("@")[0] ||
     "Vendor Partner";
 
+  const personalName =
+    user?.name ||
+    vendorProfile?.userId?.name ||
+    vendorProfile?.contactName ||
+    "Vendor Partner";
+
   const initials = displayName
     .split(" ")
     .map((n) => n[0])
@@ -183,6 +193,37 @@ const VendorProfile = () => {
 
   // Vendor Services / Specialties
   const specialties = Array.isArray(vendorProfile?.services) ? vendorProfile.services : [];
+
+  // Social Links derived from user / profile data
+  const userSocial =
+    user?.socialLinks ||
+    vendorProfile?.userId?.socialLinks ||
+    vendorProfile?.socialLinks ||
+    {};
+
+  const formatExternalUrl = (url) => {
+    if (!url) return "";
+    const trimmed = String(url).trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
+  const socialLinkConfigs = [
+    { key: "linkedin", label: "LinkedIn", icon: FiLinkedin, url: userSocial.linkedin },
+    { key: "github", label: "GitHub", icon: FiGithub, url: userSocial.github },
+    { key: "twitter", label: "Twitter / X", icon: FiTwitter, url: userSocial.twitter },
+    { key: "website", label: "Website", icon: FiGlobe, url: userSocial.website },
+  ];
+
+  const availableSocialLinks = socialLinkConfigs
+    .filter((item) => item.url && typeof item.url === "string" && item.url.trim().length > 0)
+    .map((item) => ({
+      ...item,
+      url: item.url.trim(),
+      formattedUrl: formatExternalUrl(item.url),
+    }));
+
+  const hasSocialLinks = availableSocialLinks.length > 0;
 
   return (
     <div className="min-h-screen bg-[#221F1E] text-[#3E3734] font-sans antialiased">
@@ -259,20 +300,20 @@ const VendorProfile = () => {
                       )}
                     </div>
                     <p className="text-xs font-semibold text-[#817B77] mt-0.5">
-                      Vendor Partner
+                      {personalName}
                     </p>
                   </div>
                 </div>
 
                 {/* Edit Profile Button */}
-                {/* <button
+                <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-[#EAE4DF] hover:bg-[#E0D7D0] text-[#3E3734] rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs border border-[#E8E2DE]"
                 >
                   <FiEdit2 size={13} />
                   <span>Edit Profile</span>
-                </button> */}
+                </button>
               </div>
 
               {/* Contact Information Bar */}
@@ -437,6 +478,39 @@ const VendorProfile = () => {
                   </p>
                 )}
               </div>
+
+              {/* Social Links Card */}
+              {hasSocialLinks && (
+                <div className="bg-white rounded-2xl border border-[#E8E2DE] p-6 shadow-xs">
+                  <h3 className="text-base font-bold text-[#3E3734] mb-4">Social Links</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {availableSocialLinks.map((item) => (
+                      <a
+                        key={item.key}
+                        href={item.formattedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl flex items-center justify-between gap-3 text-xs hover:border-[#C8B5AC] hover:bg-[#F5EFEA] transition-colors group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-white border border-[#E8E2DE] flex items-center justify-center shrink-0 text-[#6E6763] group-hover:text-[#3E3734]">
+                            <item.icon className="text-sm" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-[#3E3734] block truncate">
+                              {item.label}
+                            </span>
+                            <span className="text-[11px] text-[#817B77] block truncate">
+                              {item.url}
+                            </span>
+                          </div>
+                        </div>
+                        <FiExternalLink className="text-[#A39A94] group-hover:text-[#3E3734] shrink-0 text-xs" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN (1 Column on large screens) */}

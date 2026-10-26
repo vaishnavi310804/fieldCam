@@ -184,8 +184,8 @@ const VendorDashboardScreen = () => {
       >
         {/* HEADER AREA */}
         <VendorDashboardHeader
-          name={vendor?.contactName || vendor?.companyName || user?.name || "Vendor Partner"}
-          initials={vendor?.initials || user?.name?.slice(0, 2).toUpperCase() || "VD"}
+          name={user?.name || vendor?.contactName || vendor?.companyName || "Vendor Partner"}
+          initials={user?.name?.slice(0, 2).toUpperCase() || vendor?.initials || "VD"}
           notificationCount={unreadCount}
           onNotificationPress={() => router.push("/notifications" as any)}
           onAvatarPress={() => router.push("/profile" as any)}

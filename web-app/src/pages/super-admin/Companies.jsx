@@ -222,7 +222,7 @@ const SuperAdminCompanies = () => {
               value="N/A"
               change={null}
               isAvailable={false}
-              reason="Subscription payment gateway not integrated"
+              reason="Subscription payment not integrated"
               icon={FiDollarSign}
               iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
             />

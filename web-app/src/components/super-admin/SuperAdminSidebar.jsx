@@ -50,12 +50,12 @@ const SuperAdminSidebar = ({
       icon: FiFileText,
       path: "/super-admin/subscriptions",
     },
-    {
-      id: "settings",
-      label: "System Settings",
-      icon: FiSettings,
-      path: "/super-admin/settings",
-    },
+    // {
+    //   id: "settings",
+    //   label: "System Settings",
+    //   icon: FiSettings,
+    //   path: "/super-admin/settings",
+    // },
   ];
 
   const adminName = user?.name || user?.email?.split("@")[0] || "Super Admin";
@@ -173,18 +173,6 @@ const SuperAdminSidebar = ({
               <FiLogOut className="text-sm" />
             </button>
           )}
-        </div>
-
-        {/* Collapse Toggle */}
-        <div className="flex justify-center pt-1">
-          <button
-            type="button"
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 text-[#817B77] hover:text-[#2D3436] hover:bg-[#F5F2F0] rounded-lg transition-colors cursor-pointer"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <FiChevronRight /> : <FiChevronLeft />}
-          </button>
         </div>
       </div>
     </aside>

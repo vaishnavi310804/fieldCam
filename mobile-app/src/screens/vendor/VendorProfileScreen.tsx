@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,10 +15,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { getVendorProfile, VendorProfileData } from "../../api/dashboard.api";
+import { useAuth } from "@/src/context/AuthContext";
 import Colors from "@/src/constants/color";
 
 export const VendorProfileScreen = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(insets.top, 20) + 16;
 
@@ -61,13 +64,19 @@ export const VendorProfileScreen = () => {
   };
 
   const handleEditProfile = () => {
-    Alert.alert("Edit Profile", "Profile editing feature is coming soon.");
+    router.push({
+      pathname: "/edit-profile",
+      params: {
+        location: profile?.location || "",
+      },
+    } as any);
   };
 
   const contactName =
-    profile?.contactName || profile?.userId?.name || profile?.companyName || "Vendor Partner";
+    user?.name || profile?.userId?.name || profile?.contactName || profile?.companyName || "Vendor Partner";
   const companyName = profile?.companyName || "";
   const initials =
+    user?.name?.slice(0, 2).toUpperCase() ||
     profile?.initials ||
     contactName
       .split(" ")
@@ -89,6 +98,54 @@ export const VendorProfileScreen = () => {
     completed: 0,
     waitingForApproval: 0,
   };
+
+  const handleOpenSocialLink = async (rawUrl: string) => {
+    if (!rawUrl) return;
+    const trimmed = rawUrl.trim();
+    const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Unable to open link", url);
+      }
+    } catch {
+      Alert.alert("Unable to open link", url);
+    }
+  };
+
+  const userSocial =
+    user?.socialLinks ||
+    (profile?.userId as any)?.socialLinks ||
+    (profile as any)?.socialLinks ||
+    {};
+
+  const socialLinkConfigs: {
+    key: string;
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    url?: string | null;
+  }[] = [
+    { key: "linkedin", label: "LinkedIn", icon: "logo-linkedin", url: userSocial.linkedin },
+    { key: "github", label: "GitHub", icon: "logo-github", url: userSocial.github },
+    { key: "twitter", label: "Twitter / X", icon: "logo-twitter", url: userSocial.twitter },
+    { key: "website", label: "Website", icon: "globe-outline", url: userSocial.website },
+  ];
+
+  const availableSocialLinks = socialLinkConfigs
+    .filter((item) => item.url && typeof item.url === "string" && item.url.trim().length > 0)
+    .map((item) => {
+      const trimmed = item.url!.trim();
+      const formattedUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+      return {
+        ...item,
+        url: trimmed,
+        formattedUrl,
+      };
+    });
+
+  const hasSocialLinks = availableSocialLinks.length > 0;
 
   return (
     <View style={styles.screen}>
@@ -275,8 +332,37 @@ export const VendorProfileScreen = () => {
             </View>
           </View>
 
+                    {/* SOCIAL LINKS SECTION */}
+          {hasSocialLinks ? (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Social Links</Text>
+              <View style={styles.socialLinksList}>
+                {availableSocialLinks.map((item) => (
+                  <Pressable
+                    key={item.key}
+                    style={styles.socialCard}
+                    onPress={() => handleOpenSocialLink(item.formattedUrl)}
+                    accessibilityRole="link"
+                    accessibilityLabel={item.label}
+                  >
+                    <View style={styles.socialIconWrapper}>
+                      <Ionicons name={item.icon} size={20} color="#6B5E54" />
+                    </View>
+                    <View style={styles.socialContent}>
+                      <Text style={styles.socialLabel}>{item.label}</Text>
+                      <Text style={styles.socialValue} numberOfLines={1}>
+                        {item.url}
+                      </Text>
+                    </View>
+                    <Ionicons name="open-outline" size={16} color="#A39A94" />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           {/* EDIT PROFILE BUTTON */}
-          {/* <View style={styles.actionSection}>
+          <View style={styles.actionSection}>
             <Pressable
               style={styles.editProfileButton}
               onPress={handleEditProfile}
@@ -285,7 +371,7 @@ export const VendorProfileScreen = () => {
             >
               <Text style={styles.editProfileButtonText}>Edit Profile</Text>
             </Pressable>
-          </View> */}
+          </View>
         </ScrollView>
       )}
     </View>
@@ -547,5 +633,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  socialLinksList: {
+    gap: 10,
+  },
+  socialCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#EAE4DF",
+  },
+  socialIconWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#F5F0EB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  socialContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  socialLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8C7E72",
+    marginBottom: 2,
+  },
+  socialValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1F2937",
   },
 });

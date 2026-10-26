@@ -22,6 +22,29 @@ export interface FieldCamUser {
   timezone?: string | null;
   title?: string | null;
   department?: string | null;
+  bio?: string | null;
+  socialLinks?: {
+    linkedin?: string | null;
+    twitter?: string | null;
+    github?: string | null;
+    website?: string | null;
+  } | null;
+}
+
+export interface UpdateProfilePayload {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  location?: string;
+  title?: string;
+  department?: string;
+  bio?: string;
+  socialLinks?: {
+    linkedin?: string;
+    twitter?: string;
+    github?: string;
+    website?: string;
+  };
 }
 
 export interface LoginResponseData {
@@ -232,6 +255,21 @@ export const completeProfile = async (
   return response.data.data;
 };
 
+export const updateProfile = async (
+  payload: UpdateProfilePayload
+): Promise<FieldCamUser> => {
+  const response = await authClient.put<ApiResponse<FieldCamUser>>(
+    "/auth/me",
+    payload
+  );
+
+  if (!response.data.success || !response.data.data) {
+    throw new Error(response.data.message || "Failed to update profile");
+  }
+
+  return response.data.data;
+};
+
 export const authApi = {
   login,
   getCurrentUser,
@@ -242,6 +280,7 @@ export const authApi = {
   resetPassword,
   verifyRegistrationOTP,
   completeProfile,
+  updateProfile,
 };
 
 export default authApi;

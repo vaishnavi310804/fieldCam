@@ -232,7 +232,7 @@ const Profile = () => {
 
           {/* 2. Navigation Tabs */}
           <div className="flex items-center gap-2 border-b border-[#E8E2DE] pb-1">
-            {["Personal Info", "Security", "Notifications"].map((tab) => (
+            {["Personal Info"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -329,7 +329,7 @@ const Profile = () => {
 
                   <div className="space-y-3.5 pt-1 text-xs">
                     {/* Timezone */}
-                    <div className="flex items-start gap-3">
+                    {/* <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-xl bg-[#FAF7F5] border border-[#E8E2DE] flex items-center justify-center shrink-0 mt-0.5">
                         <FiGlobe className="text-sm text-[#817B77]" />
                       </div>
@@ -341,7 +341,7 @@ const Profile = () => {
                           {user?.timezone || "—"}
                         </p>
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Member Since */}
                     <div className="flex items-start gap-3">
@@ -405,7 +405,7 @@ const Profile = () => {
             </div>
           )}
 
-          {activeTab === "Security" && (
+          {/* {activeTab === "Security" && (
             <div className="bg-white border border-[#E8E2DE] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] space-y-4 max-w-2xl">
               <h3 className="text-sm font-bold text-[#3E3734] flex items-center gap-2">
                 <FiLock className="text-sm text-[#817B77]" />
@@ -441,7 +441,7 @@ const Profile = () => {
                 Personalized notification preferences are currently managed system-wide.
               </div>
             </div>
-          )}
+          )} */}
         </main>
       </div>
 

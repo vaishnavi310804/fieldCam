@@ -196,7 +196,7 @@ const Support = () => {
                 setSearchTerm={setSearchTerm}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
-                onOpenCreateModal={() => setCreateModalOpen(true)}
+                // onOpenCreateModal={() => setCreateModalOpen(true)}
                 isReadOnly={isReadOnly}
               />
 

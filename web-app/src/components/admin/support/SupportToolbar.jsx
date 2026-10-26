@@ -45,7 +45,7 @@ const SupportToolbar = ({
           })}
         </div>
 
-        {!isReadOnly && (
+        {/* {!isReadOnly && (
           <button
             type="button"
             onClick={onOpenCreateModal}
@@ -54,7 +54,7 @@ const SupportToolbar = ({
             <FiPlus className="text-sm" />
             <span>New Ticket</span>
           </button>
-        )}
+        )} */}
       </div>
     </div>
   );

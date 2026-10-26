@@ -207,14 +207,6 @@ const AdminLiveChatSection = () => {
               {conversations.length}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => fetchConversationsList(true)}
-            className="p-1.5 text-[#817B77] hover:text-[#3E3734] rounded-lg transition-colors cursor-pointer"
-            title="Refresh List"
-          >
-            <FiRefreshCw size={13} className={loadingList ? "animate-spin" : ""} />
-          </button>
         </div>
 
         {/* Conversations Scrollable List */}
