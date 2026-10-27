@@ -25,14 +25,14 @@ const Services = () => {
   const canEdit = can("SERVICES", "EDIT");
   const canCreate = can("SERVICES", "CREATE");
   const canStatus = can("SERVICES", "STATUS");
-  const canSaveCurrent = selectedServiceId ? canEdit : canCreate;
-  const isFormEditable = !readOnly && canSaveCurrent;
 
   const [collapsed, setCollapsed] = useState(false);
 
   // Services API State
   const [servicesList, setServicesList] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const canSaveCurrent = selectedServiceId ? canEdit : canCreate;
+  const isFormEditable = !readOnly && canSaveCurrent;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);

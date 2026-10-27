@@ -18,6 +18,16 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       required: [true, "Actor role is required"],
     },
+    actorName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    status: {
+      type: String,
+      trim: true,
+      default: "SUCCESS",
+    },
     action: {
       type: String,
       required: [true, "Action event type is required"],
@@ -36,6 +46,7 @@ const auditLogSchema = new mongoose.Schema(
         "VENDOR_CREATED",
         "VENDOR_UPDATED",
         "VENDOR_STATUS_CHANGED",
+        "VENDOR_REGISTRATION_SUBMITTED",
         "SERVICE_CREATED",
         "SERVICE_UPDATED",
         "SERVICE_STATUS_CHANGED",
@@ -55,6 +66,12 @@ const auditLogSchema = new mongoose.Schema(
         "SUBSCRIPTION_PLAN_PUBLISHED",
         "SUBSCRIPTION_STATUS_CHANGED",
         "SUBSCRIPTION_ASSIGNED",
+        "ADMIN_USER_CREATED",
+        "ADMIN_ROLE_REASSIGNED",
+        "ADMIN_STATUS_CHANGED",
+        "ROLE_CREATED",
+        "ROLE_UPDATED",
+        "ROLE_DELETED",
       ],
       index: true,
     },
@@ -70,6 +87,10 @@ const auditLogSchema = new mongoose.Schema(
         "SubscriptionPlan",
         "Subscription",
         "CompanySubscription",
+        "AdminUser",
+        "Role",
+        "User",
+        "VendorRegistration",
       ],
     },
     entityId: {
@@ -92,6 +113,10 @@ const auditLogSchema = new mongoose.Schema(
 );
 
 auditLogSchema.index({ actorId: 1, createdAt: -1 });
+auditLogSchema.index({ createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ actorRole: 1, createdAt: -1 });
+auditLogSchema.index({ entityType: 1, createdAt: -1 });
 
 const AuditLog =
   mongoose.models.AuditLog || mongoose.model("AuditLog", auditLogSchema);

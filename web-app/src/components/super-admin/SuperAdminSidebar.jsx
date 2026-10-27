@@ -12,6 +12,7 @@ import {
   FiChevronRight,
   FiShield,
   FiUsers,
+  FiActivity,
 } from "react-icons/fi";
 
 const SuperAdminSidebar = ({
@@ -62,6 +63,12 @@ const SuperAdminSidebar = ({
       label: "Admin Users",
       icon: FiUsers,
       path: "/super-admin/admin-users",
+    },
+    {
+      id: "audit-logs",
+      label: "Audit Logs",
+      icon: FiActivity,
+      path: "/super-admin/audit-logs",
     },
     // {
     //   id: "settings",

@@ -61,7 +61,7 @@ const GeneralInformation = ({
             value={serviceTypeName}
             onChange={(e) => setServiceTypeName(e.target.value)}
             disabled={readOnly}
-            placeholder="e.g. Annual HVAC Inspection"
+            placeholder="e.g. Annual Inspection"
             className="w-full bg-[#FAF7F5] border border-[#E8E2DE] rounded-xl px-3.5 py-2.5 text-xs text-[#3E3734] placeholder-[#A39A94] outline-none focus:border-[#C8B5AC] transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
           />
         </div>

@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   noticeText: {
     flex: 1,
     fontSize: 11,
-    color: Colors.white,
+    color: Colors.primary,
     lineHeight: 15,
   },
 

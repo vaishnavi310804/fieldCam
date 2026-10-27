@@ -11,6 +11,7 @@ import SuperAdminCompanies from "../pages/super-admin/Companies";
 import SuperAdminSubscriptions from "../pages/super-admin/Subscriptions";
 import SuperAdminRoles from "../pages/super-admin/Roles";
 import SuperAdminAdminUsers from "../pages/super-admin/AdminUsers";
+import SuperAdminAuditLogs from "../pages/super-admin/AuditLogs";
 import SuperAdminSettings from "../pages/super-admin/SystemSettings";
 import EditEmailTemplate from "../pages/super-admin/EditEmailTemplate";
 import AdminDashboard from "../pages/admin/Dashboard";
@@ -60,6 +61,7 @@ const AppRoutes = () => {
         <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
         <Route path="/super-admin/roles" element={<SuperAdminRoles />} />
         <Route path="/super-admin/admin-users" element={<SuperAdminAdminUsers />} />
+        <Route path="/super-admin/audit-logs" element={<SuperAdminAuditLogs />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
         <Route path="/super-admin/settings/email-templates/:templateId" element={<EditEmailTemplate />} />
       </Route>

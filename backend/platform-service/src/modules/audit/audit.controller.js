@@ -1,4 +1,36 @@
-import { getMyAuditLogs, getEntityAuditLogs } from "./audit.service.js";
+import {
+  getMyAuditLogs,
+  getEntityAuditLogs,
+  getAllAuditLogs,
+  getAuditLogById,
+} from "./audit.service.js";
+
+export const getAllAuditLogsController = async (req, res, next) => {
+  try {
+    const result = await getAllAuditLogs(req.query);
+    return res.status(200).json({
+      success: true,
+      count: result.logs.length,
+      data: result.logs,
+      pagination: result.pagination,
+      stats: result.stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAuditLogByIdController = async (req, res, next) => {
+  try {
+    const log = await getAuditLogById(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: log,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getMyAuditLogsController = async (req, res) => {
   try {
